@@ -36,13 +36,14 @@ EXCEPTION WHEN others THEN
   RAISE NOTICE 'Backfill ignore (non bloquant): %', SQLERRM;
 END $$;
 
--- 3) Default type_client for any remaining empty/null values (statut-aware:
---    fournisseurs -> 'pro', clients/prospects -> 'particulier').
+-- 3) Default type_client only for rows where it is still empty/unknown.
+--    IMPORTANT: type (pro/particulier) is INDEPENDENT of statut (client/fournisseur):
+--    a fournisseur can be pro OR particulier, and a client can be pro OR particulier.
+--    So we do NOT force any type based on statut; we only fill a neutral default
+--    ('particulier') for legacy rows whose type was never captured. Any explicit
+--    choice already restored from the notes envelope in step 2 is preserved.
 UPDATE public.clients
-SET type_client = CASE
-  WHEN lower(btrim(coalesce(statut, ''))) = 'fournisseur' THEN 'pro'
-  ELSE 'particulier'
-END
+SET type_client = 'particulier'
 WHERE type_client IS NULL OR btrim(type_client) = '';
 
 -- 4) (Optional) quick verification — run separately after the migration:
