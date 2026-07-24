@@ -38,6 +38,54 @@ function pickFirstNonEmpty(...values) {
   return '';
 }
 
+// The `clients` table (which also stores fournisseurs) may lack dedicated columns for
+// adresse / type_client / commentaire_activite / entreprise on minimal prod schemas.
+// To avoid silently losing those fields, persist them inside the always-present `notes`
+// column as a JSON envelope, while also writing canonical columns for forward-compat.
+// Envelope format is shared with clients.js: {"_cx":1, notes, adresse, typeClient, ...}.
+const EXT_MARKER = '_cx';
+
+function encodeExtNotes(ext, defaultType) {
+  const notes = str(ext.notes);
+  const adresse = str(ext.adresse);
+  const typeClient = str(ext.typeClient);
+  const commentaireActivite = str(ext.commentaireActivite);
+  const entreprise = str(ext.entreprise);
+  const hasExtended = adresse || commentaireActivite || entreprise
+    || (typeClient && typeClient !== defaultType);
+  if (!hasExtended) return notes;
+  return JSON.stringify({
+    [EXT_MARKER]: 1,
+    notes,
+    adresse,
+    typeClient: typeClient || defaultType,
+    commentaireActivite,
+    entreprise,
+  });
+}
+
+function decodeExtNotes(raw) {
+  const empty = { notes: '', adresse: '', typeClient: '', commentaireActivite: '', entreprise: '' };
+  const value = raw == null ? '' : String(raw);
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{')) return { ...empty, notes: value };
+  try {
+    const obj = JSON.parse(trimmed);
+    if (obj && obj[EXT_MARKER] === 1) {
+      return {
+        notes: str(obj.notes),
+        adresse: str(obj.adresse),
+        typeClient: str(obj.typeClient),
+        commentaireActivite: str(obj.commentaireActivite),
+        entreprise: str(obj.entreprise),
+      };
+    }
+  } catch (_) {
+    // Not an envelope, treat as plain notes.
+  }
+  return { ...empty, notes: value };
+}
+
 async function insertFournisseurCompat(client, payload) {
   let candidate = { ...payload };
   let lastMissingColumn = '';
@@ -100,7 +148,8 @@ async function updateFournisseurCompat(client, companyId, fournisseurId, updates
 }
 
 function mapFournisseurRow(row) {
-  const adresse = pickFirstNonEmpty(row.adresse, row.address);
+  const decoded = decodeExtNotes(row.notes);
+  const adresse = pickFirstNonEmpty(row.adresse, row.address, decoded.adresse);
   const commentaireActivite = pickFirstNonEmpty(
     row.commentaire_activite,
     row.commentaireActivite,
@@ -109,8 +158,15 @@ function mapFournisseurRow(row) {
     row.activite,
     row.activity_comment,
     row.company_activity,
+    decoded.commentaireActivite,
   );
-  const entreprise = pickFirstNonEmpty(row.entreprise, row.company, row.societe, row.societe_nom);
+  const entreprise = pickFirstNonEmpty(
+    row.entreprise,
+    row.company,
+    row.societe,
+    row.societe_nom,
+    decoded.entreprise,
+  );
 
   return {
     _id: row.id,
@@ -119,10 +175,10 @@ function mapFournisseurRow(row) {
     telephone: row.telephone || '',
     email: row.email || '',
     adresse,
-    typeClient: row.type_client || row.typeClient || 'pro',
+    typeClient: row.type_client || row.typeClient || decoded.typeClient || 'pro',
     commentaireActivite,
     entreprise,
-    notes: row.notes || '',
+    notes: decoded.notes,
     statut: 'fournisseur',
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
@@ -288,29 +344,21 @@ router.post('/', requirePermission('clients.create'), async (req, res) => {
       email: str(req.body.email),
       type_client: typeClient,
       statut: 'fournisseur',
-      notes: str(req.body.notes),
+      // Extended fields live in a notes envelope so they survive minimal prod schemas.
+      notes: encodeExtNotes({
+        notes: str(req.body.notes),
+        adresse,
+        typeClient,
+        commentaireActivite,
+        entreprise,
+      }, 'pro'),
       dernier_contact_le: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    if (adresse) {
-      payload.adresse = adresse;
-      payload.address = adresse;
-    }
-    if (commentaireActivite) {
-      payload.commentaire_activite = commentaireActivite;
-      payload.commentaireActivite = commentaireActivite;
-      payload.activite_entreprise = commentaireActivite;
-      payload.activiteEntreprise = commentaireActivite;
-      payload.activite = commentaireActivite;
-      payload.activity_comment = commentaireActivite;
-      payload.company_activity = commentaireActivite;
-    }
-    if (entreprise) {
-      payload.entreprise = entreprise;
-      payload.company = entreprise;
-      payload.societe = entreprise;
-    }
+    if (adresse) payload.adresse = adresse;
+    if (commentaireActivite) payload.commentaire_activite = commentaireActivite;
+    if (entreprise) payload.entreprise = entreprise;
 
     const { data, error } = await insertFournisseurCompat(client, payload);
     if (error) return res.status(400).json({ message: error.message });
@@ -371,8 +419,6 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
     if (req.body.entreprise !== undefined || req.body.company !== undefined || req.body.societe !== undefined) {
       const entreprise = pickFirstNonEmpty(req.body.entreprise, req.body.company, req.body.societe);
       updates.entreprise = entreprise;
-      updates.company = entreprise;
-      updates.societe = entreprise;
     }
     if (req.body.notes !== undefined) updates.notes = req.body.notes;
 
@@ -380,7 +426,6 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
       const adresse = pickFirstNonEmpty(req.body.adresse, req.body.address);
       if (!adresse) return res.status(400).json({ message: 'Adresse obligatoire' });
       updates.adresse = adresse;
-      updates.address = adresse;
     }
 
     if (
@@ -403,12 +448,6 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
       );
       if (!commentaire) return res.status(400).json({ message: 'Commentaire activité obligatoire' });
       updates.commentaire_activite = commentaire;
-      updates.commentaireActivite = commentaire;
-      updates.activite_entreprise = commentaire;
-      updates.activiteEntreprise = commentaire;
-      updates.activite = commentaire;
-      updates.activity_comment = commentaire;
-      updates.company_activity = commentaire;
     }
 
     if (req.body.typeClient !== undefined) {
@@ -416,6 +455,18 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
     }
 
     const before = mapFournisseurRow(existing.data);
+
+    // Always re-encode the full extended state into the notes envelope (merging any
+    // fields not provided in this partial update) so nothing is lost on minimal schemas.
+    updates.notes = encodeExtNotes({
+      notes: req.body.notes !== undefined ? str(req.body.notes) : before.notes,
+      adresse: updates.adresse !== undefined ? updates.adresse : before.adresse,
+      typeClient: updates.type_client !== undefined ? updates.type_client : before.typeClient,
+      commentaireActivite: updates.commentaire_activite !== undefined
+        ? updates.commentaire_activite
+        : before.commentaireActivite,
+      entreprise: updates.entreprise !== undefined ? updates.entreprise : before.entreprise,
+    }, 'pro');
 
     const saved = await updateFournisseurCompat(client, companyId, req.params.id, updates);
 
@@ -488,3 +539,6 @@ router.delete('/:id', requireAnyPermission(['clients.delete', 'clients.update'])
 });
 
 module.exports = router;
+module.exports.mapFournisseurRow = mapFournisseurRow;
+module.exports.encodeExtNotes = encodeExtNotes;
+module.exports.decodeExtNotes = decodeExtNotes;

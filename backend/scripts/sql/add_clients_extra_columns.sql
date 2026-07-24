@@ -55,9 +55,13 @@ SET
 FROM env
 WHERE c.id = env.id;
 
--- 4) Default type_client for any remaining empty/null values.
+-- 4) Default type_client for any remaining empty/null values (statut-aware:
+--    fournisseurs default to 'pro', clients/prospects to 'particulier').
 UPDATE public.clients
-SET type_client = 'particulier'
+SET type_client = CASE
+  WHEN lower(btrim(coalesce(statut, ''))) = 'fournisseur' THEN 'pro'
+  ELSE 'particulier'
+END
 WHERE type_client IS NULL OR btrim(type_client) = '';
 
 COMMIT;
