@@ -38,6 +38,55 @@ function pickFirstNonEmpty(...values) {
   return '';
 }
 
+// The production `clients` table only guarantees base columns (nom, prenom, telephone,
+// email, statut, notes...). Dedicated columns for adresse / type_client /
+// commentaire_activite / entreprise may not exist. To avoid silently losing those
+// fields (compat fallback strips unknown columns), we persist them inside the always-
+// present `notes` column as a small JSON envelope, while ALSO writing the canonical
+// columns for forward-compat once a migration adds them.
+const CLIENT_EXT_MARKER = '_cx';
+
+function encodeClientNotes(ext) {
+  const notes = str(ext.notes);
+  const adresse = str(ext.adresse);
+  const typeClient = str(ext.typeClient);
+  const commentaireActivite = str(ext.commentaireActivite);
+  const entreprise = str(ext.entreprise);
+  const hasExtended = adresse || commentaireActivite || entreprise
+    || (typeClient && typeClient !== 'particulier');
+  if (!hasExtended) return notes;
+  return JSON.stringify({
+    [CLIENT_EXT_MARKER]: 1,
+    notes,
+    adresse,
+    typeClient: typeClient || 'particulier',
+    commentaireActivite,
+    entreprise,
+  });
+}
+
+function decodeClientNotes(raw) {
+  const empty = { notes: '', adresse: '', typeClient: '', commentaireActivite: '', entreprise: '' };
+  const value = raw == null ? '' : String(raw);
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{')) return { ...empty, notes: value };
+  try {
+    const obj = JSON.parse(trimmed);
+    if (obj && obj[CLIENT_EXT_MARKER] === 1) {
+      return {
+        notes: str(obj.notes),
+        adresse: str(obj.adresse),
+        typeClient: str(obj.typeClient),
+        commentaireActivite: str(obj.commentaireActivite),
+        entreprise: str(obj.entreprise),
+      };
+    }
+  } catch (_) {
+    // Not an envelope, treat as plain notes.
+  }
+  return { ...empty, notes: value };
+}
+
 async function insertClientCompat(client, payload) {
   let candidate = { ...payload };
   let lastMissingColumn = '';
@@ -98,6 +147,7 @@ async function updateClientCompat(client, companyId, clientId, updates) {
 }
 
 function mapClientRow(row) {
+  const decoded = decodeClientNotes(row.notes);
   const adresse = pickFirstNonEmpty(
     row.adresse,
     row.address,
@@ -110,6 +160,7 @@ function mapClientRow(row) {
     row.adresse_postale,
     row.adressePostale,
     row.localisation,
+    decoded.adresse,
   );
   const commentaireActivite = pickFirstNonEmpty(
     row.commentaire_activite,
@@ -130,9 +181,15 @@ function mapClientRow(row) {
     row.categorieActivite,
     row.activity_comment,
     row.company_activity,
-    row.notes,
+    decoded.commentaireActivite,
   );
-  const entreprise = pickFirstNonEmpty(row.entreprise, row.company, row.societe, row.societe_nom);
+  const entreprise = pickFirstNonEmpty(
+    row.entreprise,
+    row.company,
+    row.societe,
+    row.societe_nom,
+    decoded.entreprise,
+  );
 
   return {
     _id: row.id,
@@ -141,10 +198,10 @@ function mapClientRow(row) {
     telephone: row.telephone || '',
     email: row.email || '',
     adresse,
-    typeClient: row.type_client || row.typeClient || 'particulier',
+    typeClient: row.type_client || row.typeClient || decoded.typeClient || 'particulier',
     commentaireActivite,
     entreprise,
-    notes: row.notes || '',
+    notes: decoded.notes,
     statut: row.statut || row.status || 'prospect',
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
@@ -313,29 +370,21 @@ router.post('/', requirePermission('clients.create'), async (req, res) => {
       email: str(req.body.email),
       type_client: typeClient,
       statut: str(req.body.statut) || 'prospect',
-      notes: str(req.body.notes),
+      // Extended fields live in a notes envelope so they survive minimal prod schemas.
+      notes: encodeClientNotes({
+        notes: str(req.body.notes),
+        adresse,
+        typeClient,
+        commentaireActivite,
+        entreprise,
+      }),
       dernier_contact_le: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    if (adresse) {
-      payload.adresse = adresse;
-      payload.address = adresse;
-    }
-    if (commentaireActivite) {
-      payload.commentaire_activite = commentaireActivite;
-      payload.commentaireActivite = commentaireActivite;
-      payload.activite_entreprise = commentaireActivite;
-      payload.activiteEntreprise = commentaireActivite;
-      payload.activite = commentaireActivite;
-      payload.activity_comment = commentaireActivite;
-      payload.company_activity = commentaireActivite;
-    }
-    if (entreprise) {
-      payload.entreprise = entreprise;
-      payload.company = entreprise;
-      payload.societe = entreprise;
-    }
+    if (adresse) payload.adresse = adresse;
+    if (commentaireActivite) payload.commentaire_activite = commentaireActivite;
+    if (entreprise) payload.entreprise = entreprise;
 
     const { data, error } = await insertClientCompat(client, payload);
     if (error) return res.status(400).json({ message: error.message });
@@ -394,8 +443,6 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
     if (req.body.entreprise !== undefined || req.body.company !== undefined || req.body.societe !== undefined) {
       const entreprise = pickFirstNonEmpty(req.body.entreprise, req.body.company, req.body.societe);
       updates.entreprise = entreprise;
-      updates.company = entreprise;
-      updates.societe = entreprise;
     }
     if (req.body.notes !== undefined) updates.notes = req.body.notes;
     if (req.body.statut !== undefined) updates.statut = req.body.statut;
@@ -404,7 +451,6 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
       const adresse = pickFirstNonEmpty(req.body.adresse, req.body.address);
       if (!adresse) return res.status(400).json({ message: 'Adresse obligatoire' });
       updates.adresse = adresse;
-      updates.address = adresse;
     }
 
     if (
@@ -427,12 +473,6 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
       );
       if (!commentaire) return res.status(400).json({ message: 'Commentaire activité obligatoire' });
       updates.commentaire_activite = commentaire;
-      updates.commentaireActivite = commentaire;
-      updates.activite_entreprise = commentaire;
-      updates.activiteEntreprise = commentaire;
-      updates.activite = commentaire;
-      updates.activity_comment = commentaire;
-      updates.company_activity = commentaire;
     }
 
     if (req.body.typeClient !== undefined) {
@@ -440,6 +480,18 @@ router.put('/:id', requirePermission('clients.update'), async (req, res) => {
     }
 
     const before = mapClientRow(existing.data);
+
+    // Always re-encode the full extended state into the notes envelope (merging any
+    // fields not provided in this partial update) so nothing is lost on minimal schemas.
+    updates.notes = encodeClientNotes({
+      notes: req.body.notes !== undefined ? str(req.body.notes) : before.notes,
+      adresse: updates.adresse !== undefined ? updates.adresse : before.adresse,
+      typeClient: updates.type_client !== undefined ? updates.type_client : before.typeClient,
+      commentaireActivite: updates.commentaire_activite !== undefined
+        ? updates.commentaire_activite
+        : before.commentaireActivite,
+      entreprise: updates.entreprise !== undefined ? updates.entreprise : before.entreprise,
+    });
 
     const saved = await updateClientCompat(client, companyId, req.params.id, updates);
 
@@ -513,3 +565,6 @@ router.delete('/:id', requirePermission('clients.delete'), async (req, res) => {
 });
 
 module.exports = router;
+module.exports.mapClientRow = mapClientRow;
+module.exports.encodeClientNotes = encodeClientNotes;
+module.exports.decodeClientNotes = decodeClientNotes;
