@@ -480,39 +480,23 @@ router.post('/:id/mouvement', requirePermission('stocks.mouvement.create'), asyn
     const delta = nextQty - prevQty;
     const unitPrice = Number(saved.data.prix_unitaire ?? saved.data.prixUnitaire ?? stockRes.data.prix_unitaire ?? 0);
     const movementAmount = Math.abs(delta) * unitPrice;
-    if (movementAmount > 0 && type !== 'ajustement' ? true : delta !== 0) {
+
+    // Only a stock ENTRY (purchase / approvisionnement) generates a treasury movement,
+    // recorded as a treasury OUT (money spent to buy the stock). Stock exits
+    // (consumption) and inventory adjustments do NOT create any treasury movement.
+    if (type === 'entree' && delta > 0 && movementAmount > 0) {
       const userName = getUserName(req);
-      let nature = 'sortie';
-      let source = 'stock_entree';
-      let label = 'Approvisionnement stock';
-
-      if (type === 'sortie') {
-        nature = 'entree';
-        source = 'stock_sortie';
-        label = 'Sortie stock valorisee';
-      } else if (type === 'ajustement') {
-        if (delta < 0) {
-          nature = 'entree';
-          source = 'stock_ajustement_sortie';
-          label = 'Ajustement stock (diminution)';
-        } else {
-          nature = 'sortie';
-          source = 'stock_ajustement_entree';
-          label = 'Ajustement stock (augmentation)';
-        }
-      }
-
       const financeSave = await insertTresorerieCompat(client, {
         company_id: companyId,
-        nature,
-        source,
+        nature: 'sortie',
+        source: 'stock_entree',
         qui_nom: userName.quiNom,
         qui_prenom: userName.quiPrenom,
         categorie: saved.data.categorie || stockRes.data.categorie || 'stock',
         type: saved.data.nom || stockRes.data.nom || 'Stock',
         montant: movementAmount,
         date_mouvement: new Date().toISOString(),
-        commentaire: `${label} - ${saved.data.nom || stockRes.data.nom || 'Stock'}`,
+        commentaire: `Approvisionnement stock - ${saved.data.nom || stockRes.data.nom || 'Stock'}`,
         reference_type: 'Stock',
         reference_id: req.params.id,
         externe_cle: `stock:${req.params.id}:mouvement:${mouvement._id}`,

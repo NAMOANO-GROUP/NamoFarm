@@ -111,10 +111,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       children: [
                         const Text('Solde de caisse', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(height: 8),
-                        Text('Solde actuel: ${formatCompactFcfa(soldeCaisse)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                        Text('Solde actuel: ${formatAmountFcfa(soldeCaisse)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
-                        Text('Total entrees: ${formatCompactFcfa(totalEntrees)}'),
-                        Text('Total sorties: ${formatCompactFcfa(totalSorties)}'),
+                        Text('Total entrees: ${formatAmountFcfa(totalEntrees)}'),
+                        Text('Total sorties: ${formatAmountFcfa(totalSorties)}'),
                       ],
                     ),
                   ),
@@ -326,7 +326,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 final name = (rows[i]['bandeNom'] ?? '').toString();
                 final marge = ((rows[i]['marge'] ?? 0) as num);
                 return BarTooltipItem(
-                  '$name\nMarge: ${formatCompactFcfa(marge)}',
+                  '$name\nMarge: ${formatAmountFcfa(marge)}',
                   const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 );
               },
@@ -392,7 +392,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       final month = (parsed[i]['mois'] ?? '').toString();
                       final value = ((parsed[i]['soldeProjete'] ?? 0) as num);
                       return LineTooltipItem(
-                        '$month\n${formatCompactFcfa(value)}',
+                        '$month\n${formatAmountFcfa(value)}',
                         const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                       );
                     }).toList();
