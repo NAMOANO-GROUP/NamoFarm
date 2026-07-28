@@ -544,4 +544,34 @@ class ApiService {
   static Future<void> supprimerCouvee(String id) async {
     _ensureSuccess(await _delete('/reproduction/$id'));
   }
+
+  // SANTE — protocoles vaccinaux + registre traitements
+  static Future<List<dynamic>> getProtocoles() async =>
+      List<dynamic>.from(_ensureSuccess(await _get('/sante/protocoles')) ?? []);
+
+  static Future<Map<String, dynamic>> creerProtocole(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/sante/protocoles', body: data), accepted: const [201]));
+
+  static Future<Map<String, dynamic>> mettreAJourProtocole(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/sante/protocoles/$id', body: data)));
+
+  static Future<void> supprimerProtocole(String id) async {
+    _ensureSuccess(await _delete('/sante/protocoles/$id'));
+  }
+
+  static Future<List<dynamic>> getTraitements({String? bandeId}) async {
+    final params = <String, String>{};
+    if (bandeId != null && bandeId.isNotEmpty) params['bandeId'] = bandeId;
+    return List<dynamic>.from(_ensureSuccess(await _get('/sante/traitements', query: params)) ?? []);
+  }
+
+  static Future<Map<String, dynamic>> creerTraitement(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/sante/traitements', body: data), accepted: const [201]));
+
+  static Future<Map<String, dynamic>> mettreAJourTraitement(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/sante/traitements/$id', body: data)));
+
+  static Future<void> supprimerTraitement(String id) async {
+    _ensureSuccess(await _delete('/sante/traitements/$id'));
+  }
 }

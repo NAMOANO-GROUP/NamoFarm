@@ -4,6 +4,7 @@ import 'global_dashboard_screen.dart';
 import 'bandes_screen.dart';
 import 'stocks_screen.dart';
 import 'reproduction_screen.dart';
+import 'sante_screen.dart';
 import 'alertes_screen.dart';
 import 'crm_screen.dart';
 import 'finance_screen.dart';
@@ -55,6 +56,12 @@ class _HomeScreenState extends State<HomeScreen> {
       page: ReproductionScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Reproduction'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Couvoir'),
+      permission: 'bandes:view',
+    ),
+    _ModuleItem(
+      page: SanteScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
       permission: 'bandes:view',
     ),
     _ModuleItem(
