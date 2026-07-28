@@ -447,6 +447,26 @@ class ApiService {
   static String getGlobalPdfReportUrl() => '$baseUrl/reports/global.pdf';
   static String getGlobalExcelReportUrl() => '$baseUrl/reports/global.xlsx';
 
+  // Authenticated binary download (report needs the Bearer token, so a plain URL
+  // open would fail). Returns the raw bytes.
+  static Future<List<int>> downloadBytes(String path) async {
+    final response = await _get(path);
+    if (response.statusCode == 200) return response.bodyBytes;
+    dynamic data;
+    try {
+      data = _decode(response);
+    } catch (_) {
+      data = null;
+    }
+    if (data is Map && data['message'] != null) {
+      throw Exception(data['message'].toString());
+    }
+    throw Exception('Erreur API (${response.statusCode})');
+  }
+
+  static Future<List<int>> downloadGlobalPdfReport() => downloadBytes('/reports/global.pdf');
+  static Future<List<int>> downloadGlobalExcelReport() => downloadBytes('/reports/global.xlsx');
+
   // AUTH
   static Future<Map<String, dynamic>> inscription(Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/auth/inscription', body: data), accepted: const [201]));

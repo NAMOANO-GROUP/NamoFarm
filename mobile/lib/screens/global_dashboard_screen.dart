@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../services/api_service.dart';
+import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
 
 class GlobalDashboardScreen extends StatefulWidget {
@@ -289,16 +290,48 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   }
 
   void _showExportLinks() {
-    showDialog(
+    final today = DateTime.now().toIso8601String().split('T').first;
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Rapports exportables'),
-        content: SelectableText(
-          'PDF: ${ApiService.getGlobalPdfReportUrl()}\n\nExcel: ${ApiService.getGlobalExcelReportUrl()}',
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Partager le rapport global', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              title: const Text('Rapport PDF'),
+              subtitle: const Text('Synthèse finances, élevage, reproduction, santé'),
+              onTap: () {
+                Navigator.pop(ctx);
+                shareReportFile(
+                  context,
+                  loader: ApiService.downloadGlobalPdfReport,
+                  filename: 'rapport-global-$today.pdf',
+                  mimeType: 'application/pdf',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.table_chart, color: Colors.green),
+              title: const Text('Rapport Excel'),
+              subtitle: const Text('Synthèse + performance par bande'),
+              onTap: () {
+                Navigator.pop(ctx);
+                shareReportFile(
+                  context,
+                  loader: ApiService.downloadGlobalExcelReport,
+                  filename: 'rapport-global-$today.xlsx',
+                  mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                );
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
-        ],
       ),
     );
   }

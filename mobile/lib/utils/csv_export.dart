@@ -57,3 +57,29 @@ Future<void> exportCsvToClipboard(
     );
   }
 }
+
+/// Downloads binary report bytes and opens the native share sheet with the file.
+Future<void> shareReportFile(
+  BuildContext context, {
+  required Future<List<int>> Function() loader,
+  required String filename,
+  String mimeType = 'application/octet-stream',
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final bytes = await loader();
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}${Platform.pathSeparator}$filename');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: mimeType)],
+      subject: filename,
+      text: 'Rapport AgriBusiness',
+    );
+    if (!context.mounted) return;
+    messenger.showSnackBar(SnackBar(content: Text('Rapport "$filename" pret a partager.')));
+  } catch (e) {
+    if (!context.mounted) return;
+    messenger.showSnackBar(SnackBar(content: Text('Partage du rapport impossible: $e')));
+  }
+}
