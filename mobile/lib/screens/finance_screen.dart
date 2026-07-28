@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
+import 'comptabilite_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -257,6 +258,18 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   label: const Text('Actualiser'),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ComptabiliteScreen()),
+                ),
+                icon: const Icon(Icons.calculate_outlined),
+                label: const Text('Comptabilité par bande'),
+              ),
             ),
             const SizedBox(height: 8),
             if (!rapprochementLoaded && !budgetLoaded && !projectionLoaded && marges.isEmpty)

@@ -376,6 +376,127 @@ router.get('/marge-par-bande', requirePermission('finance.read'), async (req, re
   }
 });
 
+// Detailed cost accounting per bande: real cost price per bird/kg, net margin,
+// break-even price. Builds on the marge logic but adds the intrinsic bande costs
+// (chick cost) and production-based unit costs.
+router.get('/analytique', requirePermission('finance.read'), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+
+    const bandesRes = await api
+      .from('bandes')
+      .select('id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_poussin,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture')
+      .eq('company_id', companyId)
+      .order('date_ouverture', { ascending: false })
+      .limit(300);
+    if (bandesRes.error) return res.status(500).json({ message: bandesRes.error.message });
+
+    const commandesRes = await fetchCommandesCompat(api, companyId);
+    if (commandesRes.error) return res.status(500).json({ message: commandesRes.error.message });
+
+    const mouvRes = await api
+      .from('tresorerie_mouvements')
+      .select('nature,montant,reference_type,reference_id')
+      .eq('company_id', companyId)
+      .limit(12000);
+    if (mouvRes.error) return res.status(500).json({ message: mouvRes.error.message });
+
+    const revenusByBande = new Map();
+    for (const row of commandesRes.data || []) {
+      if (!isPaidCommande(row)) continue;
+      const bandeId = row.bande_id || row.bandeId;
+      if (!bandeId) continue;
+      const amount = Number(row.montant_total || row.montantTotal || row.amount_total || 0);
+      revenusByBande.set(String(bandeId), (revenusByBande.get(String(bandeId)) || 0) + amount);
+    }
+
+    const depensesByBande = new Map();
+    for (const row of mouvRes.data || []) {
+      if (row.nature !== 'sortie') continue;
+      const refType = (row.reference_type || '').toString().toLowerCase();
+      const refId = row.reference_id ? String(row.reference_id) : null;
+      if (refType === 'bande' && refId) {
+        depensesByBande.set(refId, (depensesByBande.get(refId) || 0) + Number(row.montant || 0));
+      }
+    }
+
+    function lastPoidsKg(bande) {
+      const suivi = Array.isArray(bande.suivi_journalier) ? bande.suivi_journalier : [];
+      let maxG = 0;
+      for (const s of suivi) {
+        const g = Number(s.poidsMotenG || s.poidsMoyenG || 0);
+        if (g > maxG) maxG = g;
+      }
+      if (maxG <= 0) maxG = Number(bande.objectif_poids_g || 0);
+      return maxG > 0 ? maxG / 1000 : 0;
+    }
+
+    const bandes = (bandesRes.data || []).map((b) => {
+      const id = String(b.id);
+      const nombreInitial = Number(b.nombre_initial || 0);
+      const nombreActuel = Number(b.nombre_actuel || 0);
+      const mortalite = Number(b.mortalite_totale || 0);
+      const coutPoussin = Number(b.cout_poussin || 0);
+      const coutPoussins = coutPoussin * nombreInitial;
+      const depenses = Number(depensesByBande.get(id) || 0);
+      const coutTotal = coutPoussins + depenses;
+      const revenus = Number(revenusByBande.get(id) || 0);
+      const margeNette = revenus - coutTotal;
+      const tauxMarge = revenus > 0 ? (margeNette / revenus) * 100 : 0;
+      const effectifVivant = nombreActuel > 0 ? nombreActuel : nombreInitial;
+      const tauxMortalite = nombreInitial > 0 ? (mortalite / nombreInitial) * 100 : 0;
+      const coutParSujet = effectifVivant > 0 ? coutTotal / effectifVivant : 0;
+      const poidsMoyenKg = lastPoidsKg(b);
+      const productionKg = effectifVivant * poidsMoyenKg;
+      const coutParKg = productionKg > 0 ? coutTotal / productionKg : null;
+
+      return {
+        bandeId: b.id,
+        bandeNom: b.nom || '',
+        statut: b.statut || 'ouverte',
+        typeVolaille: b.type_volaille || '',
+        dateOuverture: b.date_ouverture || null,
+        dateFermeture: b.date_fermeture || null,
+        nombreInitial,
+        effectifVivant,
+        mortalite,
+        tauxMortalite: Number(tauxMortalite.toFixed(2)),
+        coutPoussins: Number(coutPoussins.toFixed(2)),
+        depenses: Number(depenses.toFixed(2)),
+        coutTotal: Number(coutTotal.toFixed(2)),
+        revenus: Number(revenus.toFixed(2)),
+        margeNette: Number(margeNette.toFixed(2)),
+        tauxMarge: Number(tauxMarge.toFixed(2)),
+        // "Break-even price": price you must sell each bird at to cover all costs.
+        coutParSujet: Number(coutParSujet.toFixed(2)),
+        seuilRentabiliteParSujet: Number(coutParSujet.toFixed(2)),
+        poidsMoyenKg: Number(poidsMoyenKg.toFixed(3)),
+        coutParKg: coutParKg == null ? null : Number(coutParKg.toFixed(2)),
+      };
+    });
+
+    const totaux = bandes.reduce(
+      (acc, b) => {
+        acc.coutTotal += b.coutTotal;
+        acc.revenus += b.revenus;
+        acc.margeNette += b.margeNette;
+        return acc;
+      },
+      { coutTotal: 0, revenus: 0, margeNette: 0 },
+    );
+    totaux.coutTotal = Number(totaux.coutTotal.toFixed(2));
+    totaux.revenus = Number(totaux.revenus.toFixed(2));
+    totaux.margeNette = Number(totaux.margeNette.toFixed(2));
+    totaux.tauxMarge = totaux.revenus > 0 ? Number(((totaux.margeNette / totaux.revenus) * 100).toFixed(2)) : 0;
+
+    return res.json({ bandes, totaux });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+
 router.get('/projection-tresorerie', requirePermission('finance.read'), async (req, res) => {
   try {
     const api = getAdminClient();
