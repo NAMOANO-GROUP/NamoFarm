@@ -616,4 +616,8 @@ class ApiService {
   static Future<void> supprimerMouvementCheptel(String id, String mvtId) async {
     _ensureSuccess(await _delete('/cheptel/$id/mouvements/$mvtId'));
   }
+
+  // PREVISIONS — analytique (croissance, abattage, mortalité, tendance cheptel)
+  static Future<Map<String, dynamic>> getPrevisions() async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _get('/previsions')));
 }

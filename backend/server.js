@@ -28,6 +28,7 @@ const roadmapRoutes = require('./routes/roadmap');
 const couveesRoutes = require('./routes/couvees');
 const santeRoutes = require('./routes/sante');
 const cheptelRoutes = require('./routes/cheptel');
+const previsionsRoutes = require('./routes/previsions');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/bandes', authenticate, bandesRoutes);
@@ -44,6 +45,7 @@ app.use('/api/roadmap', authenticate, roadmapRoutes);
 app.use('/api/reproduction', authenticate, couveesRoutes);
 app.use('/api/sante', authenticate, santeRoutes);
 app.use('/api/cheptel', authenticate, cheptelRoutes);
+app.use('/api/previsions', authenticate, previsionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/config', configRoutes);
 
