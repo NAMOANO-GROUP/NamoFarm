@@ -72,9 +72,9 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showForm(),
+        onPressed: () => _showSetupForm(),
         icon: const Icon(Icons.add),
-        label: const Text('Nouvelle couvée'),
+        label: const Text('Mise en incubation'),
       ),
     );
   }
@@ -238,7 +238,26 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
+                    if (c.statut == 'en_incubation')
+                      FilledButton.icon(
+                        onPressed: () => _showMirageForm(c),
+                        icon: const Icon(Icons.visibility_outlined, size: 18),
+                        label: const Text('Mirage'),
+                      ),
+                    if (c.statut == 'en_incubation' || c.statut == 'mire')
+                      FilledButton.icon(
+                        onPressed: () => _showEclosionForm(c),
+                        icon: const Icon(Icons.egg_alt, size: 18),
+                        label: const Text('Éclosion'),
+                      ),
+                    if (c.statut == 'eclos')
+                      OutlinedButton.icon(
+                        onPressed: () => _cloturer(c),
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('Clôturer'),
+                      ),
                     OutlinedButton.icon(
                       onPressed: () => _showForm(couvee: c),
                       icon: const Icon(Icons.edit, size: 18),
@@ -281,6 +300,198 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(done ? 'Couvée supprimée' : 'Suppression impossible')),
+    );
+  }
+
+  Future<void> _cloturer(Couvee c) async {
+    if (c.id == null) return;
+    final ok = await context.read<ReproductionProvider>().mettreAJour(c.id!, {'statut': 'termine'});
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Couvée clôturée' : 'Erreur clôture')),
+    );
+  }
+
+  Future<void> _saveStage(
+    String? id,
+    Map<String, dynamic> payload,
+    NavigatorState navigator,
+    ScaffoldMessengerState messenger, {
+    required bool isCreate,
+  }) async {
+    final provider = context.read<ReproductionProvider>();
+    final ok = isCreate ? await provider.creer(payload) : await provider.mettreAJour(id!, payload);
+    if (!mounted) return;
+    navigator.pop();
+    final err = provider.lastError;
+    messenger.showSnackBar(
+      SnackBar(content: Text(ok ? 'Enregistré' : 'Erreur${err != null && err.isNotEmpty ? ': $err' : ''}')),
+    );
+  }
+
+  Widget _dateTile(String label, DateTime? date, VoidCallback onTap) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      subtitle: Text(_fmtDate(date)),
+      trailing: const Icon(Icons.calendar_today),
+      onTap: onTap,
+    );
+  }
+
+  // Étape 1 — Mise en incubation (création)
+  void _showSetupForm() {
+    final codeCtrl = TextEditingController();
+    final raceCtrl = TextEditingController();
+    final incubesCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    DateTime date = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => AlertDialog(
+          title: const Text('Mise en incubation'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Code / référence *')),
+                TextField(controller: raceCtrl, decoration: const InputDecoration(labelText: 'Race')),
+                TextField(controller: incubesCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Œufs mis en incubation *')),
+                _dateTile('Date de mise en incubation', date, () async {
+                  final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                  if (picked != null) setDialog(() => date = picked);
+                }),
+                TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(dialogContext);
+                final incubes = int.tryParse(incubesCtrl.text.trim());
+                if (codeCtrl.text.trim().isEmpty || incubes == null) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Code et nombre d\'œufs obligatoires')));
+                  return;
+                }
+                _saveStage(null, {
+                  'code': codeCtrl.text.trim(),
+                  'race': raceCtrl.text.trim(),
+                  'dateMiseIncubation': date.toIso8601String(),
+                  'nbOeufsIncubes': incubes,
+                  'notes': notesCtrl.text.trim(),
+                }, navigator, messenger, isCreate: true);
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Étape 2 — Mirage (œufs fertiles)
+  void _showMirageForm(Couvee c) {
+    final fertilesCtrl = TextEditingController(text: c.nbOeufsFertiles?.toString() ?? '');
+    DateTime date = c.dateMirage ?? DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => AlertDialog(
+          title: Text('Mirage — ${c.code}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Œufs mis en incubation: ${c.nbOeufsIncubes}'),
+                const SizedBox(height: 8),
+                TextField(controller: fertilesCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Œufs fertiles *')),
+                _dateTile('Date du mirage', date, () async {
+                  final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                  if (picked != null) setDialog(() => date = picked);
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(dialogContext);
+                final fertiles = int.tryParse(fertilesCtrl.text.trim());
+                if (fertiles == null) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Nombre d\'œufs fertiles obligatoire')));
+                  return;
+                }
+                _saveStage(c.id, {
+                  'nbOeufsFertiles': fertiles,
+                  'dateMirage': date.toIso8601String(),
+                  'statut': 'mire',
+                }, navigator, messenger, isCreate: false);
+              },
+              child: const Text('Enregistrer le mirage'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Étape 3 — Éclosion (sortie)
+  void _showEclosionForm(Couvee c) {
+    final eclosCtrl = TextEditingController(text: c.nbEclos?.toString() ?? '');
+    final viablesCtrl = TextEditingController(text: c.nbPoussinsViables?.toString() ?? '');
+    DateTime date = c.dateEclosion ?? DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => AlertDialog(
+          title: Text('Éclosion — ${c.code}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Œufs fertiles: ${c.nbOeufsFertiles ?? '-'} / incubés: ${c.nbOeufsIncubes}'),
+                const SizedBox(height: 8),
+                TextField(controller: eclosCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Poussins éclos *')),
+                TextField(controller: viablesCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Poussins viables')),
+                _dateTile('Date d\'éclosion', date, () async {
+                  final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                  if (picked != null) setDialog(() => date = picked);
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(dialogContext);
+                final eclos = int.tryParse(eclosCtrl.text.trim());
+                if (eclos == null) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Nombre de poussins éclos obligatoire')));
+                  return;
+                }
+                _saveStage(c.id, {
+                  'nbEclos': eclos,
+                  'nbPoussinsViables': int.tryParse(viablesCtrl.text.trim()),
+                  'dateEclosion': date.toIso8601String(),
+                  'statut': 'eclos',
+                }, navigator, messenger, isCreate: false);
+              },
+              child: const Text('Enregistrer l\'éclosion'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
