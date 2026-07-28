@@ -62,7 +62,7 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                 padding: const EdgeInsets.all(12),
                 children: [
                   if (_error != null && _error!.isNotEmpty)
-                    Card(color: Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(_error!, style: const TextStyle(color: Colors.red)))),
+                    Card(color: Theme.of(context).brightness == Brightness.dark ? Colors.red.shade900.withValues(alpha: 0.30) : Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(_error!, style: const TextStyle(color: Colors.red)))),
                   _buildTotauxCard(),
                   const SizedBox(height: 8),
                   if (_bandes.isEmpty)

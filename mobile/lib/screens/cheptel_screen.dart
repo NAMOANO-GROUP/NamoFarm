@@ -74,7 +74,7 @@ class _CheptelScreenState extends State<CheptelScreen> {
               padding: const EdgeInsets.all(12),
               children: [
                 if (provider.lastError != null && provider.lastError!.isNotEmpty)
-                  Card(color: Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)))),
+                  Card(color: Theme.of(context).brightness == Brightness.dark ? Colors.red.shade900.withValues(alpha: 0.30) : Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)))),
                 if (provider.cheptels.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 40),
@@ -260,9 +260,11 @@ class _CheptelScreenState extends State<CheptelScreen> {
       dense: true,
       contentPadding: EdgeInsets.zero,
       leading: Icon(_mvtIcon(m.type), color: _mvtColor(m.type)),
-      title: Text('${_mvtLabels[m.type] ?? m.type} : $sign${m.quantite}'),
+      title: Text('${_mvtLabels[m.type] ?? m.type} : $sign${m.quantite}', maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         '${_fmtDate(m.date)}${m.montant > 0 ? ' • ${formatAmountFcfa(m.montant)}' : ''}${m.motif.isNotEmpty ? ' • ${m.motif}' : ''}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
       trailing: IconButton(
         icon: const Icon(Icons.close, size: 18),
