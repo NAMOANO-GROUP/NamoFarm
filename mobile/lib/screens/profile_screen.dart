@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/international_phone_field.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -40,6 +41,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _buildApparenceCard(context),
+          const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -117,6 +120,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           )
         ],
+      ),
+    );
+  }
+
+  Widget _buildApparenceCard(BuildContext context) {
+    final theme = context.watch<ThemeProvider>();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.palette_outlined),
+                SizedBox(width: 8),
+                Text('Apparence', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Thème'),
+            const SizedBox(height: 6),
+            SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto), label: Text('Auto')),
+                ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode), label: Text('Clair')),
+                ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode), label: Text('Sombre')),
+              ],
+              selected: {theme.mode},
+              onSelectionChanged: (s) => context.read<ThemeProvider>().setMode(s.first),
+              showSelectedIcon: false,
+            ),
+            const SizedBox(height: 16),
+            const Text('Couleur d\'accent'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final color in ThemeProvider.presetSeeds)
+                  GestureDetector(
+                    onTap: () => context.read<ThemeProvider>().setSeed(color),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.seed.toARGB32() == color.toARGB32()
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Colors.transparent,
+                          width: 3,
+                        ),
+                      ),
+                      child: theme.seed.toARGB32() == color.toARGB32()
+                          ? const Icon(Icons.check, color: Colors.white, size: 20)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

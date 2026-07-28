@@ -13,6 +13,7 @@ import 'providers/crm_provider.dart';
 import 'providers/finance_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/admin_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() {
   runApp(const AgriBusiness());
@@ -36,27 +37,33 @@ class AgriBusiness extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => CrmProvider()),
         ChangeNotifierProvider(create: (_) => FinanceProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'AgriBusiness',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.green,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          // Smaller side inset so dialog forms get more usable width on small phones.
-          dialogTheme: DialogThemeData(
-            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            clipBehavior: Clip.antiAlias,
-          ),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => MaterialApp(
+          title: 'AgriBusiness',
+          debugShowCheckedModeBanner: false,
+          theme: _buildTheme(Brightness.light, themeProvider.seed),
+          darkTheme: _buildTheme(Brightness.dark, themeProvider.seed),
+          themeMode: themeProvider.mode,
+          home: const _AppGate(),
         ),
-        home: const _AppGate(),
       ),
     );
   }
+}
+
+ThemeData _buildTheme(Brightness brightness, Color seed) {
+  return ThemeData(
+    colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: brightness),
+    useMaterial3: true,
+    // Smaller side inset so dialog forms get more usable width on small phones.
+    dialogTheme: DialogThemeData(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+    ),
+  );
 }
 
 class _AppGate extends StatelessWidget {
