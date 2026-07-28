@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'global_dashboard_screen.dart';
 import 'bandes_screen.dart';
 import 'stocks_screen.dart';
+import 'reproduction_screen.dart';
 import 'alertes_screen.dart';
 import 'crm_screen.dart';
 import 'finance_screen.dart';
@@ -48,6 +49,12 @@ class _HomeScreenState extends State<HomeScreen> {
       page: BandesScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.egg_outlined), selectedIcon: Icon(Icons.egg), label: 'Bandes'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.egg_outlined), selectedIcon: Icon(Icons.egg), label: 'Bandes'),
+      permission: 'bandes:view',
+    ),
+    _ModuleItem(
+      page: ReproductionScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Reproduction'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Couvoir'),
       permission: 'bandes:view',
     ),
     _ModuleItem(

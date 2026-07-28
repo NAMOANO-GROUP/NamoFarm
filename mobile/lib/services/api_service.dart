@@ -524,4 +524,24 @@ class ApiService {
 
   static Future<Map<String, dynamic>> saveRoadmap(Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _put('/roadmap', body: data)));
+
+  // REPRODUCTION / COUVOIR (hatchery)
+  static Future<List<dynamic>> getCouvees({String? statut}) async {
+    final params = <String, String>{};
+    if (statut != null && statut.isNotEmpty) params['statut'] = statut;
+    return List<dynamic>.from(_ensureSuccess(await _get('/reproduction', query: params)) ?? []);
+  }
+
+  static Future<Map<String, dynamic>> getCouveesStats() async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _get('/reproduction/stats')));
+
+  static Future<Map<String, dynamic>> creerCouvee(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/reproduction', body: data), accepted: const [201]));
+
+  static Future<Map<String, dynamic>> mettreAJourCouvee(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/reproduction/$id', body: data)));
+
+  static Future<void> supprimerCouvee(String id) async {
+    _ensureSuccess(await _delete('/reproduction/$id'));
+  }
 }
