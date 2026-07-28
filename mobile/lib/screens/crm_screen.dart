@@ -61,6 +61,8 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
         title: const Text('CRM'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(icon: Icon(Icons.people_outline), text: 'Clients'),
             Tab(icon: Icon(Icons.business_outlined), text: 'Fournisseurs'),

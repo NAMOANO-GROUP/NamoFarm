@@ -151,11 +151,15 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 const SizedBox(height: 12),
                 _buildAnalysesAvanceesCard(provider),
                 const SizedBox(height: 12),
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(
-                      child: Text('Mouvements de tresorerie', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
+                    const Text('Mouvements de tresorerie', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
                     OutlinedButton.icon(
                       onPressed: () => exportCsvToClipboard(
                         context,
@@ -172,7 +176,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       icon: const Icon(Icons.download_outlined),
                       label: const Text('Exporter CSV'),
                     ),
-                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: () async {
                         final financeProvider = context.read<FinanceProvider>();
@@ -201,6 +204,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       },
                       icon: const Icon(Icons.delete_sweep),
                       label: const Text('Effacer historique'),
+                    ),
+                      ],
                     ),
                   ],
                 ),
