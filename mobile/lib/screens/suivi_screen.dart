@@ -131,7 +131,9 @@ class _SuiviScreenState extends State<SuiviScreen> {
           children: [
             // RÉSUMÉ
             Card(
-              color: Colors.green.shade50,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.green.shade900.withValues(alpha: 0.30)
+                  : Colors.green.shade50,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

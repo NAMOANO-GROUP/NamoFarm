@@ -155,7 +155,9 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
   Widget _perfChip(String label, String value) {
     return Chip(
       label: Text('$label: $value'),
-      backgroundColor: Colors.green.shade50,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.green.shade900.withValues(alpha: 0.30)
+          : Colors.green.shade50,
     );
   }
 

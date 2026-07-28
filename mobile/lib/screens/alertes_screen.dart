@@ -271,7 +271,11 @@ class _AlertesScreenState extends State<AlertesScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: enRetard ? Colors.red.shade50 : null,
+      color: enRetard
+          ? (Theme.of(context).brightness == Brightness.dark
+              ? Colors.red.shade900.withValues(alpha: 0.30)
+              : Colors.red.shade50)
+          : null,
       child: ListTile(
         leading: Icon(
           _typeIcon(alerte.type),

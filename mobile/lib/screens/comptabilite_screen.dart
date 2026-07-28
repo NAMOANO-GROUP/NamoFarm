@@ -77,8 +77,11 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
 
   Widget _buildTotauxCard() {
     final marge = _n(_totaux['margeNette']);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
-      color: marge >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+      color: marge >= 0
+          ? (isDark ? Colors.green.shade900.withValues(alpha: 0.30) : Colors.green.shade50)
+          : (isDark ? Colors.red.shade900.withValues(alpha: 0.30) : Colors.red.shade50),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

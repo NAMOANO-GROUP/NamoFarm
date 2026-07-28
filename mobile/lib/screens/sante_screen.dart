@@ -286,13 +286,14 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
   }
 
   Widget _traitementCard(TraitementSanitaire t) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color? color;
     String badge = '';
     if (t.statutDelai == 'en_cours') {
-      color = Colors.orange.shade50;
+      color = isDark ? Colors.orange.shade900.withValues(alpha: 0.30) : Colors.orange.shade50;
       badge = 'Délai en cours → ${_fmtDate(t.dateFinDelaiAttente)}';
     } else if (t.statutDelai == 'termine' && t.delaiAttenteJours > 0) {
-      color = Colors.green.shade50;
+      color = isDark ? Colors.green.shade900.withValues(alpha: 0.30) : Colors.green.shade50;
       badge = 'Délai respecté';
     }
     return Card(

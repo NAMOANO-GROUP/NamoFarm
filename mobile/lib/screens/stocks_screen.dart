@@ -116,7 +116,9 @@ class _StocksScreenState extends State<StocksScreen> {
               // Alertes stock bas
               if (provider.stocks.any((s) => s.enAlerte == true))
                 Card(
-                  color: Colors.orange.shade50,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.orange.shade900.withValues(alpha: 0.30)
+                      : Colors.orange.shade50,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                       child: Row(
