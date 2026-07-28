@@ -16,6 +16,7 @@ import 'providers/admin_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/reproduction_provider.dart';
 import 'providers/sante_provider.dart';
+import 'providers/cheptel_provider.dart';
 
 void main() {
   runApp(const AgriBusiness());
@@ -41,6 +42,7 @@ class AgriBusiness extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FinanceProvider()),
         ChangeNotifierProvider(create: (_) => ReproductionProvider()),
         ChangeNotifierProvider(create: (_) => SanteProvider()),
+        ChangeNotifierProvider(create: (_) => CheptelProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: Consumer<ThemeProvider>(

@@ -595,4 +595,25 @@ class ApiService {
   static Future<void> supprimerTraitement(String id) async {
     _ensureSuccess(await _delete('/sante/traitements/$id'));
   }
+
+  // CHEPTEL — effectif permanent + journal de mouvements
+  static Future<List<dynamic>> getCheptels() async =>
+      List<dynamic>.from(_ensureSuccess(await _get('/cheptel')) ?? []);
+
+  static Future<Map<String, dynamic>> creerCheptel(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/cheptel', body: data), accepted: const [201]));
+
+  static Future<Map<String, dynamic>> mettreAJourCheptel(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/cheptel/$id', body: data)));
+
+  static Future<void> supprimerCheptel(String id) async {
+    _ensureSuccess(await _delete('/cheptel/$id'));
+  }
+
+  static Future<Map<String, dynamic>> ajouterMouvementCheptel(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/cheptel/$id/mouvements', body: data), accepted: const [201]));
+
+  static Future<void> supprimerMouvementCheptel(String id, String mvtId) async {
+    _ensureSuccess(await _delete('/cheptel/$id/mouvements/$mvtId'));
+  }
 }

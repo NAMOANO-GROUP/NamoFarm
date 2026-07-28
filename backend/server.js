@@ -27,6 +27,7 @@ const financeRoutes = require('./routes/finance');
 const roadmapRoutes = require('./routes/roadmap');
 const couveesRoutes = require('./routes/couvees');
 const santeRoutes = require('./routes/sante');
+const cheptelRoutes = require('./routes/cheptel');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/bandes', authenticate, bandesRoutes);
@@ -42,6 +43,7 @@ app.use('/api/finance', authenticate, financeRoutes);
 app.use('/api/roadmap', authenticate, roadmapRoutes);
 app.use('/api/reproduction', authenticate, couveesRoutes);
 app.use('/api/sante', authenticate, santeRoutes);
+app.use('/api/cheptel', authenticate, cheptelRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/config', configRoutes);
 
