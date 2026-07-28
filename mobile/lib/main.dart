@@ -46,6 +46,12 @@ class AgriBusiness extends StatelessWidget {
             brightness: Brightness.light,
           ),
           useMaterial3: true,
+          // Smaller side inset so dialog forms get more usable width on small phones.
+          dialogTheme: DialogThemeData(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            clipBehavior: Clip.antiAlias,
+          ),
         ),
         home: const _AppGate(),
       ),

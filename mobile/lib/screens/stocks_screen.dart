@@ -366,7 +366,7 @@ class _StocksScreenState extends State<StocksScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(titre),
-          content: Column(
+          content: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('${stock.nom} (actuel: ${stock.quantiteActuelle} ${stock.unite})'),
@@ -396,7 +396,7 @@ class _StocksScreenState extends State<StocksScreen> {
                 ),
               TextField(controller: motifCtrl, decoration: const InputDecoration(labelText: 'Motif')),
             ],
-          ),
+          )),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(

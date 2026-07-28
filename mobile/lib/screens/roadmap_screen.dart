@@ -689,7 +689,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Nouveau planning macro'),
-          content: Column(
+          content: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: name, decoration: const InputDecoration(labelText: 'Nom du planning *')),
@@ -715,7 +715,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
               ),
               const Text('Durée max: 5 ans', style: TextStyle(color: Colors.black54, fontSize: 12)),
             ],
-          ),
+          )),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(
@@ -898,7 +898,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Modifier planning'),
-          content: Column(
+          content: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nom du planning *')),
@@ -919,7 +919,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 },
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(
