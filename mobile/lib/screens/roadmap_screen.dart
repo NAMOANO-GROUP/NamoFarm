@@ -421,7 +421,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       final selected = p.id == _selectedPlanId;
                       return ListTile(
                         selected: selected,
-                        title: Text(p.name),
+                        title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text('${DateFormat('MM/yyyy').format(p.start)} - ${DateFormat('MM/yyyy').format(p.end)}'),
                         trailing: IconButton(
                           tooltip: 'Supprimer planning',
@@ -458,31 +458,68 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(plan.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text('Macro planning mensuel - ${DateFormat('yyyy').format(plan.start)} à ${DateFormat('yyyy').format(plan.end)}'),
+                          Text(
+                            plan.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Macro planning mensuel - ${DateFormat('yyyy').format(plan.start)} à ${DateFormat('yyyy').format(plan.end)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Ajouter tâche, sous-tâche, jalon ou date clé',
-                      onPressed: () => _showRoadmapCreateMenu(plan),
-                      icon: const Icon(Icons.add_task_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Modifier période du planning',
-                      onPressed: () => _showEditPlanDialog(plan),
-                      icon: const Icon(Icons.edit_calendar_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Modifier tâche, sous-tâche, jalon ou date clé',
-                      onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.edit),
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Supprimer tâche, sous-tâche, jalon ou date clé',
-                      onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.delete),
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                    ),
+                    if (MediaQuery.of(context).size.width >= 600) ...[
+                      IconButton(
+                        tooltip: 'Ajouter tâche, sous-tâche, jalon ou date clé',
+                        onPressed: () => _showRoadmapCreateMenu(plan),
+                        icon: const Icon(Icons.add_task_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Modifier période du planning',
+                        onPressed: () => _showEditPlanDialog(plan),
+                        icon: const Icon(Icons.edit_calendar_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Modifier tâche, sous-tâche, jalon ou date clé',
+                        onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.edit),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Supprimer tâche, sous-tâche, jalon ou date clé',
+                        onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.delete),
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                      ),
+                    ] else
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert),
+                        tooltip: 'Actions du planning',
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'add':
+                              _showRoadmapCreateMenu(plan);
+                              break;
+                            case 'period':
+                              _showEditPlanDialog(plan);
+                              break;
+                            case 'edit':
+                              _showRoadmapActionMenu(plan, _RoadmapActionMode.edit);
+                              break;
+                            case 'delete':
+                              _showRoadmapActionMenu(plan, _RoadmapActionMode.delete);
+                              break;
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'add', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.add_task_outlined), title: Text('Ajouter élément'))),
+                          PopupMenuItem(value: 'period', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_calendar_outlined), title: Text('Modifier période'))),
+                          PopupMenuItem(value: 'edit', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Modifier élément'))),
+                          PopupMenuItem(value: 'delete', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Supprimer élément'))),
+                        ],
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),

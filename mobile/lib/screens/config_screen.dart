@@ -116,40 +116,50 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
           itemCount: admin.users.length,
           itemBuilder: (_, i) {
             final u = admin.users[i];
+            final isWide = MediaQuery.of(context).size.width >= 600;
+            final userId = (u['id'] ?? u['_id']).toString();
             return Card(
               child: ListTile(
-                title: Text('${u['nom'] ?? ''} ${u['prenom'] ?? ''}'),
-                subtitle: Text('${u['email']} • rôle: ${_roleLabel((u['role'] ?? '').toString())}'),
+                title: Text('${u['nom'] ?? ''} ${u['prenom'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text('${u['email']} • rôle: ${_roleLabel((u['role'] ?? '').toString())}', maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: Wrap(
                   spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    IconButton(
-                      tooltip: 'Réinitialiser mot de passe',
-                      onPressed: () async {
-                        final temp = await context.read<AdminProvider>().resetPassword((u['id'] ?? u['_id']).toString());
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(temp == null ? 'Echec reset' : 'Mot de passe temporaire: $temp')),
-                        );
-                      },
-                      icon: const Icon(Icons.lock_reset),
-                    ),
-                    IconButton(
-                      tooltip: 'Supprimer utilisateur',
-                      onPressed: () => _confirmDeleteUser((u['id'] ?? u['_id']).toString(), '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(), (u['email'] ?? '').toString()),
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                    ),
+                    if (isWide)
+                      IconButton(
+                        tooltip: 'Réinitialiser mot de passe',
+                        onPressed: () async {
+                          final temp = await context.read<AdminProvider>().resetPassword(userId);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(temp == null ? 'Echec reset' : 'Mot de passe temporaire: $temp')),
+                          );
+                        },
+                        icon: const Icon(Icons.lock_reset),
+                      ),
+                    if (isWide)
+                      IconButton(
+                        tooltip: 'Supprimer utilisateur',
+                        onPressed: () => _confirmDeleteUser(userId, '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(), (u['email'] ?? '').toString()),
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                      ),
                     Switch(
                       value: (u['actif'] ?? false) == true,
-                      onChanged: (v) => context.read<AdminProvider>().toggleUserActive((u['id'] ?? u['_id']).toString(), v),
+                      onChanged: (v) => context.read<AdminProvider>().toggleUserActive(userId, v),
                     ),
                     PopupMenuButton<String>(
                       onSelected: (value) async {
-                        final id = (u['id'] ?? u['_id']).toString();
-                        if (value == 'delete') {
-                          await context.read<AdminProvider>().deleteUser(id);
+                        if (value == 'reset') {
+                          final temp = await context.read<AdminProvider>().resetPassword(userId);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(temp == null ? 'Echec reset' : 'Mot de passe temporaire: $temp')),
+                          );
+                        } else if (value == 'delete') {
+                          _confirmDeleteUser(userId, '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(), (u['email'] ?? '').toString());
                         } else {
-                          await context.read<AdminProvider>().updateUser(id, {'role': value});
+                          await context.read<AdminProvider>().updateUser(userId, {'role': value});
                         }
                       },
                       itemBuilder: (_) {
@@ -162,6 +172,7 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                             )
                             .toList();
                         return [
+                          if (!isWide) const PopupMenuItem(value: 'reset', child: Text('Réinitialiser mot de passe')),
                           ...roleItems,
                           const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
                         ];

@@ -142,7 +142,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
           ),
         ),
-        title: Text(client.nomComplet, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(client.nomComplet, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -89,7 +89,7 @@ class _FournisseursTabState extends State<FournisseursTab> {
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           child: ListTile(
-                            title: Text(f.nomComplet),
+                            title: Text(f.nomComplet, maxLines: 1, overflow: TextOverflow.ellipsis),
                             subtitle: Text('${f.telephone}$entreprise'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,

@@ -160,7 +160,7 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: ListTile(
-                      title: Text(c.nomComplet),
+                      title: Text(c.nomComplet, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text('${c.telephone} • ${c.statut}'),
                       trailing: SizedBox(
                         width: canDeleteClient ? 178 : 140,
@@ -503,7 +503,7 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                   final it = provider.interactions[i];
                   return ListTile(
                     leading: const Icon(Icons.forum),
-                    title: Text('${it.type.toUpperCase()} - ${it.sujet.isEmpty ? 'Interaction' : it.sujet}'),
+                    title: Text('${it.type.toUpperCase()} - ${it.sujet.isEmpty ? 'Interaction' : it.sujet}', maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text('${it.contenu}\nPar ${it.auteur}'),
                     isThreeLine: true,
                   );
@@ -591,7 +591,7 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                             : (score >= 40 ? Colors.orange.shade100 : Colors.red.shade100),
                         child: Text(score.toStringAsFixed(0)),
                       ),
-                      title: Text(displayName),
+                      title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(
                         'Etape: ${(p['stage'] ?? '').toString()} • Source: ${(p['sourceLead'] ?? '').toString()}\n'
                         'Score: ${score.toStringAsFixed(2)} • Interactions: ${(p['interactionsCount'] ?? 0)} • Commandes: ${(p['commandesCount'] ?? 0)}',
@@ -911,7 +911,7 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
-        title: Text(t.titre),
+        title: Text(t.titre, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           [
             if (t.clientNom.isNotEmpty) t.clientNom,

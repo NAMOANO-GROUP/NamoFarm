@@ -141,7 +141,15 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(bande.nom, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    bande.nom,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Chip(
                   label: Text(active ? 'Ouverte' : 'Fermée'),
                   backgroundColor: active ? Colors.green.shade100 : Colors.red.shade100,
