@@ -96,6 +96,35 @@ function getActorLabel(req) {
   return full || req.user?.email || 'Utilisateur';
 }
 
+function getUserName(req) {
+  const prenom = (req.user?.prenom || '').toString().trim();
+  const nom = (req.user?.nom || '').toString().trim();
+  if (prenom || nom) return { quiNom: nom || prenom, quiPrenom: prenom || nom };
+  const email = (req.user?.email || '').toString();
+  const local = email.includes('@') ? email.split('@')[0] : email;
+  return { quiNom: local || 'Utilisateur', quiPrenom: local || 'Utilisateur' };
+}
+
+function extractMissingColumn(error) {
+  const message = (error?.message || '').toString();
+  const match = message.match(/Could not find the '([^']+)' column/i);
+  return match?.[1] || '';
+}
+
+// Insert a treasury movement, tolerating a prod schema that lacks some optional
+// columns (strips unknown columns and retries).
+async function insertTresorerieCompat(api, payload) {
+  let candidate = { ...payload };
+  for (let i = 0; i < 8; i += 1) {
+    const result = await api.from('tresorerie_mouvements').insert(candidate).select('*').maybeSingle();
+    if (!result.error) return result;
+    const missing = extractMissingColumn(result.error);
+    if (!missing || !Object.prototype.hasOwnProperty.call(candidate, missing)) return result;
+    delete candidate[missing];
+  }
+  return { data: null, error: { message: 'Insertion tresorerie impossible (schema)' } };
+}
+
 router.get('/', requirePermission('cheptel.read'), async (req, res) => {
   try {
     const client = getAdminClient();
@@ -221,7 +250,7 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
     if (!current.data) return res.status(404).json({ message: 'Cheptel non trouvé' });
 
     const mouvements = readMouvements(current.data);
-    mouvements.push({
+    const nouveauMvt = {
       _id: crypto.randomUUID(),
       date: req.body.date || new Date().toISOString(),
       type,
@@ -229,7 +258,8 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
       montant: Number(req.body.montant || 0),
       motif: (req.body.motif || '').toString(),
       utilisateur: getActorLabel(req),
-    });
+    };
+    mouvements.push(nouveauMvt);
 
     const effectif = recomputeEffectif(mouvements);
     if (effectif < 0) return res.status(400).json({ message: 'Mouvement invalide: l\'effectif deviendrait négatif' });
@@ -243,6 +273,36 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
       .maybeSingle();
     if (saved.error) return res.status(400).json({ message: saved.error.message });
     if (!saved.data) return res.status(404).json({ message: 'Cheptel non trouvé' });
+
+    // A cheptel sale feeds the treasury (money IN); a purchase is money OUT.
+    // Best-effort: never fail the livestock movement if the treasury insert fails.
+    const montant = Number(req.body.montant || 0);
+    if (montant > 0 && (type === 'vente' || type === 'entree')) {
+      try {
+        const { quiNom, quiPrenom } = getUserName(req);
+        const isSale = type === 'vente';
+        const nomCheptel = current.data.nom || 'Cheptel';
+        const fin = await insertTresorerieCompat(client, {
+          company_id: companyId,
+          nature: isSale ? 'entree' : 'sortie',
+          source: isSale ? 'vente_cheptel' : 'achat_cheptel',
+          qui_nom: quiNom,
+          qui_prenom: quiPrenom,
+          categorie: 'cheptel',
+          type: nomCheptel,
+          montant,
+          date_mouvement: nouveauMvt.date,
+          commentaire: `${isSale ? 'Vente' : 'Achat'} cheptel - ${nomCheptel} (${quantite})`,
+          reference_type: 'Cheptel',
+          reference_id: req.params.id,
+          externe_cle: `cheptel:${req.params.id}:mvt:${nouveauMvt._id}`,
+        });
+        if (fin.error) console.warn('cheptel treasury insert failed:', fin.error.message);
+      } catch (e) {
+        console.warn('cheptel treasury insert exception:', e?.message || e);
+      }
+    }
+
     return res.status(201).json(mapCheptelRow(saved.data));
   } catch (err) {
     return res.status(400).json({ message: err.message });

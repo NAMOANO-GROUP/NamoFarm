@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -125,6 +126,7 @@ class _CheptelScreenState extends State<CheptelScreen> {
                     if (c.caVentes > 0) _stat('CA ventes', formatAmountFcfa(c.caVentes)),
                   ],
                 ),
+                _buildEffectifChart(c),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -168,6 +170,87 @@ class _CheptelScreenState extends State<CheptelScreen> {
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
         Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
       ],
+    );
+  }
+
+  Widget _buildEffectifChart(Cheptel c) {
+    // Movements come from the API most-recent first; reverse to chronological order
+    // and accumulate the running headcount.
+    final asc = c.mouvements.reversed.toList();
+    if (asc.length < 2) return const SizedBox.shrink();
+    final spots = <FlSpot>[];
+    int eff = 0;
+    for (var i = 0; i < asc.length; i++) {
+      final m = asc[i];
+      if (m.type == 'ajustement') {
+        eff = m.quantite;
+      } else if (m.type == 'naissance' || m.type == 'entree') {
+        eff += m.quantite;
+      } else {
+        eff -= m.quantite;
+      }
+      spots.add(FlSpot(i.toDouble(), eff.toDouble()));
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Évolution de l\'effectif'),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                gridData: const FlGridData(show: true),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (spots) => spots.map((s) {
+                      final i = s.x.toInt();
+                      final d = (i >= 0 && i < asc.length) ? asc[i].date : null;
+                      return LineTooltipItem(
+                        '${d != null ? _fmtDate(d) : ''}\nEffectif: ${s.y.toInt()}',
+                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= asc.length) return const SizedBox.shrink();
+                        final d = asc[i].date;
+                        if (d == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(DateFormat('dd/MM').format(d), style: const TextStyle(fontSize: 10)),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: false,
+                    barWidth: 3,
+                    color: Theme.of(context).colorScheme.primary,
+                    dotData: const FlDotData(show: true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
