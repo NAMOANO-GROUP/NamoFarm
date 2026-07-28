@@ -517,4 +517,11 @@ class ApiService {
     static Future<void> effacerAuditLogs() async {
         _ensureSuccess(await _delete('/config/audit'));
     }
+
+  // ROADMAP (planning) — server-side persistence
+  static Future<Map<String, dynamic>> getRoadmap() async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _get('/roadmap')));
+
+  static Future<Map<String, dynamic>> saveRoadmap(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/roadmap', body: data)));
 }

@@ -24,6 +24,7 @@ const reportsRoutes = require('./routes/reports');
 const usersRoutes = require('./routes/users');
 const configRoutes = require('./routes/config');
 const financeRoutes = require('./routes/finance');
+const roadmapRoutes = require('./routes/roadmap');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/bandes', authenticate, bandesRoutes);
@@ -36,6 +37,7 @@ app.use('/api/crm', authenticate, crmRoutes);
 app.use('/api/dashboard', authenticate, dashboardRoutes);
 app.use('/api/reports', authenticate, reportsRoutes);
 app.use('/api/finance', authenticate, financeRoutes);
+app.use('/api/roadmap', authenticate, roadmapRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/config', configRoutes);
 

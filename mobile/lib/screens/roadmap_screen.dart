@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
 
 class RoadmapMilestone {
@@ -236,43 +237,76 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   Future<void> _loadPlans() async {
+    // 1) Load the local cache first (fast, works offline).
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_plansPrefsKey);
-    final selected = prefs.getString(_selectedPlanPrefsKey);
+    final selectedLocal = prefs.getString(_selectedPlanPrefsKey);
 
-    if (raw == null || raw.isEmpty) return;
+    List<ProductionPlan> localPlans = [];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = json.decode(raw);
+        final dynamic rawPlans = decoded is List
+            ? decoded
+            : (decoded is Map ? decoded['plans'] : null);
+        if (rawPlans is List) {
+          localPlans = rawPlans
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .map(ProductionPlan.fromJson)
+              .toList();
+        }
+      } catch (_) {
+        // Ignore malformed persisted roadmap data.
+      }
+    }
 
-    try {
-      final decoded = json.decode(raw);
-      final dynamic rawPlans = decoded is List
-          ? decoded
-          : (decoded is Map ? decoded['plans'] : null);
-      if (rawPlans is! List) return;
-
-      final loaded = rawPlans
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .map(ProductionPlan.fromJson)
-          .toList();
-      if (!mounted) return;
+    if (mounted && localPlans.isNotEmpty) {
       setState(() {
         _plans
           ..clear()
-          ..addAll(loaded);
-        if (_plans.isEmpty) {
-          _selectedPlanId = null;
-        } else if (selected != null && _plans.any((p) => p.id == selected)) {
-          _selectedPlanId = selected;
-        } else {
-          _selectedPlanId = _plans.first.id;
-        }
+          ..addAll(localPlans);
+        _selectedPlanId = (selectedLocal != null && _plans.any((p) => p.id == selectedLocal))
+            ? selectedLocal
+            : _plans.first.id;
       });
+    }
+
+    // 2) Server is the source of truth (persists across devices / sessions).
+    try {
+      final data = await ApiService.getRoadmap();
+      final dynamic serverPlansRaw = data['plans'];
+      final String? serverSelected = data['selectedPlanId']?.toString();
+
+      if (serverPlansRaw is List) {
+        final serverPlans = serverPlansRaw
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .map(ProductionPlan.fromJson)
+            .toList();
+
+        if (serverPlans.isNotEmpty) {
+          if (!mounted) return;
+          setState(() {
+            _plans
+              ..clear()
+              ..addAll(serverPlans);
+            _selectedPlanId = (serverSelected != null && _plans.any((p) => p.id == serverSelected))
+                ? serverSelected
+                : _plans.first.id;
+          });
+          await _saveLocalOnly();
+        } else if (localPlans.isNotEmpty) {
+          // Server empty but we have local plans -> migrate them to the server.
+          await _saveServerOnly();
+        }
+      }
     } catch (_) {
-      // Ignore malformed persisted roadmap data.
+      // Offline or server unavailable: keep the local cache as-is.
     }
   }
 
-  Future<void> _savePlans() async {
+  Future<void> _saveLocalOnly() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_plansPrefsKey, json.encode(_plans.map((p) => p.toJson()).toList()));
     if (_selectedPlanId != null && _selectedPlanId!.isNotEmpty) {
@@ -280,6 +314,22 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     } else {
       await prefs.remove(_selectedPlanPrefsKey);
     }
+  }
+
+  Future<void> _saveServerOnly() async {
+    try {
+      await ApiService.saveRoadmap({
+        'plans': _plans.map((p) => p.toJson()).toList(),
+        'selectedPlanId': _selectedPlanId,
+      });
+    } catch (_) {
+      // Best-effort: if the server is unreachable, the local cache still holds the data.
+    }
+  }
+
+  Future<void> _savePlans() async {
+    await _saveLocalOnly();
+    await _saveServerOnly();
   }
 
   int _monthSpan(DateTime start, DateTime end) {
