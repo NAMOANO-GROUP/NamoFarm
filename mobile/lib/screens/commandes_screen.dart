@@ -337,6 +337,23 @@ class _CommandesScreenState extends State<CommandesScreen> {
                 'Livraison: $livraisonStatutLabel | Montant livraison: ${formatAmountFcfa(montantLivraison)}',
                 style: const TextStyle(color: Colors.grey),
               ),
+            if (commande.bandeId == null || commande.bandeId!.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber, size: 16, color: Colors.orange.shade700),
+                    const SizedBox(width: 4),
+                    Text('Sans bande (non compté par bande)',
+                        style: TextStyle(color: Colors.orange.shade800, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              )
+            else if (commande.bandeNom.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Bande: ${commande.bandeNom}', style: const TextStyle(color: Colors.teal, fontSize: 12)),
+              ),
             const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.end,
@@ -363,6 +380,18 @@ class _CommandesScreenState extends State<CommandesScreen> {
                     child: const Chip(label: Text('Changer statut')),
                   ),
                   const SizedBox(width: 8),
+                  if (commande.bandeId == null || commande.bandeId!.isEmpty) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => _associerBande(commande),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      icon: const Icon(Icons.link, size: 16, color: Colors.orange),
+                      label: const Text('Associer bande'),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   OutlinedButton.icon(
                     onPressed: () => _showAjouterLivraisonDialog(commande),
                     style: OutlinedButton.styleFrom(
@@ -461,7 +490,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
       return;
     }
 
-    String selectedBandeId = '';
+    String selectedBandeId = (bandesActives.first['id'] ?? bandesActives.first['_id'] ?? '').toString();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -469,7 +498,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
           title: const Text('Sélectionner une bande'),
           content: DropdownButtonFormField<String>(
             initialValue: selectedBandeId,
-            decoration: const InputDecoration(labelText: 'Bande (optionnelle)'),
+            decoration: const InputDecoration(labelText: 'Bande (recommandée pour le suivi par bande)'),
             items: [
               const DropdownMenuItem<String>(
                 value: '',
@@ -502,6 +531,54 @@ class _CommandesScreenState extends State<CommandesScreen> {
 
     if (!mounted || confirmed != true) return;
     _selectClientPourCommande(produitNom, quantite, prix, selectedBandeId.isEmpty ? null : selectedBandeId);
+  }
+
+  Future<void> _associerBande(Commande commande) async {
+    if (commande.id == null) return;
+    List<Map<String, dynamic>> bandesActives = const [];
+    try {
+      final raw = await ApiService.getBandesActives();
+      bandesActives = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (_) {
+      bandesActives = const [];
+    }
+    if (!mounted) return;
+    if (bandesActives.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucune bande active disponible')));
+      return;
+    }
+    String selectedBandeId = (bandesActives.first['id'] ?? bandesActives.first['_id'] ?? '').toString();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Associer une bande'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selectedBandeId,
+            decoration: const InputDecoration(labelText: 'Bande'),
+            items: bandesActives.map((b) {
+              final id = (b['id'] ?? b['_id'] ?? '').toString();
+              final nom = (b['nom'] ?? 'Bande').toString();
+              final batiment = (b['batiment'] ?? '').toString();
+              final label = batiment.isNotEmpty ? '$nom - $batiment' : nom;
+              return DropdownMenuItem<String>(value: id, child: Text(label));
+            }).toList(),
+            onChanged: (value) => setDialogState(() => selectedBandeId = value ?? ''),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Associer')),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || confirmed != true || selectedBandeId.isEmpty) return;
+    final provider = context.read<CommandesProvider>();
+    final ok = await provider.mettreAJourCommande(commande.id!, {'bandeId': selectedBandeId});
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Bande associée à la commande' : 'Erreur: ${provider.lastError ?? ''}')),
+    );
   }
 
   Future<void> _showEffacerHistoriqueCommandesDialog() async {
