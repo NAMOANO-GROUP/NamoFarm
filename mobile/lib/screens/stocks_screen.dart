@@ -167,6 +167,7 @@ class _StocksScreenState extends State<StocksScreen> {
 
   Widget _buildStockCard(Stock stock) {
     final alerte = stock.enAlerte == true;
+    final isWide = MediaQuery.of(context).size.width >= 600;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: alerte ? Colors.red.shade50 : null,
@@ -178,41 +179,100 @@ class _StocksScreenState extends State<StocksScreen> {
             color: alerte ? Colors.red : Colors.green.shade700,
           ),
         ),
-        title: Text(stock.nom, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          stock.nom,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         subtitle: Text(
           '${stock.quantiteActuelle} ${stock.unite} | Seuil: ${stock.seuilAlerte} ${stock.unite} | PU: ${stock.prixUnitaire.toStringAsFixed(0)} FCFA',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.add_circle, color: Colors.green),
-              tooltip: 'Entrée',
-              onPressed: () => _showMouvementDialog(stock, 'entree'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.remove_circle, color: Colors.red),
-              tooltip: 'Sortie',
-              onPressed: () => _showMouvementDialog(stock, 'sortie'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.tune, color: Colors.orange),
-              tooltip: 'Ajustement',
-              onPressed: () => _showMouvementDialog(stock, 'ajustement'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.history, color: Colors.blueGrey),
-              tooltip: 'Historique',
-              onPressed: () => _showHistoriqueDialog(stock),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              tooltip: 'Supprimer stock',
-              onPressed: () => _confirmerSuppressionStock(stock),
-            ),
-          ],
-        ),
+        trailing: isWide ? _stockActionsRow(stock) : _stockActionsMenu(stock),
       ),
+    );
+  }
+
+  Widget _stockActionsRow(Stock stock) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.add_circle, color: Colors.green),
+          tooltip: 'Entrée',
+          onPressed: () => _showMouvementDialog(stock, 'entree'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.remove_circle, color: Colors.red),
+          tooltip: 'Sortie',
+          onPressed: () => _showMouvementDialog(stock, 'sortie'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.tune, color: Colors.orange),
+          tooltip: 'Ajustement',
+          onPressed: () => _showMouvementDialog(stock, 'ajustement'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.history, color: Colors.blueGrey),
+          tooltip: 'Historique',
+          onPressed: () => _showHistoriqueDialog(stock),
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+          tooltip: 'Supprimer stock',
+          onPressed: () => _confirmerSuppressionStock(stock),
+        ),
+      ],
+    );
+  }
+
+  Widget _stockActionsMenu(Stock stock) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert),
+      tooltip: 'Actions',
+      onSelected: (value) {
+        switch (value) {
+          case 'entree':
+            _showMouvementDialog(stock, 'entree');
+            break;
+          case 'sortie':
+            _showMouvementDialog(stock, 'sortie');
+            break;
+          case 'ajustement':
+            _showMouvementDialog(stock, 'ajustement');
+            break;
+          case 'historique':
+            _showHistoriqueDialog(stock);
+            break;
+          case 'supprimer':
+            _confirmerSuppressionStock(stock);
+            break;
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'entree',
+          child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.add_circle, color: Colors.green), title: Text('Entrée')),
+        ),
+        PopupMenuItem(
+          value: 'sortie',
+          child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.remove_circle, color: Colors.red), title: Text('Sortie')),
+        ),
+        PopupMenuItem(
+          value: 'ajustement',
+          child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.tune, color: Colors.orange), title: Text('Ajustement')),
+        ),
+        PopupMenuItem(
+          value: 'historique',
+          child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.history, color: Colors.blueGrey), title: Text('Historique')),
+        ),
+        PopupMenuItem(
+          value: 'supprimer',
+          child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Supprimer')),
+        ),
+      ],
     );
   }
 

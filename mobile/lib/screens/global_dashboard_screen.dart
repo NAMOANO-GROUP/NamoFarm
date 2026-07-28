@@ -158,7 +158,9 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                   mainAxisSpacing: 8,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.45,
+                  childAspectRatio: MediaQuery.of(context).size.width > 900
+                      ? 1.6
+                      : (MediaQuery.of(context).size.width < 360 ? 1.25 : 1.45),
                   children: [
                     _kpiCard('CA total', formatAmountFcfa(g['chiffreAffairesTotal'] ?? 0), Colors.green),
                     _kpiCard('Dépenses', formatAmountFcfa(g['depensesTotales'] ?? 0), Colors.red),
@@ -190,10 +192,24 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-            const Spacer(),
-            Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+            Text(
+              title,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color),
+              ),
+            ),
           ],
         ),
       ),

@@ -139,14 +139,72 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             )
           : accessibleModules[_currentIndex].page,
-      bottomNavigationBar: isWide
-          ? null
-          : NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (index) => setState(() => _currentIndex = index),
-              labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-              destinations: destinations,
-            ),
+      bottomNavigationBar: isWide ? null : _buildBottomNav(accessibleModules),
+    );
+  }
+
+  Widget _buildBottomNav(List<_ModuleItem> modules) {
+    // Material recommends 3-5 bottom destinations. When there are more modules than
+    // can fit comfortably on a phone, keep the first ones and gather the rest under a
+    // "Plus" entry that opens a bottom sheet. This adapts to any screen / module count.
+    const maxSlots = 5;
+
+    if (modules.length <= maxSlots) {
+      return NavigationBar(
+        selectedIndex: _currentIndex.clamp(0, modules.length - 1),
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        destinations: modules.map((m) => m.mobileDestination).toList(),
+      );
+    }
+
+    final primaryCount = maxSlots - 1;
+    final primary = modules.take(primaryCount).toList();
+    final overflow = modules.skip(primaryCount).toList();
+    final isOverflowSelected = _currentIndex >= primaryCount;
+
+    return NavigationBar(
+      selectedIndex: isOverflowSelected ? primaryCount : _currentIndex,
+      onDestinationSelected: (index) {
+        if (index < primaryCount) {
+          setState(() => _currentIndex = index);
+        } else {
+          _showMoreModules(overflow, primaryCount);
+        }
+      },
+      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+      destinations: [
+        ...primary.map((m) => m.mobileDestination),
+        const NavigationDestination(
+          icon: Icon(Icons.more_horiz),
+          selectedIcon: Icon(Icons.more_horiz),
+          label: 'Plus',
+        ),
+      ],
+    );
+  }
+
+  void _showMoreModules(List<_ModuleItem> overflow, int primaryCount) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < overflow.length; i++)
+              ListTile(
+                leading: overflow[i].mobileDestination.icon,
+                title: Text(overflow[i].mobileDestination.label),
+                selected: _currentIndex == primaryCount + i,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _currentIndex = primaryCount + i);
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
