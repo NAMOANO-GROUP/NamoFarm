@@ -31,6 +31,48 @@ function signToken(user) {
   );
 }
 
+// Limiteur anti-abus léger, en mémoire (sans dépendance externe) :
+// autorise au plus `max` requêtes par IP sur une fenêtre glissante `windowMs`.
+function createRateLimiter({ windowMs, max, message }) {
+  const hits = new Map(); // ip -> { count, resetAt }
+  return (req, res, next) => {
+    const now = Date.now();
+
+    // Purge occasionnelle des entrées expirées pour éviter toute fuite mémoire.
+    if (hits.size > 5000) {
+      for (const [key, value] of hits) {
+        if (value.resetAt <= now) hits.delete(key);
+      }
+    }
+
+    const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const ip = forwarded || req.ip || req.socket?.remoteAddress || 'unknown';
+
+    let entry = hits.get(ip);
+    if (!entry || entry.resetAt <= now) {
+      entry = { count: 0, resetAt: now + windowMs };
+      hits.set(ip, entry);
+    }
+    entry.count += 1;
+
+    if (entry.count > max) {
+      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      res.set('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        message: message || `Trop de tentatives. Réessaie dans ${retryAfter} seconde(s).`,
+      });
+    }
+    return next();
+  };
+}
+
+// Max 5 créations d'entreprise par IP et par heure.
+const onboardingLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: "Trop de créations d'exploitation depuis cette adresse. Réessaie plus tard.",
+});
+
 function extractMissingColumn(error) {
   const message = (error?.message || '').toString();
   const match = message.match(/Could not find the '([^']+)' column/i);
@@ -648,7 +690,7 @@ router.post('/deconnexion', authenticate, async (req, res) => {
 // administrateur. Toutes les données de ce compte seront cloisonnées par company_id.
 // Sécurité optionnelle : définir ONBOARDING_SECRET dans l'environnement pour exiger
 // un code d'inscription (évite les créations de comptes abusives en libre-service).
-router.post('/onboarding', async (req, res) => {
+router.post('/onboarding', onboardingLimiter, async (req, res) => {
   try {
     const client = getAdminClient();
 
