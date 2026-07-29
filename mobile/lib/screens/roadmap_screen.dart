@@ -385,7 +385,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             )
           : Column(
               children: [
-                SizedBox(height: 250, child: _buildPlansPanel()),
+                _buildCompactPlanBar(),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -394,6 +394,52 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  // Compact plan selector for small screens: a dropdown + add/delete, so the
+  // timeline gets almost the whole screen height (the tall side panel would eat it).
+  Widget _buildCompactPlanBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _plans.isEmpty
+                ? const Text('Aucun planning — créez-en un avec +')
+                : DropdownButtonFormField<String>(
+                    initialValue: _selectedPlanId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Planning',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _plans
+                        .map((p) => DropdownMenuItem(
+                              value: p.id,
+                              child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() => _selectedPlanId = v);
+                      _savePlans();
+                    },
+                  ),
+          ),
+          IconButton(
+            onPressed: _plans.length >= 5 ? null : _showCreatePlanDialog,
+            icon: const Icon(Icons.add_chart),
+            tooltip: 'Nouveau planning',
+          ),
+          if (_selectedPlan != null)
+            IconButton(
+              onPressed: () => _showDeletePlanDialog(_selectedPlan!),
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              tooltip: 'Supprimer planning',
+            ),
+        ],
+      ),
     );
   }
 
