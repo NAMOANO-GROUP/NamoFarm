@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/stocks_provider.dart';
 import '../models/stock.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/filter_styles.dart';
 
 class StocksScreen extends StatefulWidget {
   const StocksScreen({super.key});
@@ -93,19 +94,15 @@ class _StocksScreenState extends State<StocksScreen> {
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _categoryFilter,
+                isExpanded: true,
                 isDense: true,
-                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                decoration: const InputDecoration(
-                  labelText: 'Catégorie',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                ),
+                style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                decoration: filterDecoration('Catégorie'),
                 items: _categoryOptions
                     .map(
                       (opt) => DropdownMenuItem<String>(
                         value: opt['value'],
-                        child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
+                        child: Text(opt['label'] ?? '', style: kFilterTextStyle),
                       ),
                     )
                     .toList(),

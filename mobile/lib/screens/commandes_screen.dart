@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../utils/money_format.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/filter_styles.dart';
 import '../widgets/international_phone_field.dart';
 
 class CommandesScreen extends StatefulWidget {
@@ -94,48 +95,50 @@ class _CommandesScreenState extends State<CommandesScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: provider.rechercher,
-                style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  labelText: 'Rechercher une commande',
-                  hintText: 'Client, bande, produit, montant, note...',
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
-              child: DropdownButtonFormField<String>(
-                initialValue: provider.selectedStatuts.length == 1
-                    ? provider.selectedStatuts.first
-                    : '',
-                isDense: true,
-                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                decoration: const InputDecoration(
-                  labelText: 'Statut',
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  border: OutlineInputBorder(),
-                ),
-                items: _statusOptions
-                    .map(
-                      (opt) => DropdownMenuItem<String>(
-                        value: opt['value'],
-                        child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: provider.rechercher,
+                      style: kFilterTextStyle,
+                      decoration: filterDecoration(
+                        'Rechercher',
+                        hintText: 'Client, produit, montant...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  provider.clearStatutsFilter();
-                  if (value != null && value.isNotEmpty) {
-                    provider.toggleStatut(value);
-                  }
-                },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: provider.selectedStatuts.length == 1
+                          ? provider.selectedStatuts.first
+                          : '',
+                      isExpanded: true,
+                      isDense: true,
+                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: filterDecoration('Statut'),
+                      items: _statusOptions
+                          .map(
+                            (opt) => DropdownMenuItem<String>(
+                              value: opt['value'],
+                              child: Text(opt['label'] ?? '', style: kFilterTextStyle),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        provider.clearStatutsFilter();
+                        if (value != null && value.isNotEmpty) {
+                          provider.toggleStatut(value);
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
             if (widget.embedded)

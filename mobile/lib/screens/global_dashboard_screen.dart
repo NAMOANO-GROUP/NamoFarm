@@ -5,6 +5,7 @@ import '../providers/dashboard_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
+import '../widgets/filter_styles.dart';
 
 class GlobalDashboardScreen extends StatefulWidget {
   const GlobalDashboardScreen({super.key});
@@ -84,79 +85,76 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: provider.period,
-                  isDense: true,
-                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                  decoration: const InputDecoration(
-                    labelText: 'Période',
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _periodOptions
-                      .map(
-                        (opt) => DropdownMenuItem<String>(
-                          value: opt['value'],
-                          child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      provider.chargerDashboards(period: value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
-                  isDense: true,
-                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                  decoration: const InputDecoration(
-                    labelText: 'Filtrer par bâtiment',
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: '',
-                      child: Text('Tous les bâtiments', style: TextStyle(fontSize: 13)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: provider.period,
+                        isExpanded: true,
+                        isDense: true,
+                        style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                        decoration: filterDecoration('Période'),
+                        items: _periodOptions
+                            .map(
+                              (opt) => DropdownMenuItem<String>(
+                                value: opt['value'],
+                                child: Text(opt['label'] ?? '', style: kFilterTextStyle),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            provider.chargerDashboards(period: value);
+                          }
+                        },
+                      ),
                     ),
-                    ...provider.batiments.map(
-                      (batiment) => DropdownMenuItem<String>(
-                        value: batiment,
-                        child: Text(batiment, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
+                        isExpanded: true,
+                        isDense: true,
+                        style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                        decoration: filterDecoration('Bâtiment'),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: '',
+                            child: Text('Tous les bâtiments', style: kFilterTextStyle),
+                          ),
+                          ...provider.batiments.map(
+                            (batiment) => DropdownMenuItem<String>(
+                              value: batiment,
+                              child: Text(batiment, style: kFilterTextStyle),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          provider.chargerDashboards(batiment: value ?? '', bandeId: '');
+                        },
                       ),
                     ),
                   ],
-                  onChanged: (value) {
-                    provider.chargerDashboards(batiment: value ?? '', bandeId: '');
-                  },
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: provider.selectedBandeId.isEmpty ? '' : provider.selectedBandeId,
+                  isExpanded: true,
                   isDense: true,
-                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                  decoration: const InputDecoration(
-                    labelText: 'Filtrer par bande',
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(),
-                  ),
+                  style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                  decoration: filterDecoration('Bande'),
                   items: [
                     const DropdownMenuItem<String>(
                       value: '',
-                      child: Text('Toutes les bandes'),
+                      child: Text('Toutes les bandes', style: kFilterTextStyle),
                     ),
                     ...provider.bandesFiltreesPourBatiment.map(
                       (bande) => DropdownMenuItem<String>(
                         value: (bande['id'] ?? bande['_id']).toString(),
                         child: Text(
                           '${(bande['nom'] ?? 'Bande').toString()}${(bande['batiment'] ?? '').toString().isNotEmpty ? ' - ${(bande['batiment'] ?? '').toString()}' : ''}',
-                          style: const TextStyle(fontSize: 13),
+                          style: kFilterTextStyle,
                         ),
                       ),
                     ),

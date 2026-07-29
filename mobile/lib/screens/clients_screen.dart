@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/clients_provider.dart';
 import '../models/client.dart';
 import '../widgets/international_phone_field.dart';
+import '../widgets/filter_styles.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -40,58 +41,60 @@ class _ClientsScreenState extends State<ClientsScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Rechercher un client...',
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () async {
-                    _searchController.clear();
-                    await context.read<ClientsProvider>().viderRecherche();
-                  },
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _searchController,
+                    style: kFilterTextStyle,
+                    decoration: filterDecoration(
+                      'Rechercher',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () async {
+                          _searchController.clear();
+                          await context.read<ClientsProvider>().viderRecherche();
+                        },
+                      ),
+                    ),
+                    onChanged: (value) async {
+                      final provider = context.read<ClientsProvider>();
+                      await provider.setSearchQuery(value);
+                      if (value.length >= 2) {
+                        await provider.rechercherClients(value, sauvegarder: false);
+                      } else if (value.isEmpty) {
+                        await provider.chargerClients();
+                      }
+                    },
+                  ),
                 ),
-              ),
-              onChanged: (value) async {
-                final provider = context.read<ClientsProvider>();
-                await provider.setSearchQuery(value);
-                if (value.length >= 2) {
-                  await provider.rechercherClients(value, sauvegarder: false);
-                } else if (value.isEmpty) {
-                  await provider.chargerClients();
-                }
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-            child: DropdownButtonFormField<String>(
-              initialValue: _typeFilter,
-              isDense: true,
-              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-              decoration: const InputDecoration(
-                labelText: 'Type client',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem<String>(value: '', child: Text('Tous')),
-                DropdownMenuItem<String>(value: 'particulier', child: Text('Particulier')),
-                DropdownMenuItem<String>(value: 'pro', child: Text('Professionnel (Pro)')),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _typeFilter,
+                    isExpanded: true,
+                    isDense: true,
+                    style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                    decoration: filterDecoration('Type'),
+                    items: const [
+                      DropdownMenuItem<String>(value: '', child: Text('Tous', style: kFilterTextStyle)),
+                      DropdownMenuItem<String>(value: 'particulier', child: Text('Particulier', style: kFilterTextStyle)),
+                      DropdownMenuItem<String>(value: 'pro', child: Text('Professionnel (Pro)', style: kFilterTextStyle)),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _typeFilter = value ?? '';
+                      });
+                    },
+                  ),
+                ),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _typeFilter = value ?? '';
-                });
-              },
             ),
           ),
           Expanded(

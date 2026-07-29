@@ -6,6 +6,7 @@ import '../models/alerte.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/filter_styles.dart';
 
 class AlertesScreen extends StatefulWidget {
   const AlertesScreen({super.key});
@@ -94,19 +95,15 @@ class _AlertesScreenState extends State<AlertesScreen> {
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _dateFilter,
+                isExpanded: true,
                 isDense: true,
-                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                decoration: const InputDecoration(
-                  labelText: 'Filtre date',
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  border: OutlineInputBorder(),
-                ),
+                style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                decoration: filterDecoration('Filtre date'),
                 items: _dateFilterOptions
                     .map(
                       (opt) => DropdownMenuItem<String>(
                         value: opt['value'],
-                        child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
+                        child: Text(opt['label'] ?? '', style: kFilterTextStyle),
                       ),
                     )
                     .toList(),

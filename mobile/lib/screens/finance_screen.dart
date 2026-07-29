@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/filter_styles.dart';
 import 'comptabilite_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
@@ -528,14 +529,15 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 Expanded(
                   child: DropdownButtonFormField<int?>(
                     initialValue: provider.monthFilter,
+                    isExpanded: true,
                     isDense: true,
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                    decoration: const InputDecoration(labelText: 'Mois', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), border: OutlineInputBorder()),
+                    style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                    decoration: filterDecoration('Mois'),
                     items: _monthOptions
                         .map(
                           (opt) => DropdownMenuItem<int?>(
                             value: opt['value'] as int?,
-                            child: Text(opt['label'] as String, style: const TextStyle(fontSize: 13)),
+                            child: Text(opt['label'] as String, style: kFilterTextStyle),
                           ),
                         )
                         .toList(),
@@ -547,12 +549,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   child: TextField(
                     controller: _yearCtrl,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      labelText: 'Annee',
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: const OutlineInputBorder(),
+                    style: kFilterTextStyle,
+                    decoration: filterDecoration(
+                      'Année',
                       suffixIcon: IconButton(
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),

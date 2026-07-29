@@ -12,6 +12,7 @@ import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/filter_styles.dart';
 import '../widgets/international_phone_field.dart';
 
 class CrmScreen extends StatefulWidget {
@@ -99,50 +100,46 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Rechercher un client...',
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () async {
-                      _searchController.clear();
-                      await context.read<ClientsProvider>().viderRechercheCrm();
-                    },
-                  ),
-                ),
-                onChanged: (value) async {
-                  await context.read<ClientsProvider>().rechercherClientsCrm(value);
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _searchController,
+                      style: kFilterTextStyle,
+                      decoration: filterDecoration(
+                        'Rechercher',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () async {
+                            _searchController.clear();
+                            await context.read<ClientsProvider>().viderRechercheCrm();
+                          },
+                        ),
+                      ),
+                      onChanged: (value) async {
+                        await context.read<ClientsProvider>().rechercherClientsCrm(value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
                     child: DropdownButtonFormField<String?>(
                       initialValue: provider.crmStatutFilter,
+                      isExpanded: true,
                       isDense: true,
-                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                      decoration: const InputDecoration(
-                        labelText: 'Statut client',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(),
-                      ),
+                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: filterDecoration('Statut'),
                       items: const [
-                        DropdownMenuItem<String?>(value: null, child: Text('Tous', style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem<String?>(value: 'prospect', child: Text('Prospects', style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem<String?>(value: 'actif', child: Text('Actifs', style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem<String?>(value: 'inactif', child: Text('Inactifs', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem<String?>(value: null, child: Text('Tous', style: kFilterTextStyle)),
+                        DropdownMenuItem<String?>(value: 'prospect', child: Text('Prospects', style: kFilterTextStyle)),
+                        DropdownMenuItem<String?>(value: 'actif', child: Text('Actifs', style: kFilterTextStyle)),
+                        DropdownMenuItem<String?>(value: 'inactif', child: Text('Inactifs', style: kFilterTextStyle)),
                       ],
                       onChanged: (value) async {
                         await context.read<ClientsProvider>().filtrerClientsCrm(value);
@@ -150,14 +147,11 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ElevatedButton.icon(
+                  IconButton.filled(
+                    tooltip: 'Nouveau client',
                     onPressed: _showAjoutClient,
-                    style: ElevatedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
+                    visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.person_add, size: 18),
-                    label: const Text('Nouveau', style: TextStyle(fontSize: 13)),
                   ),
                 ],
               ),
