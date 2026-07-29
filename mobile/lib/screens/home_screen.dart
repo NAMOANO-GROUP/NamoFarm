@@ -148,19 +148,30 @@ class _HomeScreenState extends State<HomeScreen> {
       body: isWide
           ? Row(
               children: [
-                NavigationRail(
-                  selectedIndex: _currentIndex,
-                  onDestinationSelected: (index) => setState(() => _currentIndex = index),
-                  labelType: NavigationRailLabelType.all,
-                  destinations: destinations
-                      .map(
-                        (d) => NavigationRailDestination(
-                          icon: d.icon,
-                          selectedIcon: d.selectedIcon,
-                          label: Text(d.label),
+                // Scrollable rail so all modules stay reachable even when they exceed
+                // the screen height.
+                LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
+                        child: NavigationRail(
+                          selectedIndex: _currentIndex,
+                          onDestinationSelected: (index) => setState(() => _currentIndex = index),
+                          labelType: NavigationRailLabelType.all,
+                          destinations: destinations
+                              .map(
+                                (d) => NavigationRailDestination(
+                                  icon: d.icon,
+                                  selectedIcon: d.selectedIcon,
+                                  label: Text(d.label),
+                                ),
+                              )
+                              .toList(),
                         ),
-                      )
-                      .toList(),
+                      ),
+                    ),
+                  ),
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(child: accessibleModules[_currentIndex].page),
@@ -216,21 +227,32 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < overflow.length; i++)
-              ListTile(
-                leading: overflow[i].mobileDestination.icon,
-                title: Text(overflow[i].mobileDestination.label),
-                selected: _currentIndex == primaryCount + i,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _currentIndex = primaryCount + i);
-                },
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 8),
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text('Autres modules', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
-          ],
+              for (var i = 0; i < overflow.length; i++)
+                ListTile(
+                  leading: overflow[i].mobileDestination.icon,
+                  title: Text(overflow[i].mobileDestination.label),
+                  selected: _currentIndex == primaryCount + i,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _currentIndex = primaryCount + i);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
