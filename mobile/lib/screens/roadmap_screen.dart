@@ -164,17 +164,18 @@ class _HighlightDateSelection {
 }
 
 class _RoadmapGridPainter extends CustomPainter {
-  _RoadmapGridPainter({required this.monthsTotal, required this.monthWidth});
+  _RoadmapGridPainter({required this.monthsTotal, required this.monthWidth, this.dark = false});
 
   final int monthsTotal;
   final double monthWidth;
+  final bool dark;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final evenPaint = Paint()..color = Colors.grey.shade100;
-    final oddPaint = Paint()..color = Colors.grey.shade200;
+    final evenPaint = Paint()..color = dark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100;
+    final oddPaint = Paint()..color = dark ? Colors.white.withValues(alpha: 0.09) : Colors.grey.shade200;
     final dashPaint = Paint()
-      ..color = Colors.blueGrey.shade300
+      ..color = dark ? Colors.white.withValues(alpha: 0.30) : Colors.blueGrey.shade300
       ..strokeWidth = 1;
 
     for (var index = 0; index < monthsTotal; index += 1) {
@@ -195,7 +196,7 @@ class _RoadmapGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RoadmapGridPainter oldDelegate) {
-    return oldDelegate.monthsTotal != monthsTotal || oldDelegate.monthWidth != monthWidth;
+    return oldDelegate.monthsTotal != monthsTotal || oldDelegate.monthWidth != monthWidth || oldDelegate.dark != dark;
   }
 }
 
@@ -375,7 +376,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
           _buildCompactPlanBar(),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: _buildPlanDetails(plan),
             ),
           ),
@@ -388,42 +389,53 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   // timeline gets almost the whole screen height (the tall side panel would eat it).
   Widget _buildCompactPlanBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(10, 4, 6, 2),
       child: Row(
         children: [
           Expanded(
             child: _plans.isEmpty
-                ? const Text('Aucun planning — créez-en un avec +')
-                : DropdownButtonFormField<String>(
-                    initialValue: _selectedPlanId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Planning',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                ? const Text('Aucun planning — créez-en un avec +', style: TextStyle(fontSize: 12))
+                : SizedBox(
+                    height: 40,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedPlanId,
+                      isExpanded: true,
+                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+                      decoration: const InputDecoration(
+                        labelText: 'Planning',
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _plans
+                          .map((p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                              ))
+                          .toList(),
+                      onChanged: (v) {
+                        setState(() => _selectedPlanId = v);
+                        _savePlans();
+                      },
                     ),
-                    items: _plans
-                        .map((p) => DropdownMenuItem(
-                              value: p.id,
-                              child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() => _selectedPlanId = v);
-                      _savePlans();
-                    },
                   ),
           ),
           IconButton(
             onPressed: _plans.length >= 5 ? null : _showCreatePlanDialog,
-            icon: const Icon(Icons.add_chart),
+            icon: const Icon(Icons.add_chart, size: 20),
             tooltip: 'Nouveau planning',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
           ),
           if (_selectedPlan != null)
             IconButton(
               onPressed: () => _showDeletePlanDialog(_selectedPlan!),
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
               tooltip: 'Supprimer planning',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
             ),
         ],
       ),
@@ -437,7 +449,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            padding: const EdgeInsets.fromLTRB(10, 4, 6, 2),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -449,12 +461,13 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                         children: [
                           Text(
                             plan.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            'Macro planning mensuel - ${DateFormat('yyyy').format(plan.start)} à ${DateFormat('yyyy').format(plan.end)}',
+                            'Macro mensuel · ${DateFormat('yyyy').format(plan.start)}–${DateFormat('yyyy').format(plan.end)}',
+                            style: const TextStyle(fontSize: 10),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -465,27 +478,40 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       IconButton(
                         tooltip: 'Ajouter tâche, sous-tâche, jalon ou date clé',
                         onPressed: () => _showRoadmapCreateMenu(plan),
-                        icon: const Icon(Icons.add_task_outlined),
+                        icon: const Icon(Icons.add_task_outlined, size: 20),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
                       ),
                       IconButton(
                         tooltip: 'Modifier période du planning',
                         onPressed: () => _showEditPlanDialog(plan),
-                        icon: const Icon(Icons.edit_calendar_outlined),
+                        icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
                       ),
                       IconButton(
                         tooltip: 'Modifier tâche, sous-tâche, jalon ou date clé',
                         onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.edit),
-                        icon: const Icon(Icons.edit_outlined),
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
                       ),
                       IconButton(
                         tooltip: 'Supprimer tâche, sous-tâche, jalon ou date clé',
                         onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.delete),
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
                       ),
                     ] else
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert),
+                        icon: const Icon(Icons.more_vert, size: 20),
                         tooltip: 'Actions du planning',
+                        padding: EdgeInsets.zero,
                         onSelected: (value) {
                           switch (value) {
                             case 'add':
@@ -509,30 +535,40 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                           PopupMenuItem(value: 'delete', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Supprimer élément'))),
                         ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
+                    // Zoom compact aligné à droite du titre
                     IconButton(
                       tooltip: 'Zoom -',
                       onPressed: () => setState(() => _zoom = (_zoom - 0.1).clamp(0.1, 3.0)),
-                      icon: const Icon(Icons.zoom_out),
+                      icon: const Icon(Icons.zoom_out, size: 20),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
                     ),
-                    Expanded(
-                      child: Slider(
-                        value: _zoom,
-                        min: 0.1,
-                        max: 3.0,
-                        divisions: 29,
-                        label: '${(_zoom * 100).toStringAsFixed(0)}%',
-                        onChanged: (v) => setState(() => _zoom = v),
+                    SizedBox(
+                      width: 90,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 2,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                        ),
+                        child: Slider(
+                          value: _zoom,
+                          min: 0.1,
+                          max: 3.0,
+                          divisions: 29,
+                          label: '${(_zoom * 100).toStringAsFixed(0)}%',
+                          onChanged: (v) => setState(() => _zoom = v),
+                        ),
                       ),
                     ),
                     IconButton(
                       tooltip: 'Zoom +',
                       onPressed: () => setState(() => _zoom = (_zoom + 0.1).clamp(0.1, 3.0)),
-                      icon: const Icon(Icons.zoom_in),
+                      icon: const Icon(Icons.zoom_in, size: 20),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
                     ),
                   ],
                 ),
@@ -545,14 +581,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 final timelineWidth = _timelineWidth(plan).clamp(constraints.maxWidth, double.infinity);
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: SizedBox(
                     width: timelineWidth,
                     height: constraints.maxHeight,
                     child: Column(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
                           child: _buildMonthHeader(plan),
                         ),
                         const Divider(height: 1),
@@ -560,7 +596,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                           child: plan.tasks.isEmpty
                               ? const Center(child: Text('Ajoutez des tâches pour construire la roadmap'))
                               : ListView(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(8),
                                   children: plan.tasks.map((t) => _buildTaskTile(t, plan)).toList(),
                                 ),
                         ),
@@ -578,6 +614,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
 
   Widget _buildMonthHeader(ProductionPlan plan) {
     final localeTag = Localizations.localeOf(context).toLanguageTag();
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final months = <DateTime>[];
     final first = DateTime(plan.start.year, plan.start.month, 1);
     final last = DateTime(plan.end.year, plan.end.month, 1);
@@ -593,18 +630,25 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       child: Row(
         children: months.map((m) {
           final highlighted = plan.highlightedDates.any((d) => d.year == m.year && d.month == m.month);
+          final bg = highlighted
+              ? (dark ? Colors.amber.shade900.withValues(alpha: 0.45) : Colors.amber.shade100)
+              : (dark ? Colors.white.withValues(alpha: 0.06) : Colors.blueGrey.shade50);
+          final borderColor = highlighted
+              ? (dark ? Colors.amber.shade400 : Colors.amber.shade700)
+              : (dark ? Colors.white24 : Colors.blueGrey.shade200);
+          final fg = dark ? Colors.white : Colors.black87;
           return Container(
             key: ValueKey('roadmap-month-${m.year}-${m.month}'),
             width: _monthWidth(),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
-              color: highlighted ? Colors.amber.shade100 : Colors.blueGrey.shade50,
-              border: Border.all(color: highlighted ? Colors.amber.shade700 : Colors.blueGrey.shade200),
+              color: bg,
+              border: Border.all(color: borderColor),
             ),
             child: Column(
               children: [
-                Text(DateFormat('MMM', localeTag).format(m).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${m.year}', style: const TextStyle(fontSize: 11)),
+                Text(DateFormat('MMM', localeTag).format(m).toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: fg)),
+                Text('${m.year}', style: TextStyle(fontSize: 9, color: fg.withValues(alpha: 0.7))),
               ],
             ),
           );
@@ -620,22 +664,22 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     final barDuration = (endOffset - startOffset).clamp(0.12, monthsTotal.toDouble());
 
     return Card(
-      margin: EdgeInsets.only(left: indent, bottom: 8),
+      margin: EdgeInsets.only(left: indent, bottom: 6),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GestureDetector(
-              child: Text(task.title, style: TextStyle(fontWeight: task.group ? FontWeight.w700 : FontWeight.w500)),
+              child: Text(task.title, style: TextStyle(fontSize: 13, fontWeight: task.group ? FontWeight.w700 : FontWeight.w500)),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             SizedBox(
               key: ValueKey('roadmap-task-timeline-${task.id}'),
               width: _timelineWidth(plan),
               height: 24,
               child: CustomPaint(
-                painter: _RoadmapGridPainter(monthsTotal: monthsTotal, monthWidth: _monthWidth()),
+                painter: _RoadmapGridPainter(monthsTotal: monthsTotal, monthWidth: _monthWidth(), dark: Theme.of(context).brightness == Brightness.dark),
                 child: Stack(
                   children: [
                     Positioned(
