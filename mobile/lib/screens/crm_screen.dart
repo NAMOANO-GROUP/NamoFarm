@@ -99,15 +99,19 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
               child: TextField(
                 controller: _searchController,
+                style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'Rechercher un client...',
-                  prefixIcon: const Icon(Icons.search),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  prefixIcon: const Icon(Icons.search, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear),
+                    icon: const Icon(Icons.clear, size: 18),
+                    visualDensity: VisualDensity.compact,
                     onPressed: () async {
                       _searchController.clear();
                       await context.read<ClientsProvider>().viderRechercheCrm();
@@ -120,21 +124,25 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
               child: Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String?>(
                       initialValue: provider.crmStatutFilter,
+                      isDense: true,
+                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                       decoration: const InputDecoration(
                         labelText: 'Statut client',
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem<String?>(value: null, child: Text('Tous')),
-                        DropdownMenuItem<String?>(value: 'prospect', child: Text('Prospects')),
-                        DropdownMenuItem<String?>(value: 'actif', child: Text('Actifs')),
-                        DropdownMenuItem<String?>(value: 'inactif', child: Text('Inactifs')),
+                        DropdownMenuItem<String?>(value: null, child: Text('Tous', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem<String?>(value: 'prospect', child: Text('Prospects', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem<String?>(value: 'actif', child: Text('Actifs', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem<String?>(value: 'inactif', child: Text('Inactifs', style: TextStyle(fontSize: 13))),
                       ],
                       onChanged: (value) async {
                         await context.read<ClientsProvider>().filtrerClientsCrm(value);
@@ -146,10 +154,10 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                     onPressed: _showAjoutClient,
                     style: ElevatedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     icon: const Icon(Icons.person_add, size: 18),
-                    label: const Text('Nouveau client'),
+                    label: const Text('Nouveau', style: TextStyle(fontSize: 13)),
                   ),
                 ],
               ),

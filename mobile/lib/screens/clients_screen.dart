@@ -40,15 +40,19 @@ class _ClientsScreenState extends State<ClientsScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
             child: TextField(
               controller: _searchController,
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Rechercher un client...',
-                prefixIcon: const Icon(Icons.search),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                prefixIcon: const Icon(Icons.search, size: 20),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear, size: 18),
+                  visualDensity: VisualDensity.compact,
                   onPressed: () async {
                     _searchController.clear();
                     await context.read<ClientsProvider>().viderRecherche();
@@ -67,13 +71,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
             child: DropdownButtonFormField<String>(
               initialValue: _typeFilter,
+              isDense: true,
+              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               decoration: const InputDecoration(
                 labelText: 'Type client',
                 border: OutlineInputBorder(),
                 isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem<String>(value: '', child: Text('Tous')),

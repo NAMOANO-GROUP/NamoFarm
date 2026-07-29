@@ -90,19 +90,23 @@ class _AlertesScreenState extends State<AlertesScreen> {
           final isEmpty = base.isEmpty && historique.isEmpty;
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _dateFilter,
+                isDense: true,
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                 decoration: const InputDecoration(
                   labelText: 'Filtre date',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   border: OutlineInputBorder(),
                 ),
                 items: _dateFilterOptions
                     .map(
                       (opt) => DropdownMenuItem<String>(
                         value: opt['value'],
-                        child: Text(opt['label'] ?? ''),
+                        child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
                       ),
                     )
                     .toList(),

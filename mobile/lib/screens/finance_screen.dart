@@ -498,40 +498,44 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtres mouvements', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+            const Text('Filtres mouvements', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 2),
             ListTile(
               dense: true,
+              visualDensity: const VisualDensity(vertical: -4),
               contentPadding: EdgeInsets.zero,
-              title: const Text('Types de mouvement'),
-              subtitle: Text(sourceSummary, maxLines: 2, overflow: TextOverflow.ellipsis),
+              title: const Text('Types de mouvement', style: TextStyle(fontSize: 13)),
+              subtitle: Text(sourceSummary, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.arrow_drop_down),
               onTap: () => _showSourceSelectionDialog(provider),
             ),
             ListTile(
               dense: true,
+              visualDensity: const VisualDensity(vertical: -4),
               contentPadding: EdgeInsets.zero,
-              title: const Text('Jours de la semaine'),
-              subtitle: Text(weekdaySummary, maxLines: 2, overflow: TextOverflow.ellipsis),
+              title: const Text('Jours de la semaine', style: TextStyle(fontSize: 13)),
+              subtitle: Text(weekdaySummary, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.arrow_drop_down),
               onTap: () => _showWeekdaySelectionDialog(provider),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int?>(
                     initialValue: provider.monthFilter,
-                    decoration: const InputDecoration(labelText: 'Mois'),
+                    isDense: true,
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+                    decoration: const InputDecoration(labelText: 'Mois', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), border: OutlineInputBorder()),
                     items: _monthOptions
                         .map(
                           (opt) => DropdownMenuItem<int?>(
                             value: opt['value'] as int?,
-                            child: Text(opt['label'] as String),
+                            child: Text(opt['label'] as String, style: const TextStyle(fontSize: 13)),
                           ),
                         )
                         .toList(),
@@ -543,14 +547,21 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   child: TextField(
                     controller: _yearCtrl,
                     keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       labelText: 'Annee',
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
                         onPressed: () {
                           _yearCtrl.clear();
                           context.read<FinanceProvider>().setYearFilter(null);
                         },
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(Icons.clear, size: 18),
                       ),
                     ),
                     onSubmitted: (value) {
@@ -561,31 +572,35 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             ListTile(
+              dense: true,
+              visualDensity: const VisualDensity(vertical: -4),
               contentPadding: EdgeInsets.zero,
-              title: const Text('Intervalle de date'),
-              subtitle: Text(dateRangeLabel),
+              title: const Text('Intervalle de date', style: TextStyle(fontSize: 13)),
+              subtitle: Text(dateRangeLabel, style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.date_range),
               onTap: _showDateRangePicker,
             ),
-            if (provider.dateFrom != null || provider.dateTo != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => context.read<FinanceProvider>().clearDateRange(),
-                  icon: const Icon(Icons.clear),
-                  label: const Text('Effacer intervalle'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (provider.dateFrom != null || provider.dateTo != null)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    onPressed: () => context.read<FinanceProvider>().clearDateRange(),
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('Effacer intervalle', style: TextStyle(fontSize: 12)),
+                  )
+                else
+                  const SizedBox.shrink(),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  onPressed: () => context.read<FinanceProvider>().clearAllFilters(),
+                  icon: const Icon(Icons.filter_alt_off, size: 16),
+                  label: const Text('Reinitialiser', style: TextStyle(fontSize: 12)),
                 ),
-              ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: () => context.read<FinanceProvider>().clearAllFilters(),
-                icon: const Icon(Icons.filter_alt_off),
-                label: const Text('Reinitialiser filtres'),
-              ),
+              ],
             ),
           ],
         ),

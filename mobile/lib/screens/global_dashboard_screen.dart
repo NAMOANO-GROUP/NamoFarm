@@ -82,19 +82,23 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
           return RefreshIndicator(
             onRefresh: () => provider.chargerDashboards(),
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               children: [
                 DropdownButtonFormField<String>(
                   initialValue: provider.period,
+                  isDense: true,
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                   decoration: const InputDecoration(
                     labelText: 'Période',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   items: _periodOptions
                       .map(
                         (opt) => DropdownMenuItem<String>(
                           value: opt['value'],
-                          child: Text(opt['label'] ?? ''),
+                          child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
                         ),
                       )
                       .toList(),
@@ -104,22 +108,26 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
+                  isDense: true,
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                   decoration: const InputDecoration(
                     labelText: 'Filtrer par bâtiment',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   items: [
                     const DropdownMenuItem<String>(
                       value: '',
-                      child: Text('Tous les bâtiments'),
+                      child: Text('Tous les bâtiments', style: TextStyle(fontSize: 13)),
                     ),
                     ...provider.batiments.map(
                       (batiment) => DropdownMenuItem<String>(
                         value: batiment,
-                        child: Text(batiment),
+                        child: Text(batiment, style: const TextStyle(fontSize: 13)),
                       ),
                     ),
                   ],
@@ -127,11 +135,15 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                     provider.chargerDashboards(batiment: value ?? '', bandeId: '');
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: provider.selectedBandeId.isEmpty ? '' : provider.selectedBandeId,
+                  isDense: true,
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                   decoration: const InputDecoration(
                     labelText: 'Filtrer par bande',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   items: [
@@ -144,6 +156,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                         value: (bande['id'] ?? bande['_id']).toString(),
                         child: Text(
                           '${(bande['nom'] ?? 'Bande').toString()}${(bande['batiment'] ?? '').toString().isNotEmpty ? ' - ${(bande['batiment'] ?? '').toString()}' : ''}',
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ),
                     ),
@@ -152,7 +165,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                     provider.chargerDashboards(bandeId: value ?? '');
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 GridView.count(
                   crossAxisCount: MediaQuery.of(context).size.width > 900 ? 4 : 2,
                   crossAxisSpacing: 8,

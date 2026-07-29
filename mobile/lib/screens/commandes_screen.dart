@@ -93,33 +93,40 @@ class _CommandesScreenState extends State<CommandesScreen> {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
               child: TextField(
                 controller: _searchController,
                 onChanged: provider.rechercher,
+                style: const TextStyle(fontSize: 13),
                 decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search, size: 20),
                   labelText: 'Rechercher une commande',
                   hintText: 'Client, bande, produit, montant, note...',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
               child: DropdownButtonFormField<String>(
                 initialValue: provider.selectedStatuts.length == 1
                     ? provider.selectedStatuts.first
                     : '',
+                isDense: true,
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                 decoration: const InputDecoration(
                   labelText: 'Statut',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   border: OutlineInputBorder(),
                 ),
                 items: _statusOptions
                     .map(
                       (opt) => DropdownMenuItem<String>(
                         value: opt['value'],
-                        child: Text(opt['label'] ?? ''),
+                        child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
                       ),
                     )
                     .toList(),

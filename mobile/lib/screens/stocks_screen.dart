@@ -89,20 +89,23 @@ class _StocksScreenState extends State<StocksScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _categoryFilter,
+                isDense: true,
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                 decoration: const InputDecoration(
                   labelText: 'Catégorie',
                   border: OutlineInputBorder(),
                   isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
                 items: _categoryOptions
                     .map(
                       (opt) => DropdownMenuItem<String>(
                         value: opt['value'],
-                        child: Text(opt['label'] ?? ''),
+                        child: Text(opt['label'] ?? '', style: const TextStyle(fontSize: 13)),
                       ),
                     )
                     .toList(),
