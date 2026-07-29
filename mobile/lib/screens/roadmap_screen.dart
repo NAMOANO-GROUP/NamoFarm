@@ -354,7 +354,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   @override
   Widget build(BuildContext context) {
     final plan = _selectedPlan;
-    final isWide = MediaQuery.of(context).size.width >= 960;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Roadmap production'),
@@ -371,29 +370,17 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
           ),
         ],
       ),
-      body: isWide
-          ? Row(
-              children: [
-                SizedBox(width: 280, child: _buildPlansPanel()),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
-                    child: _buildPlanDetails(plan),
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                _buildCompactPlanBar(),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: _buildPlanDetails(plan),
-                  ),
-                ),
-              ],
+      body: Column(
+        children: [
+          _buildCompactPlanBar(),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: _buildPlanDetails(plan),
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -438,50 +425,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
               tooltip: 'Supprimer planning',
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlansPanel() {
-    return Card(
-      margin: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          ListTile(
-            title: const Text('Plannings', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${_plans.length}/5'),
-            trailing: IconButton(
-              onPressed: _plans.length >= 5 ? null : _showCreatePlanDialog,
-              icon: const Icon(Icons.add),
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: _plans.isEmpty
-                ? const Center(child: Text('Créez votre premier planning'))
-                : ListView.builder(
-                    itemCount: _plans.length,
-                    itemBuilder: (context, index) {
-                      final p = _plans[index];
-                      final selected = p.id == _selectedPlanId;
-                      return ListTile(
-                        selected: selected,
-                        title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text('${DateFormat('MM/yyyy').format(p.start)} - ${DateFormat('MM/yyyy').format(p.end)}'),
-                        trailing: IconButton(
-                          tooltip: 'Supprimer planning',
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                          onPressed: () => _showDeletePlanDialog(p),
-                        ),
-                        onTap: () {
-                          setState(() => _selectedPlanId = p.id);
-                          _savePlans();
-                        },
-                      );
-                    },
-                  ),
-          ),
         ],
       ),
     );
