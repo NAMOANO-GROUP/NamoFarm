@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/auth_provider.dart';
 
@@ -11,12 +12,48 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _rememberedEmailKey = 'login_remembered_email';
+
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   String? _error;
   bool _obscurePassword = true;
+  bool _rememberEmail = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_rememberedEmailKey);
+    if (saved != null && saved.isNotEmpty && mounted) {
+      setState(() {
+        _emailCtrl.text = saved;
+        _rememberEmail = true;
+      });
+    }
+  }
+
+  Future<void> _saveRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberEmail) {
+      await prefs.setString(_rememberedEmailKey, _emailCtrl.text.trim());
+    } else {
+      await prefs.remove(_rememberedEmailKey);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +125,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         validator: (v) => (v == null || v.isEmpty) ? 'Mot de passe requis' : null,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
+                      CheckboxListTile(
+                        value: _rememberEmail,
+                        onChanged: (v) => setState(() => _rememberEmail = v ?? false),
+                        title: const Text('Se souvenir de mon adresse mail'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                      const SizedBox(height: 4),
                       if (_error != null)
                         Text(_error!, style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 8),
@@ -126,7 +172,9 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordCtrl.text,
         );
 
-    if (!ok && mounted) {
+    if (ok) {
+      await _saveRememberedEmail();
+    } else if (mounted) {
       setState(() => _error = _formatLoginError(auth.lastError));
     }
   }
