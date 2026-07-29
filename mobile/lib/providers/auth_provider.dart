@@ -81,6 +81,48 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> onboarding({
+    required String entreprise,
+    required String email,
+    required String motDePasse,
+    required String nom,
+    required String prenom,
+    String telephone = '',
+    String secret = '',
+  }) async {
+    _isLoading = true;
+    _lastError = null;
+    notifyListeners();
+
+    try {
+      final data = await ApiService.onboarding({
+        'entreprise': entreprise,
+        'email': email,
+        'motDePasse': motDePasse,
+        'nom': nom,
+        'prenom': prenom,
+        if (telephone.isNotEmpty) 'telephone': telephone,
+        if (secret.isNotEmpty) 'secret': secret,
+      });
+      _token = data['token'] as String?;
+      _user = Map<String, dynamic>.from(data['utilisateur'] ?? {});
+      _sessionTimeoutMinutes = (data['sessionTimeoutMinutes'] ?? 30) as int;
+
+      ApiService.setAuthToken(_token);
+      await _persistSession();
+      _restartInactivityTimer();
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '').trim();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout({bool silent = false}) async {
     _inactivityTimer?.cancel();
 

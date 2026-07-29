@@ -471,6 +471,9 @@ class ApiService {
   static Future<Map<String, dynamic>> inscription(Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/auth/inscription', body: data), accepted: const [201]));
 
+  static Future<Map<String, dynamic>> onboarding(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/auth/onboarding', body: data), accepted: const [201]));
+
   static Future<Map<String, dynamic>> connexion(String email, String motDePasse) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/auth/connexion', body: {'email': email, 'motDePasse': motDePasse})));
 

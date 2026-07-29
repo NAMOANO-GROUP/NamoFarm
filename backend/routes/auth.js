@@ -165,6 +165,16 @@ async function getOrCreateDefaultCompanyId(client) {
   return created.id;
 }
 
+async function createCompany(client, nom) {
+  const { data, error } = await client
+    .from('entreprises')
+    .insert({ nom })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id;
+}
+
 async function getProfile(client, userId) {
   const { data, error } = await client
     .from('profiles')
@@ -632,6 +642,110 @@ router.post('/deconnexion', authenticate, async (req, res) => {
     ip: '',
   });
   return res.json({ message: 'Déconnecté' });
+});
+
+// Onboarding public : une NOUVELLE entreprise crée sa propre société + son premier
+// administrateur. Toutes les données de ce compte seront cloisonnées par company_id.
+// Sécurité optionnelle : définir ONBOARDING_SECRET dans l'environnement pour exiger
+// un code d'inscription (évite les créations de comptes abusives en libre-service).
+router.post('/onboarding', async (req, res) => {
+  try {
+    const client = getAdminClient();
+
+    const requiredSecret = process.env.ONBOARDING_SECRET;
+    if (requiredSecret && String(req.body.secret || '') !== String(requiredSecret)) {
+      return res.status(403).json({ message: "Code d'inscription invalide." });
+    }
+
+    const entrepriseNom = (req.body.entreprise || '').trim();
+    const email = (req.body.email || '').trim().toLowerCase();
+    const password = req.body.motDePasse || '';
+    const nom = (req.body.nom || '').trim();
+    const prenom = (req.body.prenom || '').trim();
+    const telephone = normalizeInternationalPhone(req.body.telephone || '');
+
+    if (!entrepriseNom) {
+      return res.status(400).json({ message: "Nom de l'exploitation requis" });
+    }
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email et mot de passe requis' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+    if (req.body.telephone !== undefined && req.body.telephone !== '' && !telephone) {
+      return res.status(400).json({ message: 'Téléphone invalide. Format attendu: +221 77 12 34 56' });
+    }
+
+    // Refuser si l'email est déjà utilisé par un compte existant.
+    const existingUsers = await client.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const already = (existingUsers.data?.users || []).some(
+      (u) => (u.email || '').toLowerCase() === email
+    );
+    if (already) {
+      return res.status(409).json({ message: 'Un compte existe déjà avec cet email.' });
+    }
+
+    // 1. Créer la nouvelle entreprise (locataire isolé).
+    const companyId = await createCompany(client, entrepriseNom);
+
+    // 2. Créer l'utilisateur (premier administrateur de cette entreprise).
+    const created = await client.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nom,
+        prenom,
+        telephone,
+        permissions: [],
+        actif: true,
+        mustChangePassword: false,
+      },
+    });
+    if (created.error) {
+      return res.status(400).json({ message: created.error.message });
+    }
+
+    // 3. Créer le profil rattaché à la nouvelle entreprise, en rôle admin.
+    const fullName = mergeFullName(nom, prenom);
+    const profileUpsert = await upsertProfileCompat(client, {
+      id: created.data.user.id,
+      company_id: companyId,
+      role: 'admin',
+      full_name: fullName || email,
+    });
+    if (profileUpsert.error) {
+      return res.status(400).json({ message: profileUpsert.error.message });
+    }
+
+    const publicUser = await buildPublicUser(client, created.data.user, {
+      id: created.data.user.id,
+      company_id: companyId,
+      role: 'admin',
+      full_name: fullName,
+    });
+
+    const token = signToken(publicUser);
+
+    await logAudit(client, {
+      userId: publicUser.id,
+      userEmail: publicUser.email,
+      action: 'auth.onboarding',
+      targetType: 'Entreprise',
+      targetId: companyId,
+      metadata: { entreprise: entrepriseNom },
+      ip: '',
+    });
+
+    return res.status(201).json({
+      token,
+      utilisateur: publicUser,
+      sessionTimeoutMinutes: 30,
+    });
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
 });
 
 module.exports = router;

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/auth_provider.dart';
+import 'onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -149,7 +150,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextButton(
                         onPressed: _showForgotPasswordDialog,
                         child: const Text('Mot de passe oublié ?'),
-                      )
+                      ),
+                      const Divider(height: 24),
+                      OutlinedButton.icon(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () => Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                                ),
+                        icon: const Icon(Icons.add_business_outlined),
+                        label: const Text('Créer une nouvelle exploitation'),
+                      ),
                     ],
                   ),
                 ),
