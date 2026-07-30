@@ -1,11 +1,11 @@
 {
-    "name": "agribusiness",
-    "short_name": "agribusiness",
+    "name": "NamoFarm",
+    "short_name": "NamoFarm",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "NamoFarm - gestion d'exploitation avicole.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

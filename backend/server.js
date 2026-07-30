@@ -51,11 +51,11 @@ app.use('/api/config', configRoutes);
 
 // Route de test
 app.get('/', (req, res) => {
-  res.json({ message: 'AgriBusiness API est en ligne' });
+  res.json({ message: 'NamoFarm API est en ligne' });
 });
 
 // Démarrage du serveur
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Serveur AgriBusiness démarré sur le port ${PORT}`);
+  console.log(`Serveur NamoFarm démarré sur le port ${PORT}`);
 });

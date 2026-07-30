@@ -96,7 +96,7 @@ create table if not exists public.tresorerie_mouvements (
 
 create table if not exists public.app_config (
   key text primary key,
-  nomApplication text not null default 'AgriBusiness',
+  nomApplication text not null default 'NamoFarm',
   devise text not null default 'FCFA',
   langue text not null default 'fr',
   sessionTimeoutMinutes int not null default 30,

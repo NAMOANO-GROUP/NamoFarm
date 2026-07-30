@@ -255,7 +255,7 @@ async function ensureInitialAdmin() {
   if (adminReadError) throw new Error(adminReadError.message);
   if (hasAdmin?.id) return;
 
-  const defaultEmail = 'admin@agribusiness.local';
+  const defaultEmail = 'admin@namofarm.local';
   const defaultPassword = 'Admin@123';
   const companyId = await getOrCreateDefaultCompanyId(client);
 

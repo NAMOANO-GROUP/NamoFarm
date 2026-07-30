@@ -19,11 +19,11 @@ import 'providers/sante_provider.dart';
 import 'providers/cheptel_provider.dart';
 
 void main() {
-  runApp(const AgriBusiness());
+  runApp(const NamoFarmApp());
 }
 
-class AgriBusiness extends StatelessWidget {
-  const AgriBusiness({super.key});
+class NamoFarmApp extends StatelessWidget {
+  const NamoFarmApp({super.key});
 
   @override
   Widget build(BuildContext context) {

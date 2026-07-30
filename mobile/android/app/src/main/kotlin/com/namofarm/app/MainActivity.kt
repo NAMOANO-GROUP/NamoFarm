@@ -1,4 +1,4 @@
-package com.agribusiness.agribusiness
+package com.namofarm.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,6 +1,6 @@
-# AgriBusiness Backend
+# NamoFarm Backend
 
-Ce dossier contiendra le code serveur (backend) de l'application AgriBusiness.
+Ce dossier contiendra le code serveur (backend) de l'application NamoFarm.
 
 Fonctionnalités prévues :
 - Gestion des bandes (ouverture, fermeture, historique)

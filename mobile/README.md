@@ -1,4 +1,4 @@
-# AgriBusiness Mobile (Flutter)
+# NamoFarm Mobile (Flutter)
 
 This folder is prepared for:
 

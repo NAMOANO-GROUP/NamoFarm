@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Ce dossier contiendra le code serveur (backend) de l'application AgriBusiness.",
+  "description": "Ce dossier contiendra le code serveur (backend) de l'application NamoFarm.",
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
