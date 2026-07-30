@@ -84,6 +84,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Image.asset(
+                        'assets/logo/namofarm.png',
+                        height: 96,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
+                      const SizedBox(height: 12),
                       const Text(
                         'NamoFarm',
                         textAlign: TextAlign.center,
