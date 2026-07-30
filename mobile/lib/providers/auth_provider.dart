@@ -26,7 +26,16 @@ class AuthProvider with ChangeNotifier {
 
   bool hasPermission(String permission) {
     if (isAdmin) return true;
-    return permissions.contains(permission);
+    if (permissions.contains(permission)) return true;
+    // Les clés de navigation utilisent le style "module:view". L'accès est accordé
+    // dès que l'utilisateur possède au moins une permission de ce module
+    // (ex: 'bandes:view' couvert par 'bandes.read', 'stocks:view' par 'stocks.read',
+    // 'dashboard:view' par 'dashboard.full/sales/tech', etc.).
+    if (permission.endsWith(':view')) {
+      final module = permission.substring(0, permission.length - 5);
+      return permissions.any((p) => p.toString().startsWith('$module.'));
+    }
+    return false;
   }
 
   Future<void> initSession() async {

@@ -9,7 +9,9 @@ UPDATE public.profiles
 SET role = CASE
   WHEN role IS NULL OR btrim(role) = '' THEN 'technicien'
   WHEN lower(btrim(role)) IN ('admin', 'administrateur', 'owner') THEN 'admin'
-  WHEN lower(btrim(role)) IN ('gestionnaire_ferme', 'gestionnaire', 'manager', 'gestionnaire de ferme') THEN 'gestionnaire_ferme'
+  WHEN lower(btrim(role)) IN ('gestionnaire_ferme', 'gestionnaire', 'manager', 'gestionnaire de ferme',
+       'gestionnaire d''exploitation', 'gestionnaire d exploitation', 'gestionnaire_exploitation',
+       'gestionnaire de l''exploitation', 'exploitant', 'chef exploitation', 'chef d''exploitation') THEN 'gestionnaire_ferme'
   WHEN lower(btrim(role)) IN ('commercial', 'vendeur', 'sales') THEN 'commercial'
   WHEN lower(btrim(role)) IN ('technicien', 'technique', 'technician', 'agent', 'utilisateur', 'user', 'viewer') THEN 'technicien'
   ELSE 'technicien'

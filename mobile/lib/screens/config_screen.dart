@@ -16,7 +16,7 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
 
   static const List<Map<String, String>> _userRoleOptions = [
     {'value': 'admin', 'label': 'Administrateur'},
-    {'value': 'gestionnaire_ferme', 'label': 'Gestionnaire de ferme'},
+    {'value': 'gestionnaire_ferme', 'label': "Gestionnaire d'exploitation"},
     {'value': 'commercial', 'label': 'Commercial'},
     {'value': 'technicien', 'label': 'Technicien'},
   ];

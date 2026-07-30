@@ -58,19 +58,19 @@ class _HomeScreenState extends State<HomeScreen> {
       page: ReproductionScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Reproduction'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Couvoir'),
-      permission: 'bandes:view',
+      permission: 'reproduction:view',
     ),
     _ModuleItem(
       page: SanteScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
-      permission: 'bandes:view',
+      permission: 'sante:view',
     ),
     _ModuleItem(
       page: CheptelScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.pets_outlined), selectedIcon: Icon(Icons.pets), label: 'Cheptel'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.pets_outlined), selectedIcon: Icon(Icons.pets), label: 'Cheptel'),
-      permission: 'bandes:view',
+      permission: 'cheptel:view',
     ),
     _ModuleItem(
       page: PrevisionsScreen(),
@@ -100,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
       page: FinanceScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Tresorerie'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
-      permission: 'dashboard:view',
+      permission: 'finance:view',
     ),
     _ModuleItem(
       page: RoadmapScreen(),
