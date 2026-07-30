@@ -200,6 +200,9 @@ class ApiService {
   static Future<Map<String, dynamic>> creerStock(Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/stocks', body: data), accepted: const [201]));
 
+  static Future<Map<String, dynamic>> modifierStock(String stockId, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/stocks/$stockId', body: data)));
+
     static Future<void> supprimerStock(String stockId) async {
         _ensureSuccess(await _delete('/stocks/$stockId'));
     }

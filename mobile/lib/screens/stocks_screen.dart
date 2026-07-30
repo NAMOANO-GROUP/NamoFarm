@@ -218,6 +218,11 @@ class _StocksScreenState extends State<StocksScreen> {
           onPressed: () => _showMouvementDialog(stock, 'ajustement'),
         ),
         IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+          tooltip: 'Modifier',
+          onPressed: () => _showModifierStockDialog(stock),
+        ),
+        IconButton(
           icon: const Icon(Icons.history, color: Colors.blueGrey),
           tooltip: 'Historique',
           onPressed: () => _showHistoriqueDialog(stock),
@@ -246,6 +251,9 @@ class _StocksScreenState extends State<StocksScreen> {
           case 'ajustement':
             _showMouvementDialog(stock, 'ajustement');
             break;
+          case 'modifier':
+            _showModifierStockDialog(stock);
+            break;
           case 'historique':
             _showHistoriqueDialog(stock);
             break;
@@ -266,6 +274,10 @@ class _StocksScreenState extends State<StocksScreen> {
         PopupMenuItem(
           value: 'ajustement',
           child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.tune, color: Colors.orange), title: Text('Ajustement')),
+        ),
+        PopupMenuItem(
+          value: 'modifier',
+          child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined, color: Colors.blue), title: Text('Modifier')),
         ),
         PopupMenuItem(
           value: 'historique',
@@ -577,6 +589,81 @@ class _StocksScreenState extends State<StocksScreen> {
                 });
               },
               child: const Text('Ajouter'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showModifierStockDialog(Stock stock) {
+    final nomCtrl = TextEditingController(text: stock.nom);
+    final uniteCtrl = TextEditingController(text: stock.unite);
+    final seuilCtrl = TextEditingController(text: stock.seuilAlerte.toStringAsFixed(2));
+    final prixCtrl = TextEditingController(text: stock.prixUnitaire.toStringAsFixed(2));
+    final fournisseurCtrl = TextEditingController(text: stock.fournisseur);
+    final emplacementCtrl = TextEditingController(text: stock.emplacement);
+    final notesCtrl = TextEditingController(text: stock.notes);
+    const categories = ['aliment', 'medicament', 'vitamine', 'desinfectant', 'materiel', 'autre'];
+    String selectedCategorie = categories.contains(stock.categorie) ? stock.categorie : 'autre';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Modifier le stock'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom du produit *')),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedCategorie,
+                  items: const [
+                    DropdownMenuItem(value: 'aliment', child: Text('Aliment')),
+                    DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
+                    DropdownMenuItem(value: 'vitamine', child: Text('Vitamine')),
+                    DropdownMenuItem(value: 'desinfectant', child: Text('Désinfectant')),
+                    DropdownMenuItem(value: 'materiel', child: Text('Matériel')),
+                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
+                  ],
+                  onChanged: (v) => setDialogState(() => selectedCategorie = v!),
+                  decoration: const InputDecoration(labelText: 'Catégorie'),
+                ),
+                TextField(controller: uniteCtrl, decoration: const InputDecoration(labelText: 'Unité (kg, litres, boîtes...)')),
+                TextField(controller: seuilCtrl, decoration: const InputDecoration(labelText: 'Seuil d\'alerte'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                TextField(controller: prixCtrl, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                TextField(controller: fournisseurCtrl, decoration: const InputDecoration(labelText: 'Fournisseur')),
+                TextField(controller: emplacementCtrl, decoration: const InputDecoration(labelText: 'Emplacement')),
+                TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'Notes'), maxLines: 2),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () async {
+                if (stock.id == null || nomCtrl.text.trim().isEmpty) return;
+                final seuil = _parseDecimal(seuilCtrl.text) ?? stock.seuilAlerte;
+                final prix = _parseDecimal(prixCtrl.text) ?? stock.prixUnitaire;
+                final provider = context.read<StocksProvider>();
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(ctx);
+                final ok = await provider.modifierStock(stock.id!, {
+                  'nom': nomCtrl.text.trim(),
+                  'categorie': selectedCategorie,
+                  'unite': uniteCtrl.text.trim(),
+                  'seuilAlerte': seuil,
+                  'prixUnitaire': prix,
+                  'fournisseur': fournisseurCtrl.text.trim(),
+                  'emplacement': emplacementCtrl.text.trim(),
+                  'notes': notesCtrl.text.trim(),
+                });
+                messenger.showSnackBar(
+                  SnackBar(content: Text(ok ? 'Stock modifié' : (provider.lastError ?? 'Modification impossible'))),
+                );
+              },
+              child: const Text('Enregistrer'),
             ),
           ],
         ),

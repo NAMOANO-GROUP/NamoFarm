@@ -40,6 +40,20 @@ class StocksProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> modifierStock(String stockId, Map<String, dynamic> data) async {
+    try {
+      _lastError = null;
+      await ApiService.modifierStock(stockId, data);
+      await chargerStocks();
+      return true;
+    } catch (e) {
+      debugPrint('Erreur: $e');
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> ajouterMouvement(String stockId, Map<String, dynamic> data) async {
     try {
       _lastError = null;
