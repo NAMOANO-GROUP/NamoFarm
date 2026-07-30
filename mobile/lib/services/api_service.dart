@@ -545,6 +545,17 @@ class ApiService {
         _ensureSuccess(await _delete('/config/audit'));
     }
 
+  // CODES D'INSCRIPTION À USAGE UNIQUE (onboarding)
+  static Future<List<dynamic>> getOnboardingCodes() async =>
+      List<dynamic>.from(_ensureSuccess(await _get('/onboarding-codes')) ?? []);
+
+  static Future<Map<String, dynamic>> genererOnboardingCode(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/onboarding-codes', body: data), accepted: const [201]));
+
+    static Future<void> supprimerOnboardingCode(String id) async {
+        _ensureSuccess(await _delete('/onboarding-codes/$id'), endpoint: 'DELETE /onboarding-codes/$id');
+    }
+
   // ROADMAP (planning) — server-side persistence
   static Future<Map<String, dynamic>> getRoadmap() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/roadmap')));

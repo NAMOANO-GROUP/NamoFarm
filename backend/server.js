@@ -23,6 +23,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const reportsRoutes = require('./routes/reports');
 const usersRoutes = require('./routes/users');
 const configRoutes = require('./routes/config');
+const onboardingCodesRoutes = require('./routes/onboarding_codes');
 const financeRoutes = require('./routes/finance');
 const roadmapRoutes = require('./routes/roadmap');
 const couveesRoutes = require('./routes/couvees');
@@ -48,6 +49,7 @@ app.use('/api/cheptel', authenticate, cheptelRoutes);
 app.use('/api/previsions', authenticate, previsionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/onboarding-codes', onboardingCodesRoutes);
 
 // Route de test
 app.get('/', (req, res) => {

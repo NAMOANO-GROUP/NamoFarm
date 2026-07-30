@@ -24,6 +24,8 @@ class AuthProvider with ChangeNotifier {
 
   bool get isAdmin => (_user?['role'] ?? '') == 'admin';
 
+  bool get isSuperadmin => _user?['isSuperadmin'] == true;
+
   List<dynamic> get permissions => (_user?['permissions'] as List?) ?? [];
 
   bool hasPermission(String permission) {

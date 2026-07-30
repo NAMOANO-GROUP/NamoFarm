@@ -175,9 +175,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           TextFormField(
                             controller: _secretCtrl,
                             decoration: const InputDecoration(
-                              labelText: "Code d'inscription (si fourni)",
+                              labelText: "Code d'inscription *",
+                              helperText: "Code fourni par l'administrateur",
                               prefixIcon: Icon(Icons.vpn_key_outlined),
                             ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? "Code d'inscription requis"
+                                : null,
+                            onChanged: (_) => _clearError(),
                           ),
                           const SizedBox(height: 12),
                           if (_error != null)

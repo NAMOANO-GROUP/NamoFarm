@@ -41,17 +41,30 @@ function mergeFullName(nom = '', prenom = '') {
   return [nom, prenom].filter(Boolean).join(' ').trim();
 }
 
+// Super-administrateur : rang au-dessus de l'admin, défini par liste d'emails
+// dans la variable d'environnement SUPERADMIN_EMAILS (séparés par des virgules).
+// Seuls ces comptes peuvent gérer les codes de création d'exploitation.
+function isSuperadminEmail(email) {
+  const list = (process.env.SUPERADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(String(email || '').trim().toLowerCase());
+}
+
 function toPublicUser(profile, emailOverride) {
   const { nom, prenom } = splitFullName(profile.full_name || '');
+  const email = emailOverride || profile.email || '';
   return {
     id: profile.id,
     nom,
     prenom,
-    email: emailOverride || profile.email || '',
+    email,
     telephone: profile.telephone || '',
     role: toAppRole(profile.role),
     permissions: Array.isArray(profile.permissions) ? profile.permissions : [],
     actif: profile.actif !== false,
+    isSuperadmin: isSuperadminEmail(email),
     mustChangePassword: profile.must_change_password !== false,
     derniereConnexionAt: profile.derniere_connexion_at || null,
     createdAt: profile.created_at || null,
@@ -78,5 +91,6 @@ module.exports = {
   toAppRole,
   mergeFullName,
   toPublicUser,
+  isSuperadminEmail,
   logAudit,
 };

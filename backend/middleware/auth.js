@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { getAdminClient, toAppRole } = require('../services/supabase');
+const { getAdminClient, toAppRole, isSuperadminEmail } = require('../services/supabase');
 const { getEffectivePermissions, isAdminRole } = require('../config/permissions');
 
 function extractToken(req) {
@@ -55,6 +55,7 @@ async function authenticate(req, res, next) {
       nomComplet: fullName,
       fullName,
       telephone: profile.telephone || '',
+      isSuperadmin: isSuperadminEmail(profile.email || ''),
     };
     next();
   } catch (err) {
@@ -83,6 +84,16 @@ function requirePermission(permission) {
   };
 }
 
+// Réservé au super-administrateur (rang au-dessus de l'admin), défini via
+// la variable d'environnement SUPERADMIN_EMAILS.
+function requireSuperadmin(req, res, next) {
+  if (!req.user) return res.status(401).json({ message: 'Authentification requise' });
+  if (!req.user.isSuperadmin) {
+    return res.status(403).json({ message: 'Réservé au super-administrateur' });
+  }
+  next();
+}
+
 function hasPermission(req, permission) {
   if (!req?.user) return false;
   if (isAdminRole(req.user.role)) return true;
@@ -106,6 +117,7 @@ function requireAnyPermission(permissions) {
 module.exports = {
   authenticate,
   requireRole,
+  requireSuperadmin,
   requirePermission,
   requireAnyPermission,
   hasPermission,

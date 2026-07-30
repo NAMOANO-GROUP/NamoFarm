@@ -711,9 +711,32 @@ router.post('/onboarding', onboardingLimiter, async (req, res) => {
   try {
     const client = getAdminClient();
 
-    const requiredSecret = process.env.ONBOARDING_SECRET;
-    if (requiredSecret && String(req.body.secret || '') !== String(requiredSecret)) {
-      return res.status(403).json({ message: "Code d'inscription invalide." });
+    const submittedCode = String(req.body.secret || '').trim();
+    const envSecret = process.env.ONBOARDING_SECRET ? String(process.env.ONBOARDING_SECRET) : '';
+
+    // 1) Chercher un code d'inscription à usage unique correspondant, non utilisé
+    //    et non expiré, dans la table onboarding_codes.
+    let matchedCodeRow = null;
+    if (submittedCode) {
+      const { data: codeRow } = await client
+        .from('onboarding_codes')
+        .select('*')
+        .eq('code', submittedCode)
+        .maybeSingle();
+      const notExpired = !codeRow?.expires_at || new Date(codeRow.expires_at) > new Date();
+      if (codeRow && !codeRow.used_at && notExpired) {
+        matchedCodeRow = codeRow;
+      }
+    }
+
+    // 2) Repli optionnel : un code statique (ONBOARDING_SECRET) reste accepté.
+    const envMatches = Boolean(envSecret) && submittedCode === envSecret;
+
+    // 3) La création d'exploitation est TOUJOURS protégée : sans code valide
+    //    (usage unique en base OU code statique), on refuse. Si aucun code n'a
+    //    été généré, personne ne peut créer d'exploitation.
+    if (!matchedCodeRow && !envMatches) {
+      return res.status(403).json({ message: "Code d'inscription requis ou invalide. Contactez l'administrateur." });
     }
 
     const entrepriseNom = (req.body.entreprise || '').trim();
@@ -786,6 +809,20 @@ router.post('/onboarding', onboardingLimiter, async (req, res) => {
     });
 
     const token = signToken(publicUser);
+
+    // Marquer le code d'inscription comme utilisé : il ne fonctionnera plus jamais.
+    // Le filtre .is('used_at', null) évite qu'une requête concurrente le réutilise.
+    if (matchedCodeRow) {
+      await client
+        .from('onboarding_codes')
+        .update({
+          used_at: new Date().toISOString(),
+          used_by_email: email,
+          company_id: companyId,
+        })
+        .eq('id', matchedCodeRow.id)
+        .is('used_at', null);
+    }
 
     await logAudit(client, {
       userId: publicUser.id,

@@ -7,12 +7,14 @@ class AdminProvider with ChangeNotifier {
   List<Map<String, dynamic>> _users = [];
   Map<String, dynamic>? _config;
   List<Map<String, dynamic>> _auditLogs = [];
+  List<Map<String, dynamic>> _onboardingCodes = [];
   String? _lastError;
 
   bool get isLoading => _isLoading;
   List<Map<String, dynamic>> get users => _users;
   Map<String, dynamic>? get config => _config;
   List<Map<String, dynamic>> get auditLogs => _auditLogs;
+  List<Map<String, dynamic>> get onboardingCodes => _onboardingCodes;
   String? get lastError => _lastError;
 
   Future<void> loadAll() async {
@@ -42,6 +44,48 @@ class AdminProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // --- Codes d'inscription à usage unique (onboarding) ---
+
+  Future<void> loadOnboardingCodes() async {
+    try {
+      _lastError = null;
+      final data = await ApiService.getOnboardingCodes();
+      _onboardingCodes = data.map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '').trim();
+    }
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>?> generateOnboardingCode({String? label, int? expiresInDays}) async {
+    try {
+      _lastError = null;
+      final resp = await ApiService.genererOnboardingCode({
+        if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
+        if (expiresInDays != null && expiresInDays > 0) 'expiresInDays': expiresInDays,
+      });
+      await loadOnboardingCodes();
+      return resp;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '').trim();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> deleteOnboardingCode(String id) async {
+    try {
+      _lastError = null;
+      await ApiService.supprimerOnboardingCode(id);
+      await loadOnboardingCodes();
+      return true;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '').trim();
+      notifyListeners();
+      return false;
     }
   }
 

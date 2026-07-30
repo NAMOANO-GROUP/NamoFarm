@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
@@ -14,6 +15,7 @@ class ConfigScreen extends StatefulWidget {
 
 class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isSuperadmin = false;
 
   static const List<Map<String, String>> _userRoleOptions = [
     {'value': 'admin', 'label': 'Administrateur'},
@@ -34,7 +36,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _isSuperadmin = context.read<AuthProvider>().isSuperadmin;
+    _tabController = TabController(length: _isSuperadmin ? 4 : 3, vsync: this);
     _tabController.addListener(() {
       if (mounted) {
         setState(() {});
@@ -42,6 +45,9 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminProvider>().loadAll();
+      if (_isSuperadmin) {
+        context.read<AdminProvider>().loadOnboardingCodes();
+      }
     });
   }
 
@@ -53,25 +59,29 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final tabs = <Widget>[
+      const Tab(text: 'Utilisateurs'),
+      const Tab(text: 'Paramètres'),
+      const Tab(text: 'Audit'),
+      if (_isSuperadmin) const Tab(text: "Codes d'accès"),
+    ];
+    final views = <Widget>[
+      _usersTab(),
+      _settingsTab(),
+      _auditTab(),
+      if (_isSuperadmin) _onboardingCodesTab(),
+    ];
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configuration administrateur'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Utilisateurs'),
-            Tab(text: 'Paramètres'),
-            Tab(text: 'Audit'),
-          ],
+          tabs: tabs,
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _usersTab(),
-          _settingsTab(),
-          _auditTab(),
-        ],
+        children: views,
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton.extended(
@@ -602,6 +612,253 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // --- Onglet : codes d'accès à usage unique (onboarding) ---
+
+  String _fmtDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return iso;
+    final local = dt.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(local.day)}/${two(local.month)}/${local.year} ${two(local.hour)}:${two(local.minute)}';
+  }
+
+  Widget _onboardingCodesTab() {
+    return Consumer<AdminProvider>(
+      builder: (context, admin, _) {
+        final codes = admin.onboardingCodes;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      "Codes à usage unique pour créer une nouvelle exploitation. "
+                      "Chaque code ne fonctionne qu'une seule fois.",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _showGenerateCodeDialog,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Générer'),
+                  ),
+                ],
+              ),
+            ),
+            if ((admin.lastError ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(admin.lastError!, style: const TextStyle(color: Colors.redAccent)),
+              ),
+            Expanded(
+              child: codes.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.vpn_key_outlined, size: 48, color: Colors.grey),
+                            SizedBox(height: 12),
+                            Text('Aucun code généré'),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => admin.loadOnboardingCodes(),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: codes.length,
+                        itemBuilder: (_, i) {
+                          final c = codes[i];
+                          final id = (c['id'] ?? '').toString();
+                          final code = (c['code'] ?? '').toString();
+                          final label = (c['label'] ?? '').toString();
+                          final usedAt = (c['used_at'] ?? '').toString();
+                          final usedBy = (c['used_by_email'] ?? '').toString();
+                          final expiresAt = (c['expires_at'] ?? '').toString();
+                          final isUsed = usedAt.isNotEmpty;
+                          final expired = !isUsed &&
+                              expiresAt.isNotEmpty &&
+                              (DateTime.tryParse(expiresAt)?.isBefore(DateTime.now()) ?? false);
+
+                          final Color statusColor = isUsed
+                              ? Colors.grey
+                              : expired
+                                  ? Colors.orange
+                                  : Colors.green;
+                          final String statusText = isUsed
+                              ? 'Utilisé'
+                              : expired
+                                  ? 'Expiré'
+                                  : 'Disponible';
+
+                          return Card(
+                            child: ListTile(
+                              leading: Icon(Icons.vpn_key, color: statusColor),
+                              title: Row(
+                                children: [
+                                  Flexible(
+                                    child: SelectableText(
+                                      code,
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Copier',
+                                    icon: const Icon(Icons.copy, size: 18),
+                                    onPressed: () async {
+                                      await Clipboard.setData(ClipboardData(text: code));
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Code copié')),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('$statusText${label.isNotEmpty ? ' • $label' : ''}',
+                                      style: TextStyle(color: statusColor, fontWeight: FontWeight.w600)),
+                                  if (isUsed && usedBy.isNotEmpty)
+                                    Text('Par $usedBy le ${_fmtDate(usedAt)}',
+                                        style: const TextStyle(fontSize: 12)),
+                                  if (!isUsed && expiresAt.isNotEmpty)
+                                    Text('Expire le ${_fmtDate(expiresAt)}',
+                                        style: const TextStyle(fontSize: 12)),
+                                ],
+                              ),
+                              trailing: isUsed
+                                  ? null
+                                  : IconButton(
+                                      tooltip: 'Supprimer',
+                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                      onPressed: () async {
+                                        final ok = await admin.deleteOnboardingCode(id);
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(ok ? 'Code supprimé' : 'Suppression impossible')),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showGenerateCodeDialog() async {
+    final labelCtrl = TextEditingController();
+    final expiryCtrl = TextEditingController();
+
+    final admin = context.read<AdminProvider>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Générer un code d'accès"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: labelCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Libellé (optionnel)',
+                helperText: 'Ex : Ferme de Thiès',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: expiryCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Expire dans (jours, optionnel)",
+                helperText: 'Vide = jamais',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              final label = labelCtrl.text.trim();
+              final days = int.tryParse(expiryCtrl.text.trim());
+              Navigator.pop(dialogContext);
+              final created = await admin.generateOnboardingCode(
+                label: label.isEmpty ? null : label,
+                expiresInDays: days,
+              );
+              if (!mounted) return;
+              if (created != null) {
+                final code = (created['code'] ?? '').toString();
+                await showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Code généré'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Communique ce code à la personne autorisée :'),
+                        const SizedBox(height: 12),
+                        SelectableText(
+                          code,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          await Clipboard.setData(ClipboardData(text: code));
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Code copié')),
+                          );
+                        },
+                        child: const Text('Copier'),
+                      ),
+                      ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+                    ],
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(admin.lastError ?? 'Génération impossible')),
+                );
+              }
+            },
+            child: const Text('Générer'),
+          ),
+        ],
       ),
     );
   }
