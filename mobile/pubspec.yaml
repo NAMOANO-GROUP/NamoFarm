@@ -68,16 +68,17 @@ flutter_launcher_icons:
   image_path: "assets/logo/namofarm.png"
 
 # Écran de démarrage (splash) NamoFarm.
+# Identité de marque : logo rouge sur fond blanc (clair et sombre).
 # Régénérer avec :
 #   dart run flutter_native_splash:create
 flutter_native_splash:
   color: "#FFFFFF"
-  color_dark: "#0B0B0B"
+  color_dark: "#FFFFFF"
   image: "assets/logo/namofarm.png"
   android_12:
     image: "assets/logo/namofarm.png"
     color: "#FFFFFF"
-    color_dark: "#0B0B0B"
+    color_dark: "#FFFFFF"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
