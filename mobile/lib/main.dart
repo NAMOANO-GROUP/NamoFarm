@@ -47,7 +47,7 @@ class AgriBusiness extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp(
-          title: 'AgriBusiness',
+          title: 'NamoFarm',
           debugShowCheckedModeBanner: false,
           theme: _buildTheme(Brightness.light, themeProvider.seed),
           darkTheme: _buildTheme(Brightness.dark, themeProvider.seed),

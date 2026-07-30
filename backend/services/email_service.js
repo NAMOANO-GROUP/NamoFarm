@@ -8,7 +8,7 @@ function getMailConfig() {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
     fromEmail: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-    fromName: process.env.SMTP_FROM_NAME || 'AgriBusiness',
+    fromName: process.env.SMTP_FROM_NAME || 'NamoFarm',
     replyTo: process.env.SMTP_REPLY_TO || process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
     resetBaseUrl: process.env.PASSWORD_RESET_URL || process.env.APP_WEB_URL || ''
   };
@@ -43,7 +43,7 @@ function buildResetUrl(token, email) {
 
 function buildPasswordResetEmail({ userName, email, token, expiresMinutes }) {
   const resetUrl = buildResetUrl(token, email);
-  const title = 'Réinitialisation de votre mot de passe AgriBusiness';
+  const title = 'Réinitialisation de votre mot de passe NamoFarm';
   const intro = `Bonjour ${userName || ''},`; 
   const instructions = resetUrl
     ? 'Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe ou utilisez le code de sécurité indiqué.'
@@ -53,7 +53,7 @@ function buildPasswordResetEmail({ userName, email, token, expiresMinutes }) {
     <div style="font-family:Arial,sans-serif;background:#f5f7f6;padding:24px;color:#1f2937;">
       <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dbe5dd;">
         <div style="background:linear-gradient(135deg,#0b5d3b,#2e7d32);padding:24px;color:#ffffff;">
-          <h1 style="margin:0;font-size:24px;">AgriBusiness</h1>
+          <h1 style="margin:0;font-size:24px;">NamoFarm</h1>
           <p style="margin:8px 0 0 0;font-size:14px;opacity:0.92;">Réinitialisation du mot de passe</p>
         </div>
         <div style="padding:24px;">

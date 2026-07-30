@@ -74,7 +74,7 @@ Future<void> shareReportFile(
     await Share.shareXFiles(
       [XFile(file.path, mimeType: mimeType)],
       subject: filename,
-      text: 'Rapport AgriBusiness',
+      text: 'Rapport NamoFarm',
     );
     if (!context.mounted) return;
     messenger.showSnackBar(SnackBar(content: Text('Rapport "$filename" pret a partager.')));

@@ -17,7 +17,7 @@ const DEFAULT_REFERENCES = {
 function defaultConfig() {
   return {
     key: 'main',
-    nomApplication: 'AgriBusiness',
+    nomApplication: 'NamoFarm',
     devise: 'FCFA',
     langue: 'fr',
     sessionTimeoutMinutes: 30,

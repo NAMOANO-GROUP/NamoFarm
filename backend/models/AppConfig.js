@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const appConfigSchema = new mongoose.Schema({
   key: { type: String, unique: true, required: true },
-  nomApplication: { type: String, default: 'AgriBusiness' },
+  nomApplication: { type: String, default: 'NamoFarm' },
   devise: { type: String, default: 'FCFA' },
   langue: { type: String, default: 'fr' },
   sessionTimeoutMinutes: { type: Number, default: 30 },

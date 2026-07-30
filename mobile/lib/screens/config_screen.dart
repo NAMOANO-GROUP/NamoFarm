@@ -192,7 +192,7 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
     return Consumer<AdminProvider>(
       builder: (context, admin, _) {
         final cfg = admin.config ?? {};
-        final nameCtrl = TextEditingController(text: (cfg['nomApplication'] ?? 'AgriBusiness').toString());
+        final nameCtrl = TextEditingController(text: (cfg['nomApplication'] ?? 'NamoFarm').toString());
         final deviseCtrl = TextEditingController(text: (cfg['devise'] ?? 'FCFA').toString());
         final timeoutCtrl = TextEditingController(text: (cfg['sessionTimeoutMinutes'] ?? 30).toString());
         final refs = Map<String, dynamic>.from((cfg['referencesTheoriques'] ?? {}) as Map);

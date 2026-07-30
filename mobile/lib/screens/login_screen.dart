@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'AgriBusiness',
+                        'NamoFarm',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                       ),

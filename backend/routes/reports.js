@@ -125,7 +125,7 @@ router.get('/global.pdf', requireAnyPermission(REPORT_PERMS), async (req, res) =
     res.setHeader('Content-Disposition', 'attachment; filename=rapport-global.pdf');
     doc.pipe(res);
 
-    doc.fontSize(20).text('Rapport Global AgriBusiness', { align: 'center' });
+    doc.fontSize(20).text('Rapport Global NamoFarm', { align: 'center' });
     doc.moveDown(0.3);
     doc.fontSize(9).fillColor('#666').text(`Généré le ${new Date(data.generatedAt).toLocaleString('fr-FR')}`, { align: 'center' });
     doc.moveDown();
