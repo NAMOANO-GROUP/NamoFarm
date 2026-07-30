@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/stocks_provider.dart';
 import '../models/stock.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../utils/money_format.dart';
 import '../widgets/filter_styles.dart';
 
 class StocksScreen extends StatefulWidget {
@@ -188,7 +189,7 @@ class _StocksScreenState extends State<StocksScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${stock.quantiteActuelle} ${stock.unite} | Seuil: ${stock.seuilAlerte} ${stock.unite} | PU: ${stock.prixUnitaire.toStringAsFixed(0)} FCFA',
+          '${formatAmount(stock.quantiteActuelle)} ${stock.unite} | Seuil: ${formatAmount(stock.seuilAlerte)} ${stock.unite} | PU: ${formatAmountFcfa(stock.prixUnitaire)}',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -338,7 +339,7 @@ class _StocksScreenState extends State<StocksScreen> {
     final qteCtrl = TextEditingController();
     final motifCtrl = TextEditingController();
     final prixCtrl = TextEditingController(
-      text: type == 'entree' || type == 'ajustement' ? stock.prixUnitaire.toStringAsFixed(0) : '',
+      text: type == 'entree' || type == 'ajustement' ? stock.prixUnitaire.toStringAsFixed(2) : '',
     );
     DateTime dateMouvement = DateTime.now();
 
@@ -388,7 +389,7 @@ class _StocksScreenState extends State<StocksScreen> {
                       ? 'Nouvelle quantité (${stock.unite})'
                       : 'Quantité (${stock.unite})',
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
               if (type == 'entree' || type == 'ajustement')
                 TextField(
@@ -471,7 +472,7 @@ class _StocksScreenState extends State<StocksScreen> {
                       dense: true,
                       title: Text('$labelType • ${m.quantite.toStringAsFixed(2)} ${stock.unite}'),
                       subtitle: Text(
-                        '${DateFormat('dd/MM/yyyy HH:mm').format(m.date)}\n${m.utilisateur}${m.coutUnitaire > 0 ? ' • ${m.coutUnitaire.toStringAsFixed(0)} FCFA/u' : ''}${m.motif.isNotEmpty ? ' • ${m.motif}' : ''}',
+                        '${DateFormat('dd/MM/yyyy HH:mm').format(m.date)}\n${m.utilisateur}${m.coutUnitaire > 0 ? ' • ${formatAmountFcfa(m.coutUnitaire)}/u' : ''}${m.motif.isNotEmpty ? ' • ${m.motif}' : ''}',
                       ),
                       isThreeLine: true,
                     );
@@ -546,8 +547,8 @@ class _StocksScreenState extends State<StocksScreen> {
                   decoration: const InputDecoration(labelText: 'Catégorie'),
                 ),
                 TextField(controller: uniteCtrl, decoration: const InputDecoration(labelText: 'Unité (kg, litres, boîtes...)')),
-                TextField(controller: seuilCtrl, decoration: const InputDecoration(labelText: 'Seuil d\'alerte'), keyboardType: TextInputType.number),
-                TextField(controller: prixCtrl, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: TextInputType.number),
+                TextField(controller: seuilCtrl, decoration: const InputDecoration(labelText: 'Seuil d\'alerte'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                TextField(controller: prixCtrl, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date *'),

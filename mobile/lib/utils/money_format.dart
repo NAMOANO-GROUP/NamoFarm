@@ -1,8 +1,8 @@
 import 'package:intl/intl.dart';
 
+/// Affiche un montant/nombre avec toujours 2 décimales (ex: 1 234,56).
 String formatAmount(num value) {
-  final rounded = value.round();
-  return NumberFormat.decimalPattern('fr_FR').format(rounded);
+  return NumberFormat('#,##0.00', 'fr_FR').format(value);
 }
 
 String formatAmountFcfa(num value) {

@@ -456,7 +456,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
               const Text('Produit:', style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(controller: produitNomController, decoration: const InputDecoration(labelText: 'Nom du produit')),
               TextField(controller: produitQteController, decoration: const InputDecoration(labelText: 'Quantité'), keyboardType: TextInputType.number),
-              TextField(controller: produitPrixController, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: TextInputType.number),
+              TextField(controller: produitPrixController, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
             ],
           ),
         ),
@@ -828,7 +828,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
     final produitPrincipal = commande.produits.isNotEmpty ? commande.produits.first : null;
     final nomProduitCtrl = TextEditingController(text: produitPrincipal?.nom ?? '');
     final quantiteCtrl = TextEditingController(text: (produitPrincipal?.quantite ?? 0).toString());
-    final prixCtrl = TextEditingController(text: (produitPrincipal?.prixUnitaire ?? 0).toStringAsFixed(0));
+    final prixCtrl = TextEditingController(text: (produitPrincipal?.prixUnitaire ?? 0).toStringAsFixed(2));
     final notesCtrl = TextEditingController(text: commande.notes);
     DateTime? dateLivraison = commande.dateLivraison;
 

@@ -1320,35 +1320,30 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   Future<void> _showRoadmapActionMenu(ProductionPlan plan, _RoadmapActionMode mode) async {
-    final kind = await showModalBottomSheet<_RoadmapItemKind>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.task_alt),
-              title: const Text('Tâche'),
-              onTap: () => Navigator.pop(ctx, _RoadmapItemKind.task),
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_tree_outlined),
-              title: const Text('Sous-tâche'),
-              onTap: () => Navigator.pop(ctx, _RoadmapItemKind.subtask),
-            ),
-            ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: const Text('Jalon'),
-              onTap: () => Navigator.pop(ctx, _RoadmapItemKind.milestone),
-            ),
-            ListTile(
-              leading: const Icon(Icons.outlined_flag),
-              title: const Text('Date clé du planning'),
-              onTap: () => Navigator.pop(ctx, _RoadmapItemKind.planningDate),
-            ),
-          ],
+    final kind = await _showRoadmapPickerDialog<_RoadmapItemKind>(
+      title: 'Choisir un élément',
+      children: [
+        ListTile(
+          leading: const Icon(Icons.task_alt),
+          title: const Text('Tâche'),
+          onTap: () => Navigator.pop(context, _RoadmapItemKind.task),
         ),
-      ),
+        ListTile(
+          leading: const Icon(Icons.account_tree_outlined),
+          title: const Text('Sous-tâche'),
+          onTap: () => Navigator.pop(context, _RoadmapItemKind.subtask),
+        ),
+        ListTile(
+          leading: const Icon(Icons.flag_outlined),
+          title: const Text('Jalon'),
+          onTap: () => Navigator.pop(context, _RoadmapItemKind.milestone),
+        ),
+        ListTile(
+          leading: const Icon(Icons.outlined_flag),
+          title: const Text('Date clé du planning'),
+          onTap: () => Navigator.pop(context, _RoadmapItemKind.planningDate),
+        ),
+      ],
     );
     if (kind == null || !mounted) return;
 
@@ -1369,35 +1364,30 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   Future<void> _showRoadmapCreateMenu(ProductionPlan plan) async {
-    final kind = await showModalBottomSheet<_RoadmapCreateKind>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.task_alt),
-              title: const Text('Tâche'),
-              onTap: () => Navigator.pop(ctx, _RoadmapCreateKind.task),
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_tree_outlined),
-              title: const Text('Sous-tâche'),
-              onTap: () => Navigator.pop(ctx, _RoadmapCreateKind.subtask),
-            ),
-            ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: const Text('Jalon'),
-              onTap: () => Navigator.pop(ctx, _RoadmapCreateKind.milestone),
-            ),
-            ListTile(
-              leading: const Icon(Icons.outlined_flag),
-              title: const Text('Date clé du planning'),
-              onTap: () => Navigator.pop(ctx, _RoadmapCreateKind.planningDate),
-            ),
-          ],
+    final kind = await _showRoadmapPickerDialog<_RoadmapCreateKind>(
+      title: 'Ajouter un élément',
+      children: [
+        ListTile(
+          leading: const Icon(Icons.task_alt),
+          title: const Text('Tâche'),
+          onTap: () => Navigator.pop(context, _RoadmapCreateKind.task),
         ),
-      ),
+        ListTile(
+          leading: const Icon(Icons.account_tree_outlined),
+          title: const Text('Sous-tâche'),
+          onTap: () => Navigator.pop(context, _RoadmapCreateKind.subtask),
+        ),
+        ListTile(
+          leading: const Icon(Icons.flag_outlined),
+          title: const Text('Jalon'),
+          onTap: () => Navigator.pop(context, _RoadmapCreateKind.milestone),
+        ),
+        ListTile(
+          leading: const Icon(Icons.outlined_flag),
+          title: const Text('Date clé du planning'),
+          onTap: () => Navigator.pop(context, _RoadmapCreateKind.planningDate),
+        ),
+      ],
     );
     if (kind == null || !mounted) return;
 
@@ -1417,6 +1407,31 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     }
   }
 
+  /// Boîte de sélection centrée et défilable (remplace les anciens bottom sheets
+  /// ancrés en bas qui coupaient le contenu sur petits écrans).
+  Future<T?> _showRoadmapPickerDialog<T>({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return showDialog<T>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontSize: 16)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+            child: ListView(shrinkWrap: true, children: children),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showMilestoneTaskPicker(ProductionPlan plan) async {
     final tasks = _collectAllTasks(plan.tasks);
     if (tasks.isEmpty) {
@@ -1426,24 +1441,19 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       return;
     }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: tasks.map((task) {
-            return ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: Text(task.title),
-              subtitle: Text('${DateFormat('dd/MM/yyyy').format(task.start)} -> ${DateFormat('dd/MM/yyyy').format(task.end)}'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showAddMilestoneDialog(plan, task);
-              },
-            );
-          }).toList(),
-        ),
-      ),
+    await _showRoadmapPickerDialog<void>(
+      title: 'Choisir la tâche du jalon',
+      children: tasks.map((task) {
+        return ListTile(
+          leading: const Icon(Icons.flag_outlined),
+          title: Text(task.title),
+          subtitle: Text('${DateFormat('dd/MM/yyyy').format(task.start)} -> ${DateFormat('dd/MM/yyyy').format(task.end)}'),
+          onTap: () {
+            Navigator.pop(context);
+            _showAddMilestoneDialog(plan, task);
+          },
+        );
+      }).toList(),
     );
   }
 
@@ -1456,29 +1466,24 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       return;
     }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: tasks.map((task) {
-            final subtitle = '${DateFormat('dd/MM/yyyy').format(task.start)} -> ${DateFormat('dd/MM/yyyy').format(task.end)}';
-            return ListTile(
-              leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
-              title: Text(task.title),
-              subtitle: Text(subtitle),
-              onTap: () {
-                Navigator.pop(ctx);
-                if (mode == _RoadmapActionMode.edit) {
-                  _showEditTaskDialog(plan, task);
-                } else {
-                  _showDeleteTaskDialog(plan, task);
-                }
-              },
-            );
-          }).toList(),
-        ),
-      ),
+    await _showRoadmapPickerDialog<void>(
+      title: subtasks ? 'Choisir une sous-tâche' : 'Choisir une tâche',
+      children: tasks.map((task) {
+        final subtitle = '${DateFormat('dd/MM/yyyy').format(task.start)} -> ${DateFormat('dd/MM/yyyy').format(task.end)}';
+        return ListTile(
+          leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
+          title: Text(task.title),
+          subtitle: Text(subtitle),
+          onTap: () {
+            Navigator.pop(context);
+            if (mode == _RoadmapActionMode.edit) {
+              _showEditTaskDialog(plan, task);
+            } else {
+              _showDeleteTaskDialog(plan, task);
+            }
+          },
+        );
+      }).toList(),
     );
   }
 
@@ -1491,29 +1496,24 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       return;
     }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: milestones.map((item) {
-            final subtitle = '${item.task.title} • ${DateFormat('dd/MM/yyyy').format(item.milestone.date)}';
-            return ListTile(
-              leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
-              title: Text(item.milestone.title),
-              subtitle: Text(subtitle),
-              onTap: () {
-                Navigator.pop(ctx);
-                if (mode == _RoadmapActionMode.edit) {
-                  _showEditMilestoneDialog(plan, item.task, item.milestone);
-                } else {
-                  _showDeleteMilestoneDialog(plan, item.task, item.milestone);
-                }
-              },
-            );
-          }).toList(),
-        ),
-      ),
+    await _showRoadmapPickerDialog<void>(
+      title: 'Choisir un jalon',
+      children: milestones.map((item) {
+        final subtitle = '${item.task.title} • ${DateFormat('dd/MM/yyyy').format(item.milestone.date)}';
+        return ListTile(
+          leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
+          title: Text(item.milestone.title),
+          subtitle: Text(subtitle),
+          onTap: () {
+            Navigator.pop(context);
+            if (mode == _RoadmapActionMode.edit) {
+              _showEditMilestoneDialog(plan, item.task, item.milestone);
+            } else {
+              _showDeleteMilestoneDialog(plan, item.task, item.milestone);
+            }
+          },
+        );
+      }).toList(),
     );
   }
 
@@ -1526,28 +1526,23 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       return;
     }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: dates.map((item) {
-            return ListTile(
-              leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
-              title: Text('Date clé ${item.index + 1}'),
-              subtitle: Text(DateFormat('dd/MM/yyyy').format(item.date)),
-              onTap: () {
-                Navigator.pop(ctx);
-                if (mode == _RoadmapActionMode.edit) {
-                  _showEditHighlightDateDialog(plan, item);
-                } else {
-                  _showDeleteHighlightDateDialog(plan, item);
-                }
-              },
-            );
-          }).toList(),
-        ),
-      ),
+    await _showRoadmapPickerDialog<void>(
+      title: 'Choisir une date clé',
+      children: dates.map((item) {
+        return ListTile(
+          leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
+          title: Text('Date clé ${item.index + 1}'),
+          subtitle: Text(DateFormat('dd/MM/yyyy').format(item.date)),
+          onTap: () {
+            Navigator.pop(context);
+            if (mode == _RoadmapActionMode.edit) {
+              _showEditHighlightDateDialog(plan, item);
+            } else {
+              _showDeleteHighlightDateDialog(plan, item);
+            }
+          },
+        );
+      }).toList(),
     );
   }
 
