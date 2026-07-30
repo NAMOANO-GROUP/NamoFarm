@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/alertes_provider.dart';
@@ -72,6 +73,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Todo list'),
       ),
       body: Consumer<AlertesProvider>(

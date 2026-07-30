@@ -91,10 +91,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'NamoFarm',
+                      Text(
+                        auth.appName,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       Text(

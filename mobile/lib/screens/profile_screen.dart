@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
@@ -37,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = auth.user ?? {};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil utilisateur')),
+      appBar: AppBar(leading: const BrandLogo(), title: const Text('Profil utilisateur')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

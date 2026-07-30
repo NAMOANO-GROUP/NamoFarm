@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
@@ -357,6 +358,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     final plan = _selectedPlan;
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Roadmap production'),
         actions: [
           IconButton(

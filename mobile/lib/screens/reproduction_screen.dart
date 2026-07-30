@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -47,6 +48,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Reproduction / Couvoir'),
         bottom: TabBar(
           controller: _tabController,

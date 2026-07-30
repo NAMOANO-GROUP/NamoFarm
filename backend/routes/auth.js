@@ -217,6 +217,22 @@ async function createCompany(client, nom) {
   return data.id;
 }
 
+// Nom de l'application (paramètre modifiable par l'admin dans la page Config).
+// Renvoyé au client pour l'afficher sur l'écran de connexion et dans l'app.
+async function getAppName(client) {
+  try {
+    const cfg = await client
+      .from('app_config')
+      .select('nomApplication')
+      .eq('key', 'main')
+      .maybeSingle();
+    const name = cfg?.data?.nomApplication;
+    return (name && String(name).trim()) || 'NamoFarm';
+  } catch (_) {
+    return 'NamoFarm';
+  }
+}
+
 async function getProfile(client, userId) {
   const { data, error } = await client
     .from('profiles')
@@ -447,6 +463,7 @@ router.post('/connexion', async (req, res) => {
       token,
       utilisateur: publicUser,
       sessionTimeoutMinutes: 30,
+      appName: await getAppName(client),
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -784,6 +801,7 @@ router.post('/onboarding', onboardingLimiter, async (req, res) => {
       token,
       utilisateur: publicUser,
       sessionTimeoutMinutes: 30,
+      appName: await getAppName(client),
     });
   } catch (err) {
     return res.status(400).json({ message: err.message });

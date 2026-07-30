@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:intl/intl.dart';
 
 import '../services/api_service.dart';
@@ -53,7 +54,7 @@ class _PrevisionsScreenState extends State<PrevisionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Prévisions')),
+      appBar: AppBar(leading: const BrandLogo(), title: const Text('Prévisions')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

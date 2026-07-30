@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/international_phone_field.dart';
 
 class ConfigScreen extends StatefulWidget {
@@ -347,6 +348,10 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                     },
                   },
                 });
+                if (!context.mounted) return;
+                if (ok) {
+                  await context.read<AuthProvider>().setAppName(nameCtrl.text.trim());
+                }
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(ok ? 'Paramètres sauvegardés' : 'Erreur sauvegarde')),

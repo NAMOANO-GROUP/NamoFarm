@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
@@ -34,6 +35,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Tableau de Bord Global'),
         actions: [
           IconButton(

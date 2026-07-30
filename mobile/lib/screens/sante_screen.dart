@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -44,6 +45,7 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Santé / Prophylaxie'),
         bottom: TabBar(
           controller: _tabController,

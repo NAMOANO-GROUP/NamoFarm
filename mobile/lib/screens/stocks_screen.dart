@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/brand_logo.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/stocks_provider.dart';
@@ -59,6 +60,7 @@ class _StocksScreenState extends State<StocksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Gestion des Stocks'),
       ),
       body: Consumer<StocksProvider>(

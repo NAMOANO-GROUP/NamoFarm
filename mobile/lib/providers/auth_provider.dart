@@ -13,12 +13,14 @@ class AuthProvider with ChangeNotifier {
   String? _lastError;
   Timer? _inactivityTimer;
   int _sessionTimeoutMinutes = 30;
+  String _appName = 'NamoFarm';
 
   String? get token => _token;
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
   String? get lastError => _lastError;
   bool get isAuthenticated => _token != null && _user != null;
+  String get appName => _appName;
 
   bool get isAdmin => (_user?['role'] ?? '') == 'admin';
 
@@ -46,6 +48,7 @@ class AuthProvider with ChangeNotifier {
     _token = prefs.getString('auth_token');
     final userStr = prefs.getString('auth_user');
     _sessionTimeoutMinutes = prefs.getInt('session_timeout_minutes') ?? 30;
+    _appName = prefs.getString('app_name') ?? 'NamoFarm';
 
     if (_token != null && userStr != null) {
       _user = Map<String, dynamic>.from(json.decode(userStr));
@@ -74,6 +77,9 @@ class AuthProvider with ChangeNotifier {
       _token = data['token'] as String?;
       _user = Map<String, dynamic>.from(data['utilisateur'] ?? {});
       _sessionTimeoutMinutes = (data['sessionTimeoutMinutes'] ?? 30) as int;
+      if ((data['appName'] ?? '').toString().trim().isNotEmpty) {
+        _appName = data['appName'].toString().trim();
+      }
 
       ApiService.setAuthToken(_token);
       await _persistSession();
@@ -116,6 +122,9 @@ class AuthProvider with ChangeNotifier {
       _token = data['token'] as String?;
       _user = Map<String, dynamic>.from(data['utilisateur'] ?? {});
       _sessionTimeoutMinutes = (data['sessionTimeoutMinutes'] ?? 30) as int;
+      if ((data['appName'] ?? '').toString().trim().isNotEmpty) {
+        _appName = data['appName'].toString().trim();
+      }
 
       ApiService.setAuthToken(_token);
       await _persistSession();
@@ -204,6 +213,18 @@ class AuthProvider with ChangeNotifier {
       await prefs.setString('auth_user', json.encode(_user));
     }
     await prefs.setInt('session_timeout_minutes', _sessionTimeoutMinutes);
+    await prefs.setString('app_name', _appName);
+  }
+
+  /// Met à jour le nom de l'application (ex: après modification dans la page Config)
+  /// et le persiste pour qu'il s'affiche immédiatement, y compris sur l'écran de connexion.
+  Future<void> setAppName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == _appName) return;
+    _appName = trimmed;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_name', _appName);
+    notifyListeners();
   }
 
   void _restartInactivityTimer() {
