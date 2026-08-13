@@ -6,7 +6,6 @@ import '../providers/dashboard_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
-import '../widgets/filter_styles.dart';
 
 class GlobalDashboardScreen extends StatefulWidget {
   const GlobalDashboardScreen({super.key});
@@ -87,85 +86,8 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: provider.period,
-                        isExpanded: true,
-                        isDense: true,
-                        style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                        decoration: filterDecoration('Période'),
-                        items: _periodOptions
-                            .map(
-                              (opt) => DropdownMenuItem<String>(
-                                value: opt['value'],
-                                child: Text(opt['label'] ?? '', style: kFilterTextStyle),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null && value.isNotEmpty) {
-                            provider.chargerDashboards(period: value);
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
-                        isExpanded: true,
-                        isDense: true,
-                        style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                        decoration: filterDecoration('Bâtiment'),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: '',
-                            child: Text('Tous les bâtiments', style: kFilterTextStyle),
-                          ),
-                          ...provider.batiments.map(
-                            (batiment) => DropdownMenuItem<String>(
-                              value: batiment,
-                              child: Text(batiment, style: kFilterTextStyle),
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          provider.chargerDashboards(batiment: value ?? '', bandeId: '');
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: provider.selectedBandeId.isEmpty ? '' : provider.selectedBandeId,
-                  isExpanded: true,
-                  isDense: true,
-                  style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                  decoration: filterDecoration('Bande'),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: '',
-                      child: Text('Toutes les bandes', style: kFilterTextStyle),
-                    ),
-                    ...provider.bandesFiltreesPourBatiment.map(
-                      (bande) => DropdownMenuItem<String>(
-                        value: (bande['id'] ?? bande['_id']).toString(),
-                        child: Text(
-                          '${(bande['nom'] ?? 'Bande').toString()}${(bande['batiment'] ?? '').toString().isNotEmpty ? ' - ${(bande['batiment'] ?? '').toString()}' : ''}',
-                          style: kFilterTextStyle,
-                        ),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    provider.chargerDashboards(bandeId: value ?? '');
-                  },
-                ),
-                const SizedBox(height: 12),
+                _buildCompactFilters(provider, context),
+                const SizedBox(height: 10),
                 GridView.count(
                   crossAxisCount: MediaQuery.of(context).size.width > 900 ? 4 : 2,
                   crossAxisSpacing: 8,
@@ -196,6 +118,100 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCompactFilters(DashboardProvider provider, BuildContext context) {
+    final hasAdvancedFilter = provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty;
+    return Row(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _periodOptions.map((opt) => Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: ChoiceChip(
+                  label: Text(opt['label']!, style: const TextStyle(fontSize: 12)),
+                  selected: provider.period == opt['value'],
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onSelected: (v) { if (v) provider.chargerDashboards(period: opt['value']); },
+                ),
+              )).toList(),
+            ),
+          ),
+        ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.tune, size: 20),
+              tooltip: 'Bâtiment / Bande',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _showAdvancedFilters(context, provider),
+            ),
+            if (hasAdvancedFilter)
+              Positioned(
+                right: 6, top: 6,
+                child: Container(
+                  width: 8, height: 8,
+                  decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showAdvancedFilters(BuildContext context, DashboardProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Filtres avancés', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
+              decoration: const InputDecoration(labelText: 'Bâtiment', isDense: true),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Tous les bâtiments')),
+                ...provider.batiments.map((b) => DropdownMenuItem(value: b, child: Text(b))),
+              ],
+              onChanged: (v) { provider.chargerDashboards(batiment: v ?? '', bandeId: ''); Navigator.pop(ctx); },
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              value: provider.selectedBandeId.isEmpty ? '' : provider.selectedBandeId,
+              decoration: const InputDecoration(labelText: 'Bande', isDense: true),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Toutes les bandes')),
+                ...provider.bandesFiltreesPourBatiment.map((b) {
+                  final id = (b['id'] ?? b['_id']).toString();
+                  final nom = '${b['nom'] ?? ''}${(b['batiment'] ?? '').toString().isNotEmpty ? ' – ${b['batiment']}' : ''}';
+                  return DropdownMenuItem(value: id, child: Text(nom));
+                }),
+              ],
+              onChanged: (v) { provider.chargerDashboards(bandeId: v ?? ''); Navigator.pop(ctx); },
+            ),
+            if (provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty) ...
+              [
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () { provider.chargerDashboards(batiment: '', bandeId: ''); Navigator.pop(ctx); },
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Effacer les filtres'),
+                ),
+              ],
+          ],
+        ),
       ),
     );
   }

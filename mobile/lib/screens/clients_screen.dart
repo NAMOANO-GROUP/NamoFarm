@@ -104,8 +104,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final filteredClients = _typeFilter.isEmpty
-                    ? provider.clients
-                    : provider.clients.where((c) => c.typeClient == _typeFilter).toList();
+                    ? provider.clientsPage
+                    : provider.clientsPage.where((c) => c.typeClient == _typeFilter).toList();
 
                 if (filteredClients.isEmpty) {
                   return const Center(
@@ -120,8 +120,20 @@ class _ClientsScreenState extends State<ClientsScreen> {
                   );
                 }
                 return ListView.builder(
-                  itemCount: filteredClients.length,
+                  itemCount: filteredClients.length + (provider.hasMore ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index == filteredClients.length) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: TextButton.icon(
+                            onPressed: provider.chargerPlus,
+                            icon: const Icon(Icons.expand_more),
+                            label: const Text('Charger plus'),
+                          ),
+                        ),
+                      );
+                    }
                     return _buildClientTile(filteredClients[index]);
                   },
                 );

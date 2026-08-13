@@ -14,6 +14,9 @@ class CommandesProvider with ChangeNotifier {
   String _searchQuery = '';
   String? _lastError;
   bool _filtresRestaures = false;
+  int _visibleCountActives = 30;
+  int _visibleCountHistorique = 20;
+  static const int _pageSize = 30;
 
   static const Set<String> _allowedStatuts = {
     'en_attente',
@@ -30,6 +33,28 @@ class CommandesProvider with ChangeNotifier {
   bool isStatutSelected(String statut) => _selectedStatuts.contains(statut);
   String get searchQuery => _searchQuery;
   String? get lastError => _lastError;
+  bool get hasMoreActives => _visibleCountActives < commandesActivesFiltrees.length;
+  bool get hasMoreHistorique => _visibleCountHistorique < commandesHistoriqueFiltrees.length;
+
+  void chargerPlusActives() {
+    _visibleCountActives += _pageSize;
+    notifyListeners();
+  }
+
+  void chargerPlusHistorique() {
+    _visibleCountHistorique += _pageSize;
+    notifyListeners();
+  }
+
+  List<Commande> get commandesActivesPage {
+    final all = commandesActivesFiltrees;
+    return all.length > _visibleCountActives ? all.sublist(0, _visibleCountActives) : all;
+  }
+
+  List<Commande> get commandesHistoriquePage {
+    final all = commandesHistoriqueFiltrees;
+    return all.length > _visibleCountHistorique ? all.sublist(0, _visibleCountHistorique) : all;
+  }
   List<Commande> get commandesFiltrees {
     return _commandes.where((commande) {
       final statutOk = _selectedStatuts.isEmpty || _selectedStatuts.contains(commande.statut);
@@ -87,6 +112,8 @@ class CommandesProvider with ChangeNotifier {
     }
     _isLoading = true;
     _lastError = null;
+    _visibleCountActives = _pageSize;
+    _visibleCountHistorique = _pageSize;
     notifyListeners();
     try {
       final data = await ApiService.getCommandes();

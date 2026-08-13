@@ -79,8 +79,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
   Widget _buildContent() {
     return Consumer<CommandesProvider>(
       builder: (context, provider, child) {
-        final commandesActives = provider.commandesActivesFiltrees;
-        final commandesHistorique = provider.commandesHistoriqueFiltrees;
+        final commandesActives = provider.commandesActivesPage;
+        final commandesHistorique = provider.commandesHistoriquePage;
         if (provider.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -187,6 +187,17 @@ class _CommandesScreenState extends State<CommandesScreen> {
                           ),
                           const SizedBox(height: 8),
                           ...commandesActives.map(_buildCommandeCard),
+                          if (provider.hasMoreActives)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: TextButton.icon(
+                                  onPressed: provider.chargerPlusActives,
+                                  icon: const Icon(Icons.expand_more),
+                                  label: const Text('Charger plus'),
+                                ),
+                              ),
+                            ),
                         ],
                         if (commandesHistorique.isNotEmpty) ...[
                           if (commandesActives.isNotEmpty) const SizedBox(height: 16),
@@ -229,7 +240,20 @@ class _CommandesScreenState extends State<CommandesScreen> {
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                                   child: Column(
-                                    children: commandesHistorique.map(_buildCommandeCard).toList(),
+                                    children: [
+                                      ...commandesHistorique.map(_buildCommandeCard),
+                                      if (provider.hasMoreHistorique)
+                                        Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            child: TextButton.icon(
+                                              onPressed: provider.chargerPlusHistorique,
+                                              icon: const Icon(Icons.expand_more),
+                                              label: const Text('Charger plus'),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ],

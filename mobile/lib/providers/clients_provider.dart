@@ -14,12 +14,22 @@ class ClientsProvider with ChangeNotifier {
   String _searchQuery = '';
   String _crmStatut = '';
   String? _lastError;
+  int _visibleCount = 40;
+  static const int _pageSize = 40;
 
   List<Client> get clients => _clients;
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   String? get crmStatutFilter => _crmStatut.isEmpty ? null : _crmStatut;
   String? get lastError => _lastError;
+  bool get hasMore => _visibleCount < _clients.length;
+
+  List<Client> get clientsPage => _clients.length > _visibleCount ? _clients.sublist(0, _visibleCount) : _clients;
+
+  void chargerPlus() {
+    _visibleCount = (_visibleCount + _pageSize).clamp(0, _clients.length + _pageSize);
+    notifyListeners();
+  }
 
   Future<void> ensureFiltresRestaures() async {
     if (_filtresRestaures) return;
@@ -29,6 +39,7 @@ class ClientsProvider with ChangeNotifier {
   Future<void> chargerClients({String? statut}) async {
     await ensureFiltresRestaures();
     _isLoading = true;
+    _visibleCount = _pageSize;
     notifyListeners();
     try {
       final data = await ApiService.getClients(statut: statut);
