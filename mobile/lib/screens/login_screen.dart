@@ -14,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   static const _rememberedEmailKey = 'login_remembered_email';
+  static const _rememberedPasswordKey = 'login_remembered_password';
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -22,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
   bool _obscurePassword = true;
   bool _rememberEmail = true;
+  bool _rememberPassword = false;
 
   @override
   void initState() {
@@ -38,11 +40,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadRememberedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_rememberedEmailKey);
-    if (saved != null && saved.isNotEmpty && mounted) {
+    final savedEmail = prefs.getString(_rememberedEmailKey);
+    final savedPassword = prefs.getString(_rememberedPasswordKey);
+    if (mounted) {
       setState(() {
-        _emailCtrl.text = saved;
-        _rememberEmail = true;
+        if (savedEmail != null && savedEmail.isNotEmpty) {
+          _emailCtrl.text = savedEmail;
+          _rememberEmail = true;
+        }
+        if (savedPassword != null && savedPassword.isNotEmpty) {
+          _passwordCtrl.text = savedPassword;
+          _rememberPassword = true;
+        }
       });
     }
   }
@@ -53,6 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString(_rememberedEmailKey, _emailCtrl.text.trim());
     } else {
       await prefs.remove(_rememberedEmailKey);
+    }
+    if (_rememberPassword) {
+      await prefs.setString(_rememberedPasswordKey, _passwordCtrl.text);
+    } else {
+      await prefs.remove(_rememberedPasswordKey);
     }
   }
 
@@ -138,6 +152,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         value: _rememberEmail,
                         onChanged: (v) => setState(() => _rememberEmail = v ?? false),
                         title: const Text('Se souvenir de mon adresse mail'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                      CheckboxListTile(
+                        value: _rememberPassword,
+                        onChanged: (v) => setState(() => _rememberPassword = v ?? false),
+                        title: const Text('Se souvenir du mot de passe'),
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                         dense: true,
