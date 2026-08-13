@@ -167,17 +167,15 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   }
 
   void _showAdvancedFilters(BuildContext context, DashboardProvider provider) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      showDragHandle: true,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        child: Column(
+      builder: (ctx) => AlertDialog(
+        title: const Text('Filtres avancés'),
+        scrollable: true,
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtres avancés', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
               decoration: const InputDecoration(labelText: 'Bâtiment', isDense: true),
@@ -190,28 +188,31 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: provider.selectedBandeId.isEmpty ? '' : provider.selectedBandeId,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Bande', isDense: true),
               items: [
                 const DropdownMenuItem(value: '', child: Text('Toutes les bandes')),
                 ...provider.bandesFiltreesPourBatiment.map((b) {
                   final id = (b['id'] ?? b['_id']).toString();
                   final nom = '${b['nom'] ?? ''}${(b['batiment'] ?? '').toString().isNotEmpty ? ' – ${b['batiment']}' : ''}';
-                  return DropdownMenuItem(value: id, child: Text(nom));
+                  return DropdownMenuItem(value: id, child: Text(nom, overflow: TextOverflow.ellipsis));
                 }),
               ],
               onChanged: (v) { provider.chargerDashboards(bandeId: v ?? ''); Navigator.pop(ctx); },
             ),
-            if (provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty) ...
-              [
-                const SizedBox(height: 12),
-                TextButton.icon(
-                  onPressed: () { provider.chargerDashboards(batiment: '', bandeId: ''); Navigator.pop(ctx); },
-                  icon: const Icon(Icons.clear),
-                  label: const Text('Effacer les filtres'),
-                ),
-              ],
+            if (provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () { provider.chargerDashboards(batiment: '', bandeId: ''); Navigator.pop(ctx); },
+                icon: const Icon(Icons.clear),
+                label: const Text('Effacer les filtres'),
+              ),
+            ],
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+        ],
       ),
     );
   }
