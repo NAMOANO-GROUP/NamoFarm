@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 
 import '../models/bande.dart';
 import '../providers/bandes_provider.dart';
@@ -98,7 +99,7 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
   }
 
   Future<void> _enregistrer() async {
-    final alimentation = double.tryParse(_alimentationCtrl.text) ?? 0;
+    final alimentation = double.tryParse(_alimentationCtrl.text.replaceAll(',', '.')) ?? 0;
     final observations = _obsCtrl.text.trim();
     if (alimentation <= 0 || observations.isEmpty || _selectedAlimentStockId == null || _selectedAlimentStockId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,7 +115,7 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
       'alimentationStockId': _selectedAlimentStockId,
       'alimentationType': _stockNameById(_selectedAlimentStockId),
       'mortaliteJour': 0,
-      'eauLitres': double.tryParse(_eauCtrl.text) ?? 0,
+      'eauLitres': double.tryParse(_eauCtrl.text.replaceAll(',', '.')) ?? 0,
       'observations': observations,
     });
 
@@ -159,7 +160,10 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
           ),
           TextField(
             controller: _alimentationCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
             decoration: const InputDecoration(labelText: 'Alimentation (kg) *'),
           ),
           DropdownButtonFormField<String>(
@@ -182,7 +186,10 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
           ),
           TextField(
             controller: _eauCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
             decoration: const InputDecoration(labelText: 'Eau (litres) (optionnel)'),
           ),
           const SizedBox(height: 12),

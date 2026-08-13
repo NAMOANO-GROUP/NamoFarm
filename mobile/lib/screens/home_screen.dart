@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     _ModuleItem(
       page: FinanceScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Tresorerie'),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
       permission: 'finance:view',
     ),
