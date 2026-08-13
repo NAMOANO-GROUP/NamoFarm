@@ -309,7 +309,7 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
   }
 });
 
-router.delete('/:id/mouvements/:mvtId', requirePermission('cheptel.write'), async (req, res) => {
+router.delete('/:id/mouvements/:mvtId', requireAdmin, async (req, res) => {
   try {
     const client = getAdminClient();
     const companyId = await getCompanyIdForUser(client, req.user.id || req.user._id);

@@ -1,7 +1,7 @@
 const express = require('express');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
-const { requirePermission } = require('../middleware/auth');
+const { requirePermission, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const PIPELINE_STAGES = ['lead', 'qualifie', 'proposition', 'negociation', 'gagne', 'perdu'];
@@ -518,7 +518,7 @@ router.put('/taches/:id', requirePermission('crm.tache.update'), async (req, res
   }
 });
 
-router.delete('/taches/historique/all', requirePermission('crm.historique.purge'), async (req, res) => {
+router.delete('/taches/historique/all', requireAdmin, async (req, res) => {
   try {
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);

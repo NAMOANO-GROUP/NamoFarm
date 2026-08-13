@@ -94,6 +94,15 @@ function requireSuperadmin(req, res, next) {
   next();
 }
 
+// Réservé aux admins et super-admins — interdit aux gestionnaires et inférieurs.
+function requireAdmin(req, res, next) {
+  if (!req.user) return res.status(401).json({ message: 'Authentification requise' });
+  if (!isAdminRole(req.user.role) && !req.user.isSuperadmin) {
+    return res.status(403).json({ message: 'Réservé aux administrateurs' });
+  }
+  next();
+}
+
 function hasPermission(req, permission) {
   if (!req?.user) return false;
   if (isAdminRole(req.user.role)) return true;
@@ -118,6 +127,7 @@ module.exports = {
   authenticate,
   requireRole,
   requireSuperadmin,
+  requireAdmin,
   requirePermission,
   requireAnyPermission,
   hasPermission,

@@ -888,7 +888,7 @@ router.post('/approvisionnements', requirePermission('finance.write'), async (re
   }
 });
 
-router.delete('/mouvements', requirePermission('finance.delete'), async (req, res) => {
+router.delete('/mouvements', requireAdmin, async (req, res) => {
   try {
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);

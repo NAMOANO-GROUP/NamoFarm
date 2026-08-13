@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
-const { requirePermission } = require('../middleware/auth');
+const { requirePermission, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -510,7 +510,7 @@ router.post('/:id/mouvement', requirePermission('stocks.mouvement.create'), asyn
   }
 });
 
-router.delete('/:id/mouvements/:mouvementId', requirePermission('stocks.mouvement.delete'), async (req, res) => {
+router.delete('/:id/mouvements/:mouvementId', requireAdmin, async (req, res) => {
   try {
     const client = getAdminClient();
     const companyId = await getCompanyIdForUser(client, req.user.id || req.user._id);
@@ -548,7 +548,7 @@ router.delete('/:id/mouvements/:mouvementId', requirePermission('stocks.mouvemen
   }
 });
 
-router.delete('/:id/mouvements', requirePermission('stocks.mouvement.delete'), async (req, res) => {
+router.delete('/:id/mouvements', requireAdmin, async (req, res) => {
   try {
     const client = getAdminClient();
     const companyId = await getCompanyIdForUser(client, req.user.id || req.user._id);

@@ -1,7 +1,7 @@
 const express = require('express');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
-const { requirePermission } = require('../middleware/auth');
+const { requirePermission, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -610,7 +610,7 @@ router.put('/:id/fait', requirePermission('alertes.mark_done'), async (req, res)
   }
 });
 
-router.delete('/historique/all', requirePermission('alertes.historique.purge'), async (req, res) => {
+router.delete('/historique/all', requireAdmin, async (req, res) => {
   try {
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
