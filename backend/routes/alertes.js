@@ -387,7 +387,7 @@ router.get('/historique/export.csv', requirePermission('alertes.read'), async (r
     const csv = toCsv([header, ...rows]);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="alertes_historique_${new Date().toISOString().slice(0, 10)}.csv"`);
-    return res.status(200).send(csv);
+    return res.status(200).send('\uFEFF' + csv);
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -431,7 +431,7 @@ router.get('/automatiques/historique/export.csv', requirePermission('alertes.rea
     const csv = toCsv([header, ...rows]);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="alertes_automatiques_historique_${new Date().toISOString().slice(0, 10)}.csv"`);
-    return res.status(200).send(csv);
+    return res.status(200).send('\uFEFF' + csv);
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

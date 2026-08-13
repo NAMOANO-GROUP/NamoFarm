@@ -758,7 +758,7 @@ router.get('/mouvements/export.csv', requirePermission('finance.read'), async (r
     const csv = toCsv([header, ...rows]);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="finance_mouvements_${new Date().toISOString().slice(0, 10)}.csv"`);
-    return res.status(200).send(csv);
+    return res.status(200).send('\uFEFF' + csv);
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
