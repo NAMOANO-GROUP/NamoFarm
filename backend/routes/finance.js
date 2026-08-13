@@ -1,7 +1,7 @@
 const express = require('express');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
-const { requirePermission } = require('../middleware/auth');
+const { requirePermission, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const COMMANDES_COMPANY_COLUMNS = ['company_id', 'companyId'];
