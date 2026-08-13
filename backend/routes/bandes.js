@@ -629,8 +629,6 @@ router.post('/:id/suivi', requirePermission('bandes.suivi.create'), async (req, 
     });
     if (stockSave.error) return res.status(400).json({ message: stockSave.error.message });
 
-    // Stock consumption does not generate a treasury movement — only stock purchases do.
-
     const saved = await api
       .from('bandes')
       .update({
@@ -957,8 +955,6 @@ router.put('/:id/evenements-previsionnels/:eventId/terminer', requirePermission(
         .eq('company_id', companyId)
         .eq('id', stockRes.data.id);
       if (saveStock.error) return res.status(400).json({ message: saveStock.error.message });
-
-      // Stock consumption does not generate a treasury movement — only stock purchases do.
 
       events[idx].prophylaxieStockId = consommationStockId;
       events[idx].prophylaxieType = consommationType || stockRes.data.nom;
