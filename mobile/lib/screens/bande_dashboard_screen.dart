@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../models/bande.dart';
 import '../services/api_service.dart';
+import '../utils/money_format.dart';
 
 class BandeDashboardScreen extends StatefulWidget {
   final Bande bande;
@@ -229,20 +230,26 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
         borderData: FlBorderData(show: true),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
-            axisNameWidget: Text('Ordonnée ($yUnit)'),
+            axisNameWidget: Text(yUnit, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 52,
-              getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 10)),
+              reservedSize: 48,
+              getTitlesWidget: (value, meta) {
+                if (value == meta.min) return const SizedBox.shrink();
+                return Text(formatCompactNumber(value), style: const TextStyle(fontSize: 9));
+              },
             ),
           ),
           bottomTitles: AxisTitles(
-            axisNameWidget: const Text('Abscisse (jours)'),
+            axisNameWidget: const Text('Jours', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 26,
-              interval: 5,
-              getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 10)),
+              interval: spots.length > 30 ? 10 : spots.length > 15 ? 5 : 2,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 9)),
+              ),
             ),
           ),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -287,20 +294,26 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
         borderData: FlBorderData(show: true),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
-            axisNameWidget: Text('Ordonnée ($yUnit)'),
+            axisNameWidget: Text(yUnit, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 64,
-              getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 10)),
+              reservedSize: 48,
+              getTitlesWidget: (value, meta) {
+                if (value == meta.min) return const SizedBox.shrink();
+                return Text(formatCompactNumber(value), style: const TextStyle(fontSize: 9));
+              },
             ),
           ),
           bottomTitles: AxisTitles(
-            axisNameWidget: const Text('Abscisse (jours)'),
+            axisNameWidget: const Text('Jours', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 26,
-              interval: 5,
-              getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 10)),
+              interval: bars.length > 30 ? 10 : bars.length > 15 ? 5 : 2,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 9)),
+              ),
             ),
           ),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),

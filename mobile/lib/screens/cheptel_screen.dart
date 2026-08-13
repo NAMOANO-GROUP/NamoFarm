@@ -221,18 +221,30 @@ class _CheptelScreenState extends State<CheptelScreen> {
                 titlesData: FlTitlesData(
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    axisNameWidget: const Text('Têtes', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      getTitlesWidget: (value, meta) {
+                        if (value == meta.min) return const SizedBox.shrink();
+                        return Text(value.toInt().toString(), style: const TextStyle(fontSize: 9));
+                      },
+                    ),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 28,
+                      interval: asc.length > 10 ? (asc.length / 6).ceilToDouble() : 1,
                       getTitlesWidget: (value, meta) {
                         final i = value.toInt();
                         if (i < 0 || i >= asc.length) return const SizedBox.shrink();
                         final d = asc[i].date;
                         if (d == null) return const SizedBox.shrink();
                         return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(DateFormat('dd/MM').format(d), style: const TextStyle(fontSize: 10)),
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(DateFormat('dd/MM').format(d), style: const TextStyle(fontSize: 9)),
                         );
                       },
                     ),

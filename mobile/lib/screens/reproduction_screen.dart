@@ -190,9 +190,21 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                   titlesData: FlTitlesData(
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                      axisNameWidget: const Text('%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 36,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.min) return const SizedBox.shrink();
+                          return Text('${value.toInt()}%', style: const TextStyle(fontSize: 9));
+                        },
+                      ),
+                    ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
+                        reservedSize: 28,
                         getTitlesWidget: (value, meta) {
                           final i = value.toInt();
                           if (i < 0 || i >= withRate.length) return const SizedBox.shrink();

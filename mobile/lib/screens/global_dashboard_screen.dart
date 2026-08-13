@@ -255,12 +255,56 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
       points.add(FlSpot(i.toDouble(), val));
     }
 
+    final xInterval = raw.length > 8 ? (raw.length / 6).ceilToDouble() : 1.0;
+
     return LineChart(
       LineChartData(
-        lineTouchData: const LineTouchData(enabled: true),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touched) => touched.map((s) {
+              final i = s.x.toInt();
+              final label = (i >= 0 && i < raw.length) ? (raw[i]['periode'] ?? '').toString() : '';
+              return LineTooltipItem(
+                '${label.isNotEmpty ? "$label\n" : ""}${formatCompactNumber(s.y)}',
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              );
+            }).toList(),
+          ),
+        ),
         gridData: const FlGridData(show: true),
-        titlesData: const FlTitlesData(show: true),
         borderData: FlBorderData(show: true),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 56,
+              getTitlesWidget: (value, meta) {
+                if (value == meta.min) return const SizedBox.shrink();
+                return Text(formatCompactNumber(value), style: const TextStyle(fontSize: 9));
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: xInterval,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                if (i < 0 || i >= raw.length) return const SizedBox.shrink();
+                final label = (raw[i]['periode'] ?? '').toString();
+                final compact = label.length > 6 ? label.substring(label.length - 5) : label;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(compact, style: const TextStyle(fontSize: 9)),
+                );
+              },
+            ),
+          ),
+        ),
         lineBarsData: [
           LineChartBarData(
             spots: points,

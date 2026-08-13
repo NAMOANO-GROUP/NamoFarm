@@ -668,15 +668,27 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
           titlesData: FlTitlesData(
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              axisNameWidget: const Text('Nb clients', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                getTitlesWidget: (value, meta) {
+                  if (value == meta.min) return const SizedBox.shrink();
+                  return Text(value.toInt().toString(), style: const TextStyle(fontSize: 9));
+                },
+              ),
+            ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 28,
                 getTitlesWidget: (value, meta) {
                   final i = value.toInt();
                   if (i < 0 || i >= stageOrder.length) return const SizedBox.shrink();
                   return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(stageOrder[i], style: const TextStyle(fontSize: 10)),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(stageOrder[i], style: const TextStyle(fontSize: 9)),
                   );
                 },
               ),
@@ -735,17 +747,29 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
           titlesData: FlTitlesData(
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              axisNameWidget: const Text('Nb leads', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                getTitlesWidget: (value, meta) {
+                  if (value == meta.min) return const SizedBox.shrink();
+                  return Text(value.toInt().toString(), style: const TextStyle(fontSize: 9));
+                },
+              ),
+            ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 28,
                 getTitlesWidget: (value, meta) {
                   final i = value.toInt();
                   if (i < 0 || i >= subset.length) return const SizedBox.shrink();
                   final label = (subset[i]['source'] ?? '').toString();
                   final short = label.length > 9 ? '${label.substring(0, 9)}…' : label;
                   return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(short, style: const TextStyle(fontSize: 10)),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(short, style: const TextStyle(fontSize: 9)),
                   );
                 },
               ),
