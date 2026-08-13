@@ -629,26 +629,7 @@ router.post('/:id/suivi', requirePermission('bandes.suivi.create'), async (req, 
     });
     if (stockSave.error) return res.status(400).json({ message: stockSave.error.message });
 
-    const movementAmount = alimentationKg * Number(stockRes.data.prix_unitaire || 0);
-    if (movementAmount > 0) {
-      const userName = getUserName(req);
-      const financeSave = await insertTresorerieCompat(api, {
-        company_id: companyId,
-        nature: 'sortie',
-        source: 'stock_sortie',
-        qui_nom: userName.quiNom,
-        qui_prenom: userName.quiPrenom,
-        categorie: stockRes.data.categorie || 'aliment',
-        type: alimentationType || stockRes.data.nom,
-        montant: movementAmount,
-        date_mouvement: suiviDateIso,
-        commentaire: `Consommation alimentation - bande ${bande.nom}`,
-        reference_type: 'Bande',
-        reference_id: bande._id,
-        externe_cle: `bande:${bande._id}:suivi:${new Date(suiviDateIso).getTime()}:aliment`,
-      });
-      if (financeSave.error) return res.status(400).json({ message: financeSave.error.message });
-    }
+    // Stock consumption does not generate a treasury movement — only stock purchases do.
 
     const saved = await api
       .from('bandes')
@@ -977,26 +958,7 @@ router.put('/:id/evenements-previsionnels/:eventId/terminer', requirePermission(
         .eq('id', stockRes.data.id);
       if (saveStock.error) return res.status(400).json({ message: saveStock.error.message });
 
-      const montant = consommationQuantite * Number(stockRes.data.prix_unitaire || 0);
-      if (montant > 0) {
-        const userName = getUserName(req);
-        const finance = await insertTresorerieCompat(api, {
-          company_id: companyId,
-          nature: 'sortie',
-          source: 'stock_sortie',
-          qui_nom: userName.quiNom,
-          qui_prenom: userName.quiPrenom,
-          categorie: stockRes.data.categorie || 'consommable',
-          type: consommationType || stockRes.data.nom,
-          montant,
-          date_mouvement: dateRealisation,
-          commentaire: `Consommable prophylaxie - tâche réalisée (${events[idx].description})`,
-          reference_type: 'Bande',
-          reference_id: bande._id,
-          externe_cle: `bande:${bande._id}:event:${events[idx]._id}:prophylaxie`,
-        });
-        if (finance.error) return res.status(400).json({ message: finance.error.message });
-      }
+      // Stock consumption does not generate a treasury movement — only stock purchases do.
 
       events[idx].prophylaxieStockId = consommationStockId;
       events[idx].prophylaxieType = consommationType || stockRes.data.nom;
