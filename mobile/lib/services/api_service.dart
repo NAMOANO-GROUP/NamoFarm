@@ -637,4 +637,34 @@ class ApiService {
   // PREVISIONS — analytique (croissance, abattage, mortalité, tendance cheptel)
   static Future<Map<String, dynamic>> getPrevisions() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/previsions')));
+
+  // ACHATS
+  static Future<List<dynamic>> getAchats({String? statut}) async {
+    final params = <String, String>{};
+    if (statut != null && statut.isNotEmpty) params['statut'] = statut;
+    return List<dynamic>.from(_ensureSuccess(await _get('/achats', query: params)) ?? []);
+  }
+
+  static Future<Map<String, dynamic>> creerAchat(Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/achats', body: data), accepted: const [201]));
+
+  static Future<Map<String, dynamic>> modifierAchat(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/achats/$id', body: data)));
+
+  static Future<Map<String, dynamic>> validerAchat(String id, {String notes = ''}) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/achats/$id/valider', body: {'notes': notes})));
+
+  static Future<Map<String, dynamic>> refuserAchat(String id, {String notes = ''}) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/achats/$id/refuser', body: {'notes': notes})));
+
+  static Future<Map<String, dynamic>> recevoirAchat(String id, {required double quantiteRecue, double prixReel = 0, String notes = ''}) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/achats/$id/recevoir', body: {
+        'quantiteRecue': quantiteRecue,
+        'prixUnitaireReel': prixReel,
+        'notes': notes,
+      })));
+
+  static Future<void> supprimerAchat(String id) async {
+    _ensureSuccess(await _delete('/achats/$id'));
+  }
 }

@@ -10,6 +10,7 @@ import 'previsions_screen.dart';
 import 'alertes_screen.dart';
 import 'crm_screen.dart';
 import 'finance_screen.dart';
+import 'achats_screen.dart';
 import 'roadmap_screen.dart';
 import 'profile_screen.dart';
 import 'config_screen.dart';
@@ -101,6 +102,12 @@ class _HomeScreenState extends State<HomeScreen> {
       desktopDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
       permission: 'finance:view',
+    ),
+    _ModuleItem(
+      page: AchatsScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.shopping_cart_outlined), selectedIcon: Icon(Icons.shopping_cart), label: 'Achats'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.shopping_cart_outlined), selectedIcon: Icon(Icons.shopping_cart), label: 'Achats'),
+      permission: 'achats:view',
     ),
     _ModuleItem(
       page: RoadmapScreen(),
