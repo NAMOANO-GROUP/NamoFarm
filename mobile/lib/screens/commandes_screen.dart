@@ -152,15 +152,12 @@ class _CommandesScreenState extends State<CommandesScreen> {
                       onPressed: () => context.read<CommandesProvider>().chargerCommandes(),
                       icon: const Icon(Icons.refresh),
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
+                    const SizedBox(width: 4),
+                    IconButton.filled(
+                      tooltip: 'Nouvelle commande',
                       onPressed: _showNouvelleCommandeDialog,
-                      style: ElevatedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
+                      visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.add_shopping_cart, size: 18),
-                      label: const Text('Nouvelle commande'),
                     ),
                   ],
                 ),

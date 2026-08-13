@@ -67,14 +67,11 @@ class _FournisseursTabState extends State<FournisseursTab> {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
+                child: IconButton.filled(
+                  tooltip: 'Nouveau fournisseur',
                   onPressed: _showAjoutFournisseur,
-                  style: ElevatedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.business, size: 18),
-                  label: const Text('Nouveau fournisseur'),
                 ),
               ),
             ),
