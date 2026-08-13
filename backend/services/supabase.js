@@ -49,7 +49,12 @@ function isSuperadminEmail(email) {
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  return list.includes(String(email || '').trim().toLowerCase());
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const result = list.includes(normalizedEmail);
+  if (!result && normalizedEmail) {
+    console.log(`[superadmin] "${normalizedEmail}" non trouvé dans SUPERADMIN_EMAILS (${list.length} entrée(s) configurée(s))`);
+  }
+  return result;
 }
 
 function toPublicUser(profile, emailOverride) {
