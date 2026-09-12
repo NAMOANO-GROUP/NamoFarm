@@ -16,6 +16,9 @@ class DashboardProvider with ChangeNotifier {
   String _period = 'mois';
   String _selectedBandeId = '';
   String _selectedBatiment = '';
+  DateTime? _specificDate;
+  int? _specificMonth;
+  int? _specificYear;
 
   Map<String, dynamic> get global => _global;
   Map<String, dynamic> get crm => _crm;
@@ -35,6 +38,10 @@ class DashboardProvider with ChangeNotifier {
   String get period => _period;
   String get selectedBandeId => _selectedBandeId;
   String get selectedBatiment => _selectedBatiment;
+  DateTime? get specificDate => _specificDate;
+  int? get specificMonth => _specificMonth;
+  int? get specificYear => _specificYear;
+  bool get hasSpecificSelection => _specificDate != null || _specificMonth != null || _specificYear != null;
 
   Future<void> chargerDashboards({String? period, String? bandeId, String? batiment}) async {
     if (!_filtresRestaures) {
@@ -43,8 +50,12 @@ class DashboardProvider with ChangeNotifier {
 
     _isLoading = true;
     _lastError = null;
-    if (period != null) {
+    if (period != null && period != _period) {
       _period = period;
+      // Changing the granularity invalidates any exact day/month/year previously chosen.
+      _specificDate = null;
+      _specificMonth = null;
+      _specificYear = null;
     }
     if (bandeId != null) {
       _selectedBandeId = bandeId;
@@ -75,6 +86,9 @@ class DashboardProvider with ChangeNotifier {
         period: _period,
         bandeId: _selectedBandeId.isEmpty ? null : _selectedBandeId,
         batiment: _selectedBatiment.isEmpty ? null : _selectedBatiment,
+        date: _specificDate,
+        month: _specificMonth,
+        year: _specificYear,
       );
     } catch (e) {
       _global = {};
@@ -92,6 +106,38 @@ class DashboardProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  /// Sets an exact day (used when period == 'jour') and reloads.
+  Future<void> definirJourPrecis(DateTime? date) async {
+    _specificDate = date;
+    _specificMonth = null;
+    _specificYear = null;
+    await chargerDashboards();
+  }
+
+  /// Sets an exact month + year (used when period == 'mois') and reloads.
+  Future<void> definirMoisPrecis(int month, int year) async {
+    _specificMonth = month;
+    _specificYear = year;
+    _specificDate = null;
+    await chargerDashboards();
+  }
+
+  /// Sets an exact year (used when period == 'annee') and reloads.
+  Future<void> definirAnneePrecise(int year) async {
+    _specificYear = year;
+    _specificMonth = null;
+    _specificDate = null;
+    await chargerDashboards();
+  }
+
+  /// Clears any exact day/month/year selection, reverting to the relative period.
+  Future<void> effacerSelectionPrecise() async {
+    _specificDate = null;
+    _specificMonth = null;
+    _specificYear = null;
+    await chargerDashboards();
   }
 
   void _validerFiltresSelectionnes() {
@@ -120,6 +166,10 @@ class DashboardProvider with ChangeNotifier {
     _period = prefs.getString('dashboard.period') ?? 'mois';
     _selectedBatiment = prefs.getString('dashboard.selectedBatiment') ?? '';
     _selectedBandeId = prefs.getString('dashboard.selectedBandeId') ?? '';
+    final savedDate = prefs.getString('dashboard.specificDate');
+    _specificDate = savedDate != null && savedDate.isNotEmpty ? DateTime.tryParse(savedDate) : null;
+    _specificMonth = prefs.getInt('dashboard.specificMonth');
+    _specificYear = prefs.getInt('dashboard.specificYear');
     _filtresRestaures = true;
     if (notify) {
       notifyListeners();
@@ -131,5 +181,20 @@ class DashboardProvider with ChangeNotifier {
     await prefs.setString('dashboard.period', _period);
     await prefs.setString('dashboard.selectedBatiment', _selectedBatiment);
     await prefs.setString('dashboard.selectedBandeId', _selectedBandeId);
+    if (_specificDate != null) {
+      await prefs.setString('dashboard.specificDate', _specificDate!.toIso8601String());
+    } else {
+      await prefs.remove('dashboard.specificDate');
+    }
+    if (_specificMonth != null) {
+      await prefs.setInt('dashboard.specificMonth', _specificMonth!);
+    } else {
+      await prefs.remove('dashboard.specificMonth');
+    }
+    if (_specificYear != null) {
+      await prefs.setInt('dashboard.specificYear', _specificYear!);
+    } else {
+      await prefs.remove('dashboard.specificYear');
+    }
   }
 }

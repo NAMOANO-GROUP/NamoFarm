@@ -69,6 +69,55 @@ function getDateFilter(period) {
   return { start, end: now };
 }
 
+// Resolves the effective date range for the dashboard, giving priority to the
+// most specific filter provided by the client:
+//   1) explicit dateFrom/dateTo (custom range)
+//   2) explicit year (+ optional month) -> exact month or exact year
+//   3) explicit single day (date=YYYY-MM-DD)
+//   4) relative rolling period (jour/semaine/mois/annee) — previous behaviour
+function resolveDateRange(query) {
+  const period = (query.period || 'mois').toString();
+  const dateFromRaw = (query.dateFrom || '').toString().trim();
+  const dateToRaw = (query.dateTo || '').toString().trim();
+  const dateRaw = (query.date || '').toString().trim();
+  const year = Number((query.year || '').toString().trim());
+  const month = Number((query.month || '').toString().trim());
+
+  if (dateFromRaw || dateToRaw) {
+    const start = dateFromRaw ? new Date(dateFromRaw) : new Date(0);
+    const end = dateToRaw ? new Date(dateToRaw) : new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      return { start, end, period };
+    }
+  }
+
+  if (!Number.isNaN(year) && year >= 2000 && year <= 2100) {
+    if (!Number.isNaN(month) && month >= 1 && month <= 12) {
+      const start = new Date(year, month - 1, 1, 0, 0, 0, 0);
+      const end = new Date(year, month, 0, 23, 59, 59, 999);
+      return { start, end, period };
+    }
+    const start = new Date(year, 0, 1, 0, 0, 0, 0);
+    const end = new Date(year, 11, 31, 23, 59, 59, 999);
+    return { start, end, period };
+  }
+
+  if (dateRaw) {
+    const day = new Date(dateRaw);
+    if (!Number.isNaN(day.getTime())) {
+      const start = new Date(day);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(day);
+      end.setHours(23, 59, 59, 999);
+      return { start, end, period };
+    }
+  }
+
+  return { ...getDateFilter(period), period };
+}
+
 function interpolateFromCurve(points, age, key) {
   const valid = points
     .filter((p) => Number(p.age) > 0 && p[key] != null && !Number.isNaN(Number(p[key])))
@@ -98,7 +147,7 @@ router.get('/global', requireAnyPermission(['dashboard.sales', 'dashboard.tech',
     const period = req.query.period || 'mois';
     const bandeId = req.query.bandeId || '';
     const batiment = req.query.batiment || '';
-    const dateFilter = getDateFilter(period);
+    const dateFilter = resolveDateRange(req.query);
 
     const bandesRes = await api.from('bandes').select('*').eq('company_id', companyId);
     if (bandesRes.error) return res.status(500).json({ message: bandesRes.error.message });
@@ -189,6 +238,8 @@ router.get('/global', requireAnyPermission(['dashboard.sales', 'dashboard.tech',
       period,
       bandeId: bandeId || null,
       batiment: batiment || null,
+      dateDebut: dateFilter.start.toISOString(),
+      dateFin: dateFilter.end.toISOString(),
       chiffreAffairesTotal,
       depensesTotales,
       beneficeNet,

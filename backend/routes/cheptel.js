@@ -240,6 +240,12 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
     const quantite = Number(req.body.quantite || 0);
     if (Number.isNaN(quantite) || quantite < 0) return res.status(400).json({ message: 'Quantité invalide' });
 
+    const montantRaw = req.body.montant;
+    const montant = Number(montantRaw ?? 0);
+    if (montantRaw !== undefined && montantRaw !== null && montantRaw !== '' && (Number.isNaN(montant) || montant < 0)) {
+      return res.status(400).json({ message: 'Montant invalide' });
+    }
+
     const current = await client
       .from('cheptels')
       .select('*')
@@ -255,7 +261,7 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
       date: req.body.date || new Date().toISOString(),
       type,
       quantite,
-      montant: Number(req.body.montant || 0),
+      montant,
       motif: (req.body.motif || '').toString(),
       utilisateur: getActorLabel(req),
     };
@@ -276,7 +282,6 @@ router.post('/:id/mouvements', requirePermission('cheptel.write'), async (req, r
 
     // A cheptel sale feeds the treasury (money IN); a purchase is money OUT.
     // Best-effort: never fail the livestock movement if the treasury insert fails.
-    const montant = Number(req.body.montant || 0);
     if (montant > 0 && (type === 'vente' || type === 'entree')) {
       try {
         const { quiNom, quiPrenom } = getUserName(req);

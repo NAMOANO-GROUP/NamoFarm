@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../widgets/brand_logo.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
+import '../widgets/iso_calendar_picker.dart';
 
 class GlobalDashboardScreen extends StatefulWidget {
   const GlobalDashboardScreen({super.key});
@@ -20,6 +22,11 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
     {'value': 'semaine', 'label': 'Semaine'},
     {'value': 'mois', 'label': 'Mois'},
     {'value': 'annee', 'label': 'Année'},
+  ];
+
+  static const List<String> _moisFr = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
   ];
 
   @override
@@ -123,7 +130,9 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   }
 
   Widget _buildCompactFilters(DashboardProvider provider, BuildContext context) {
-    final hasAdvancedFilter = provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty;
+    final hasAdvancedFilter = provider.selectedBatiment.isNotEmpty ||
+        provider.selectedBandeId.isNotEmpty ||
+        provider.hasSpecificSelection;
     return Row(
       children: [
         Expanded(
@@ -148,7 +157,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.tune, size: 20),
-              tooltip: 'Bâtiment / Bande',
+              tooltip: 'Bâtiment / Bande / Date précise',
               visualDensity: VisualDensity.compact,
               onPressed: () => _showAdvancedFilters(context, provider),
             ),
@@ -167,9 +176,14 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   }
 
   void _showAdvancedFilters(BuildContext context, DashboardProvider provider) {
+    int dialogMonth = provider.specificMonth ?? DateTime.now().month;
+    int dialogYear = provider.specificYear ?? DateTime.now().year;
+    final years = List<int>.generate(6, (i) => DateTime.now().year - i);
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
         title: const Text('Filtres avancés'),
         scrollable: true,
         content: Column(
@@ -201,11 +215,98 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
               onChanged: (v) { provider.chargerDashboards(bandeId: v ?? ''); Navigator.pop(ctx); },
             ),
             if (provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () { provider.chargerDashboards(batiment: '', bandeId: ''); Navigator.pop(ctx); },
                 icon: const Icon(Icons.clear),
-                label: const Text('Effacer les filtres'),
+                label: const Text('Effacer bâtiment/bande'),
+              ),
+            ],
+            const Divider(height: 20),
+            Text(
+              'Sélection précise (${_periodOptions.firstWhere((o) => o['value'] == provider.period)['label']})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            if (provider.period == 'jour')
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(provider.specificDate != null
+                    ? DateFormat('dd/MM/yyyy').format(provider.specificDate!)
+                    : 'Aujourd\'hui (relatif)'),
+                trailing: const Icon(Icons.calendar_today, size: 18),
+                onTap: () async {
+                  final picked = await showIsoDatePicker(
+                    context: ctx,
+                    initialDate: provider.specificDate ?? DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    await provider.definirJourPrecis(picked);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  }
+                },
+              )
+            else if (provider.period == 'mois')
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: dialogMonth,
+                      decoration: const InputDecoration(labelText: 'Mois', isDense: true),
+                      items: List.generate(12, (i) => i + 1)
+                          .map((m) => DropdownMenuItem(value: m, child: Text(_moisFr[m - 1])))
+                          .toList(),
+                      onChanged: (v) => setDialogState(() => dialogMonth = v ?? dialogMonth),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: dialogYear,
+                      decoration: const InputDecoration(labelText: 'Année', isDense: true),
+                      items: years.map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
+                      onChanged: (v) => setDialogState(() => dialogYear = v ?? dialogYear),
+                    ),
+                  ),
+                ],
+              )
+            else if (provider.period == 'annee')
+              DropdownButtonFormField<int>(
+                value: dialogYear,
+                decoration: const InputDecoration(labelText: 'Année', isDense: true),
+                items: years.map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
+                onChanged: (v) async {
+                  if (v == null) return;
+                  await provider.definirAnneePrecise(v);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              )
+            else
+              Text('Aucune sélection précise pour « Semaine »', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            if (provider.period == 'mois') ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await provider.definirMoisPrecis(dialogMonth, dialogYear);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: const Text('Appliquer'),
+                ),
+              ),
+            ],
+            if (provider.hasSpecificSelection) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () async {
+                  await provider.effacerSelectionPrecise();
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                icon: const Icon(Icons.clear),
+                label: const Text('Revenir à la période relative'),
               ),
             ],
           ],
@@ -213,6 +314,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
         ],
+        ),
       ),
     );
   }

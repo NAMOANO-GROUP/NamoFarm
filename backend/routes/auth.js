@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rateLimiter');
 const { sendPasswordResetEmail } = require('../services/email_service');
 const { getAdminClient, mapRole, mergeFullName, toPublicUser, logAudit } = require('../services/supabase');
 const { getEffectivePermissions } = require('../config/permissions');
@@ -33,44 +34,28 @@ function signToken(user) {
 
 // Limiteur anti-abus léger, en mémoire (sans dépendance externe) :
 // autorise au plus `max` requêtes par IP sur une fenêtre glissante `windowMs`.
-function createRateLimiter({ windowMs, max, message }) {
-  const hits = new Map(); // ip -> { count, resetAt }
-  return (req, res, next) => {
-    const now = Date.now();
-
-    // Purge occasionnelle des entrées expirées pour éviter toute fuite mémoire.
-    if (hits.size > 5000) {
-      for (const [key, value] of hits) {
-        if (value.resetAt <= now) hits.delete(key);
-      }
-    }
-
-    const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    const ip = forwarded || req.ip || req.socket?.remoteAddress || 'unknown';
-
-    let entry = hits.get(ip);
-    if (!entry || entry.resetAt <= now) {
-      entry = { count: 0, resetAt: now + windowMs };
-      hits.set(ip, entry);
-    }
-    entry.count += 1;
-
-    if (entry.count > max) {
-      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-      res.set('Retry-After', String(retryAfter));
-      return res.status(429).json({
-        message: message || `Trop de tentatives. Réessaie dans ${retryAfter} seconde(s).`,
-      });
-    }
-    return next();
-  };
-}
+// (implémentation partagée dans middleware/rateLimiter.js)
 
 // Max 5 créations d'entreprise par IP et par heure.
 const onboardingLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: "Trop de créations d'exploitation depuis cette adresse. Réessaie plus tard.",
+});
+
+// Max 15 tentatives de connexion par IP et par 15 minutes (anti brute-force).
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: 'Trop de tentatives de connexion. Réessaie dans quelques minutes.',
+});
+
+// Max 5 demandes de réinitialisation de mot de passe par IP et par heure
+// (évite le spam d'emails et le bruteforce sur /mot-de-passe/reinitialiser).
+const passwordResetLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: 'Trop de demandes de réinitialisation. Réessaie plus tard.',
 });
 
 function extractMissingColumn(error) {
@@ -374,7 +359,7 @@ router.post('/inscription', authenticate, requirePermission('users.manage'), asy
   }
 });
 
-router.post('/connexion', async (req, res) => {
+router.post('/connexion', loginLimiter, async (req, res) => {
   try {
     try {
       await ensureInitialAdmin();
@@ -596,7 +581,7 @@ router.put('/mot-de-passe', authenticate, async (req, res) => {
   }
 });
 
-router.post('/mot-de-passe/oublie', async (req, res) => {
+router.post('/mot-de-passe/oublie', passwordResetLimiter, async (req, res) => {
   try {
     const client = getAdminClient();
     const email = (req.body.email || '').trim().toLowerCase();
@@ -645,7 +630,7 @@ router.post('/mot-de-passe/oublie', async (req, res) => {
   }
 });
 
-router.post('/mot-de-passe/reinitialiser', async (req, res) => {
+router.post('/mot-de-passe/reinitialiser', passwordResetLimiter, async (req, res) => {
   try {
     const client = getAdminClient();
     const { token, nouveauMotDePasse } = req.body;

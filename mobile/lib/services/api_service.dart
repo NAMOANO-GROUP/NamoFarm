@@ -444,11 +444,25 @@ class ApiService {
             Map<String, dynamic>.from(_ensureSuccess(await _post('/crm/pipeline/$clientId', body: data), accepted: const [201]));
 
   // Dashboard / Reports
-    static Future<Map<String, dynamic>> getGlobalDashboard({String period = 'mois', String? bandeId, String? batiment}) async =>
+    static Future<Map<String, dynamic>> getGlobalDashboard({
+        String period = 'mois',
+        String? bandeId,
+        String? batiment,
+        DateTime? date,
+        int? month,
+        int? year,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+    }) async =>
             Map<String, dynamic>.from(_ensureSuccess(await _get('/dashboard/global', query: {
                 'period': period,
                 if (bandeId != null && bandeId.isNotEmpty) 'bandeId': bandeId,
                 if (batiment != null && batiment.isNotEmpty) 'batiment': batiment,
+                if (date != null) 'date': date.toIso8601String(),
+                if (month != null) 'month': '$month',
+                if (year != null) 'year': '$year',
+                if (dateFrom != null) 'dateFrom': dateFrom.toIso8601String(),
+                if (dateTo != null) 'dateTo': dateTo.toIso8601String(),
             })));
 
   static String getGlobalPdfReportUrl() => '$baseUrl/reports/global.pdf';

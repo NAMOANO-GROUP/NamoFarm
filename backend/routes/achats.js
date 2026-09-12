@@ -75,7 +75,7 @@ router.post('/', requirePermission('achats.request'), async (req, res) => {
     const titre = (req.body.titre || '').trim();
     const article = (req.body.article || '').trim();
     const quantite = Number(req.body.quantite || 0);
-    if (!titre || !article || quantite <= 0) {
+    if (!titre || !article || Number.isNaN(quantite) || quantite <= 0) {
       return res.status(400).json({ message: 'Titre, article et quantité (> 0) sont obligatoires' });
     }
 

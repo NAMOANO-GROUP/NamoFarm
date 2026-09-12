@@ -808,7 +808,7 @@ router.post('/depenses', requirePermission('finance.write'), async (req, res) =>
     const bandeId = (req.body.bandeId || '').toString().trim();
     const date = req.body.date ? new Date(req.body.date) : new Date();
 
-    if (!quiNom || !quiPrenom || !categorie || !type || montant <= 0 || Number.isNaN(date.getTime())) {
+    if (!quiNom || !quiPrenom || !categorie || !type || Number.isNaN(montant) || montant <= 0 || Number.isNaN(date.getTime())) {
       return res.status(400).json({
         message: 'Champs obligatoires: quiNom, quiPrenom, categorie, type, montant (>0), date valide',
       });
@@ -861,7 +861,7 @@ router.post('/approvisionnements', requirePermission('finance.write'), async (re
     const commentaire = (req.body.commentaire || '').toString().trim();
     const date = req.body.date ? new Date(req.body.date) : new Date();
 
-    if (!quiNom || !quiPrenom || montant <= 0 || Number.isNaN(date.getTime())) {
+    if (!quiNom || !quiPrenom || Number.isNaN(montant) || montant <= 0 || Number.isNaN(date.getTime())) {
       return res.status(400).json({
         message: 'Champs obligatoires: quiNom, quiPrenom, montant (>0), date valide',
       });

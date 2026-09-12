@@ -22,8 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _error;
   bool _obscurePassword = true;
-  bool _rememberEmail = true;
-  bool _rememberPassword = false;
+  bool _rememberMe = false;
 
   @override
   void initState() {
@@ -46,11 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         if (savedEmail != null && savedEmail.isNotEmpty) {
           _emailCtrl.text = savedEmail;
-          _rememberEmail = true;
+          _rememberMe = true;
         }
         if (savedPassword != null && savedPassword.isNotEmpty) {
           _passwordCtrl.text = savedPassword;
-          _rememberPassword = true;
+          _rememberMe = true;
         }
       });
     }
@@ -58,14 +57,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _saveRememberedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    if (_rememberEmail) {
+    if (_rememberMe) {
       await prefs.setString(_rememberedEmailKey, _emailCtrl.text.trim());
-    } else {
-      await prefs.remove(_rememberedEmailKey);
-    }
-    if (_rememberPassword) {
       await prefs.setString(_rememberedPasswordKey, _passwordCtrl.text);
     } else {
+      await prefs.remove(_rememberedEmailKey);
       await prefs.remove(_rememberedPasswordKey);
     }
   }
@@ -149,17 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 4),
                       CheckboxListTile(
-                        value: _rememberEmail,
-                        onChanged: (v) => setState(() => _rememberEmail = v ?? false),
-                        title: const Text('Se souvenir de mon adresse mail'),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                      CheckboxListTile(
-                        value: _rememberPassword,
-                        onChanged: (v) => setState(() => _rememberPassword = v ?? false),
-                        title: const Text('Se souvenir du mot de passe'),
+                        value: _rememberMe,
+                        onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                        title: const Text('Se souvenir de mon email et mot de passe'),
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                         dense: true,

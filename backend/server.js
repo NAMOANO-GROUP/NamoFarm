@@ -13,6 +13,7 @@ if (weakSecrets.has(jwtSecret) || jwtSecret.length < 16) {
 }
 
 const { authenticate } = require('./middleware/auth');
+const { createRateLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
@@ -37,6 +38,15 @@ app.use(cors({
   },
 }));
 app.use(bodyParser.json({ limit: '2mb' }));
+
+// Filet de sécurité global anti-abus: au-delà des limiteurs spécifiques sur
+// /auth, toutes les routes /api partagent cette limite généreuse par IP.
+const globalApiLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 600,
+  message: 'Trop de requêtes depuis cette adresse. Réessaie dans quelques minutes.',
+});
+app.use('/api', globalApiLimiter);
 
 // Routes
 const bandesRoutes = require('./routes/bandes');

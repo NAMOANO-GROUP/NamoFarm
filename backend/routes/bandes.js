@@ -871,6 +871,7 @@ router.post('/:id/evenements-previsionnels', requirePermission('bandes.events.ma
     const prophylaxieType = (req.body.prophylaxieType || '').toString().trim();
     const prophylaxieQuantite = Number(req.body.prophylaxieQuantite || 0);
 
+    if (Number.isNaN(prophylaxieQuantite) || prophylaxieQuantite < 0) return res.status(400).json({ message: 'Quantité prophylaxie invalide' });
     if (prophylaxieStockId && prophylaxieQuantite <= 0) return res.status(400).json({ message: 'La quantité prophylaxie doit être supérieure à 0' });
     if (!prophylaxieStockId && prophylaxieQuantite > 0) return res.status(400).json({ message: 'Sélectionne un consommable prophylaxie avant de saisir la quantité' });
 
@@ -918,6 +919,7 @@ router.put('/:id/evenements-previsionnels/:eventId/terminer', requirePermission(
     const consommationType = (req.body.prophylaxieType || events[idx].prophylaxieType || '').toString().trim();
     const consommationQuantite = Number(req.body.prophylaxieQuantite ?? events[idx].prophylaxieQuantite ?? 0);
 
+    if (Number.isNaN(consommationQuantite) || consommationQuantite < 0) return res.status(400).json({ message: 'Quantité prophylaxie invalide' });
     if (consommationStockId && consommationQuantite <= 0) return res.status(400).json({ message: 'La quantité prophylaxie doit être supérieure à 0' });
     if (!consommationStockId && consommationQuantite > 0) return res.status(400).json({ message: 'Sélectionne un consommable prophylaxie avant de saisir la quantité' });
 
