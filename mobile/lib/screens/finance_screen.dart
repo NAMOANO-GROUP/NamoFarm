@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/finance_provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
@@ -749,6 +750,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final categorie = (m['categorie'] ?? '').toString();
     final type = (m['type'] ?? '').toString();
     final commentaire = (m['commentaire'] ?? '').toString();
+    final id = (m['_id'] ?? '').toString();
+    final auth = context.watch<AuthProvider>();
+    final canDelete = auth.isAdmin || auth.isSuperadmin;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -763,8 +767,40 @@ class _FinanceScreenState extends State<FinanceScreen> {
             if (commentaire.isNotEmpty) Text(commentaire, style: const TextStyle(fontStyle: FontStyle.italic)),
           ],
         ),
+        trailing: canDelete && id.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                tooltip: 'Supprimer cette transaction',
+                onPressed: () => _confirmerSuppressionMouvement(id),
+              )
+            : null,
         isThreeLine: true,
       ),
+    );
+  }
+
+  Future<void> _confirmerSuppressionMouvement(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer cette transaction ?'),
+        content: const Text('Cette action est irreversible.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final provider = context.read<FinanceProvider>();
+    final ok = await provider.supprimerMouvement(id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Transaction supprimee' : 'Erreur: ${provider.lastError ?? ''}')),
     );
   }
 

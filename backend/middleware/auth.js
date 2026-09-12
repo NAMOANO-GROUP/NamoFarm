@@ -13,7 +13,7 @@ async function authenticate(req, res, next) {
     const token = extractToken(req);
     if (!token) return res.status(401).json({ message: 'Authentification requise' });
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
     const client = getAdminClient();
     const { data: profile, error } = await client
       .from('profiles')

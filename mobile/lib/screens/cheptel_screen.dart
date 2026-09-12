@@ -378,14 +378,18 @@ class _CheptelScreenState extends State<CheptelScreen> {
   void _showMouvementForm(Cheptel c) {
     String type = 'naissance';
     final qteCtrl = TextEditingController();
-    final montantCtrl = TextEditingController();
+    final prixUnitaireCtrl = TextEditingController();
     final motifCtrl = TextEditingController();
     DateTime date = DateTime.now();
 
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
+        builder: (dialogContext, setDialog) {
+          final qtePreview = int.tryParse(qteCtrl.text.trim()) ?? 0;
+          final prixPreview = double.tryParse(prixUnitaireCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+          final totalPreview = qtePreview * prixPreview;
+          return AlertDialog(
           title: Text('Mouvement — ${c.nom}'),
           content: SingleChildScrollView(
             child: Column(
@@ -405,9 +409,26 @@ class _CheptelScreenState extends State<CheptelScreen> {
                   decoration: InputDecoration(
                     labelText: type == 'ajustement' ? 'Nouvel effectif *' : 'Quantité *',
                   ),
+                  onChanged: (_) => setDialog(() {}),
                 ),
-                if (type == 'vente' || type == 'entree')
-                  TextField(controller: montantCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Montant (FCFA)')),
+                if (type == 'vente' || type == 'entree') ...[
+                  TextField(
+                    controller: prixUnitaireCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'),
+                    onChanged: (_) => setDialog(() {}),
+                  ),
+                  if (qtePreview > 0 && prixPreview > 0) ...[
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Total: ${formatAmountFcfa(totalPreview)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ],
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date'),
@@ -434,10 +455,12 @@ class _CheptelScreenState extends State<CheptelScreen> {
                   messenger.showSnackBar(const SnackBar(content: Text('Quantité invalide')));
                   return;
                 }
+                final prixUnitaire = double.tryParse(prixUnitaireCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+                final montantTotal = qte * prixUnitaire;
                 final ok = await provider.ajouterMouvement(c.id!, {
                   'type': type,
                   'quantite': qte,
-                  'montant': double.tryParse(montantCtrl.text.trim().replaceAll(',', '.')) ?? 0,
+                  'montant': montantTotal,
                   'date': date.toIso8601String(),
                   'motif': motifCtrl.text.trim(),
                 });
@@ -448,7 +471,8 @@ class _CheptelScreenState extends State<CheptelScreen> {
               child: const Text('Enregistrer'),
             ),
           ],
-        ),
+        );
+        },
       ),
     );
   }

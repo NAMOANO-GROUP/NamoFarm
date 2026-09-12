@@ -361,6 +361,10 @@ class ApiService {
         _ensureSuccess(await _delete('/finance/mouvements'));
     }
 
+    static Future<void> supprimerMouvementTresorerie(String id) async {
+        _ensureSuccess(await _delete('/finance/mouvements/$id'));
+    }
+
     static Future<String> exportHistoriqueMouvementsTresorerieCsv({
         String? period,
         String? source,

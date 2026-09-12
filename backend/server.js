@@ -2,13 +2,41 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
+
+// Fail fast if JWT_SECRET is missing or left as an obvious placeholder — a weak
+// or absent secret would let anyone forge valid auth tokens.
+const jwtSecret = (process.env.JWT_SECRET || '').trim();
+const weakSecrets = new Set(['dev_secret_change_me', 'change_this_secret', 'secret', '']);
+if (weakSecrets.has(jwtSecret) || jwtSecret.length < 16) {
+  console.error('\n❌ JWT_SECRET manquant ou trop faible. Définissez une variable d\'environnement JWT_SECRET forte (>= 16 caractères aléatoires) avant de démarrer le serveur.\n');
+  process.exit(1);
+}
+
 const { authenticate } = require('./middleware/auth');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+// CORS: restrict to known origins via CORS_ORIGIN (comma-separated). Requests
+// without an Origin header (native mobile apps, curl, server-to-server) are
+// always allowed since browsers are the only clients that send/enforce CORS.
+const configuredOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+if (configuredOrigins.length === 0) {
+  console.warn('⚠️  CORS_ORIGIN non défini: toutes les origines web sont acceptées. Définissez CORS_ORIGIN (ex: https://monapp.vercel.app) pour restreindre l\'accès.');
+}
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || configuredOrigins.length === 0 || configuredOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origine non autorisée par CORS'));
+  },
+}));
+app.use(bodyParser.json({ limit: '2mb' }));
 
 // Routes
 const bandesRoutes = require('./routes/bandes');

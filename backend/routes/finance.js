@@ -888,6 +888,27 @@ router.post('/approvisionnements', requirePermission('finance.write'), async (re
   }
 });
 
+router.delete('/mouvements/:id', requireAdmin, async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+
+    const deleted = await api
+      .from('tresorerie_mouvements')
+      .delete()
+      .eq('company_id', companyId)
+      .eq('id', req.params.id)
+      .select('id')
+      .maybeSingle();
+
+    if (deleted.error) return res.status(500).json({ message: deleted.error.message });
+    if (!deleted.data) return res.status(404).json({ message: 'Transaction non trouvée' });
+    return res.json({ message: 'Transaction supprimée' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 router.delete('/mouvements', requireAdmin, async (req, res) => {
   try {
     const api = getAdminClient();

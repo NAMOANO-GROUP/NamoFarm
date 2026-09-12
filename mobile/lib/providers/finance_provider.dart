@@ -192,4 +192,17 @@ class FinanceProvider with ChangeNotifier {
       return false;
     }
   }
+
+  Future<bool> supprimerMouvement(String id) async {
+    try {
+      _lastError = null;
+      await ApiService.supprimerMouvementTresorerie(id);
+      await chargerTresorerie();
+      return true;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
 }
