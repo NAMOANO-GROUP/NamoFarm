@@ -82,6 +82,8 @@ class _StocksScreenState extends State<StocksScreen> {
             );
           }
 
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+
           final visibleStocks = _categoryFilter.isEmpty
               ? provider.stocks
               : provider.stocks.where((s) => s.categorie == _categoryFilter).toList();
@@ -119,18 +121,31 @@ class _StocksScreenState extends State<StocksScreen> {
               // Alertes stock bas
               if (provider.stocks.any((s) => s.enAlerte == true))
                 Card(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.orange.shade900.withValues(alpha: 0.30)
+                  color: isDark
+                      ? Colors.orange.shade900.withValues(alpha: 0.35)
                       : Colors.orange.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isDark ? Colors.orange.shade400 : Colors.orange.shade300,
+                      width: 1.5,
+                    ),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                      child: Row(
+                    child: Row(
                       children: [
-                        const Icon(Icons.warning_amber, color: Colors.orange),
+                        Icon(
+                          Icons.warning_amber,
+                          color: isDark ? Colors.orange.shade300 : Colors.orange.shade800,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           '${visibleStocks.where((s) => s.enAlerte == true).length} produit(s) en stock bas',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.orange.shade100 : Colors.orange.shade900,
+                          ),
                         ),
                       ],
                     ),
@@ -152,7 +167,11 @@ class _StocksScreenState extends State<StocksScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
                       _categorieLabel(entry.key),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.green.shade300 : Colors.green.shade700,
+                      ),
                     ),
                   ),
                   ...entry.value.map((stock) => _buildStockCard(stock)),
@@ -173,25 +192,74 @@ class _StocksScreenState extends State<StocksScreen> {
   Widget _buildStockCard(Stock stock) {
     final alerte = stock.enAlerte == true;
     final isWide = MediaQuery.of(context).size.width >= 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: alerte ? Colors.red.shade50 : null,
+      color: alerte
+          ? (isDark ? Colors.red.shade900.withValues(alpha: 0.35) : Colors.red.shade50)
+          : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: alerte
+            ? BorderSide(
+                color: isDark ? Colors.red.shade400 : Colors.red.shade400,
+                width: 1.5,
+              )
+            : BorderSide.none,
+      ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: alerte ? Colors.red.shade100 : Colors.green.shade100,
+          backgroundColor: alerte
+              ? (isDark ? Colors.red.shade900.withValues(alpha: 0.8) : Colors.red.shade100)
+              : (isDark ? Colors.green.shade900.withValues(alpha: 0.5) : Colors.green.shade100),
           child: Icon(
             _categorieIcon(stock.categorie),
-            color: alerte ? Colors.red : Colors.green.shade700,
+            color: alerte
+                ? (isDark ? Colors.red.shade200 : Colors.red)
+                : (isDark ? Colors.green.shade200 : Colors.green.shade700),
           ),
         ),
-        title: Text(
-          stock.nom,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                stock.nom,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (alerte) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.red.shade900 : Colors.red.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isDark ? Colors.red.shade400 : Colors.red.shade300,
+                  ),
+                ),
+                child: Text(
+                  'STOCK BAS',
+                  style: TextStyle(
+                    color: isDark ? Colors.red.shade100 : Colors.red.shade900,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         subtitle: Text(
           '${formatAmount(stock.quantiteActuelle)} ${stock.unite} | Seuil: ${formatAmount(stock.seuilAlerte)} ${stock.unite} | PU: ${formatAmountFcfa(stock.prixUnitaire)}',
+          style: TextStyle(
+            color: alerte
+                ? (isDark ? Colors.red.shade200 : Colors.red.shade900)
+                : null,
+            fontWeight: alerte ? FontWeight.w500 : FontWeight.normal,
+          ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
