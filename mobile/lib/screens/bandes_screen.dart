@@ -10,6 +10,7 @@ import 'suivi_screen.dart';
 import 'bande_dashboard_screen.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/status_pill.dart';
 
 class BandesScreen extends StatefulWidget {
   const BandesScreen({super.key});
@@ -152,17 +153,30 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                   ),
                 ),
                 const SizedBox(width: 8),
-                Chip(
-                  label: Text(active ? 'Ouverte' : 'Fermée'),
-                  backgroundColor: active ? Colors.green.shade100 : Colors.red.shade100,
+                StatusPill(
+                  label: active ? 'Ouverte' : 'Fermée',
+                  color: active ? Colors.green : Colors.red,
+                  icon: active ? Icons.lock_open : Icons.lock_outline,
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text('Race: ${bande.race}'),
             Text('Type: ${bande.typeVolaille}'),
-            Text('Effectif: ${bande.nombreActuel}/${bande.nombreInitial}'),
-            Text('Mortalité: ${bande.mortaliteTotale} (${bande.tauxMortalite ?? "0"}%)'),
+            Row(
+              children: [
+                Icon(Icons.groups_outlined, size: 15, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text('Effectif: ${bande.nombreActuel}/${bande.nombreInitial}'),
+              ],
+            ),
+            Row(
+              children: [
+                Icon(Icons.warning_amber_outlined, size: 15, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text('Mortalité: ${bande.mortaliteTotale} (${bande.tauxMortalite ?? "0"}%)'),
+              ],
+            ),
             Text('Ouverture: ${dateFormat.format(bande.dateOuverture)}'),
             if (!active && bande.dateFermeture != null)
               Text('Fermeture: ${dateFormat.format(bande.dateFermeture!)}'),

@@ -117,10 +117,30 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       children: [
                         const Text('Solde de caisse', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(height: 8),
-                        Text('Solde actuel: ${formatAmountFcfa(soldeCaisse)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        Text('Total entrees: ${formatAmountFcfa(totalEntrees)}'),
-                        Text('Total sorties: ${formatAmountFcfa(totalSorties)}'),
+                        Text(
+                          formatAmountFcfa(soldeCaisse),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: soldeCaisse >= 0 ? Colors.green.shade700 : Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(Icons.call_received, size: 16, color: Colors.green),
+                            const SizedBox(width: 4),
+                            Text('Entrées: ${formatAmountFcfa(totalEntrees)}', style: const TextStyle(color: Colors.green)),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.call_made, size: 16, color: Colors.red),
+                            const SizedBox(width: 4),
+                            Text('Sorties: ${formatAmountFcfa(totalSorties)}', style: const TextStyle(color: Colors.red)),
+                          ],
+                        ),
                       ],
                     ),
                   ),

@@ -588,14 +588,18 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                   final displayName = nom.isEmpty ? 'Client' : nom;
                   final score = ((p['score'] ?? 0) as num).toDouble();
                   final clientId = (p['clientId'] ?? '').toString();
+                  final scoreColor = score >= 70
+                      ? Colors.green
+                      : (score >= 40 ? Colors.orange : Colors.red);
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: score >= 70
-                            ? Colors.green.shade100
-                            : (score >= 40 ? Colors.orange.shade100 : Colors.red.shade100),
-                        child: Text(score.toStringAsFixed(0)),
+                        backgroundColor: scoreColor.shade100,
+                        child: Text(
+                          score.toStringAsFixed(0),
+                          style: TextStyle(color: scoreColor.shade800, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(

@@ -10,6 +10,7 @@ import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/international_phone_field.dart';
+import '../widgets/status_pill.dart';
 
 class CommandesScreen extends StatefulWidget {
   final bool embedded;
@@ -269,7 +270,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
   Widget _buildCommandeCard(Commande commande) {
     final provider = context.read<CommandesProvider>();
     final isHistorique = provider.isCommandeHistorique(commande);
-    Color statutColor;
+    MaterialColor statutColor;
     String statutLabel;
 
     switch (commande.statut) {
@@ -347,16 +348,12 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Chip(
-                  label: Text(statutLabel, style: TextStyle(color: statutColor)),
-                  backgroundColor: statutColor.withValues(alpha: 0.1),
-                ),
+                StatusPill(label: statutLabel, color: statutColor),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               '${commande.clientNom.isNotEmpty ? commande.clientNom : 'Client'} • $dateCommande',
-              style: const TextStyle(color: Colors.black87),
             ),
             const SizedBox(height: 6),
             Text(

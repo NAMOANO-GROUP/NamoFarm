@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
+import '../widgets/status_pill.dart';
 
 class AlertesScreen extends StatefulWidget {
   const AlertesScreen({super.key});
@@ -264,7 +265,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
 
   Widget _buildAlerteCard(Alerte alerte, {required bool enRetard, bool allowComplete = true}) {
     final dateFormat = DateFormat('dd/MM/yyyy');
-    Color prioriteColor;
+    MaterialColor prioriteColor;
     switch (alerte.priorite) {
       case 'urgente': prioriteColor = Colors.red; break;
       case 'haute': prioriteColor = Colors.orange; break;
@@ -297,13 +298,8 @@ class _AlertesScreenState extends State<AlertesScreen> {
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,
                 ),
-                const SizedBox(width: 4),
-                Chip(
-                  label: Text(alerte.priorite, style: TextStyle(fontSize: 11, color: prioriteColor)),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: prioriteColor.withValues(alpha: 0.1),
-                ),
+                const SizedBox(width: 6),
+                StatusPill(label: alerte.priorite, color: prioriteColor),
               ],
             ),
             if (allowComplete && alerte.id != null) ...[

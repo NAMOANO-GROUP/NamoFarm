@@ -748,7 +748,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                   }
                 },
               ),
-              const Text('Durée max: 5 ans', style: TextStyle(color: Colors.black54, fontSize: 12)),
+              const Text('Durée max: 5 ans', style: TextStyle(color: Colors.grey, fontSize: 12)),
             ],
           )),
           actions: [

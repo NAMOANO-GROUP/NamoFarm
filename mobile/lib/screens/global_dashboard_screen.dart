@@ -105,14 +105,14 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                       ? 1.6
                       : (MediaQuery.of(context).size.width < 360 ? 1.25 : 1.45),
                   children: [
-                    _kpiCard('CA total', formatAmountFcfa(g['chiffreAffairesTotal'] ?? 0), Colors.green),
-                    _kpiCard('Dépenses', formatAmountFcfa(g['depensesTotales'] ?? 0), Colors.red),
-                    _kpiCard('Bénéfice net', formatAmountFcfa(g['beneficeNet'] ?? 0), Colors.blue),
-                    _kpiCard('Marge', '${(g['marge'] ?? 0).toStringAsFixed(2)} %', Colors.orange),
-                    _kpiCard('Consommation aliment', '${(g['consoAliment'] ?? 0).toStringAsFixed(2)} kg', Colors.brown),
-                    _kpiCard('Taux mortalité', '${(g['tauxMortalite'] ?? 0).toStringAsFixed(2)} %', Colors.deepOrange),
-                    _kpiCard('Clients actifs', '${g['clientsActifs'] ?? 0}', Colors.teal),
-                    _kpiCard('Commandes', '${g['nbCommandes'] ?? 0}', Colors.purple),
+                    _kpiCard('CA total', formatAmountFcfa(g['chiffreAffairesTotal'] ?? 0), Colors.green, icon: Icons.trending_up),
+                    _kpiCard('Dépenses', formatAmountFcfa(g['depensesTotales'] ?? 0), Colors.red, icon: Icons.trending_down),
+                    _kpiCard('Bénéfice net', formatAmountFcfa(g['beneficeNet'] ?? 0), Colors.blue, icon: Icons.account_balance_wallet),
+                    _kpiCard('Marge', '${(g['marge'] ?? 0).toStringAsFixed(2)} %', Colors.orange, icon: Icons.percent),
+                    _kpiCard('Consommation aliment', '${(g['consoAliment'] ?? 0).toStringAsFixed(2)} kg', Colors.brown, icon: Icons.restaurant),
+                    _kpiCard('Taux mortalité', '${(g['tauxMortalite'] ?? 0).toStringAsFixed(2)} %', Colors.deepOrange, icon: Icons.warning_amber),
+                    _kpiCard('Clients actifs', '${g['clientsActifs'] ?? 0}', Colors.teal, icon: Icons.people),
+                    _kpiCard('Commandes', '${g['nbCommandes'] ?? 0}', Colors.purple, icon: Icons.shopping_cart),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -319,32 +319,51 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
     );
   }
 
-  Widget _kpiCard(String title, String value, Color color) {
+  Widget _kpiCard(String title, String value, Color color, {IconData? icon}) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                maxLines: 1,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(width: 5, color: color),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 16, color: color),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
