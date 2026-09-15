@@ -136,22 +136,22 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
     return Row(
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _periodOptions.map((opt) => Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: ChoiceChip(
-                  label: Text(opt['label']!, style: const TextStyle(fontSize: 12)),
-                  selected: provider.period == opt['value'],
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onSelected: (v) { if (v) provider.chargerDashboards(period: opt['value']); },
-                ),
-              )).toList(),
+          child: DropdownButtonFormField<String>(
+            initialValue: provider.period,
+            isDense: true,
+            decoration: const InputDecoration(
+              labelText: 'Période',
+              isDense: true,
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
+            items: _periodOptions
+                .map((opt) => DropdownMenuItem(value: opt['value'], child: Text(opt['label']!)))
+                .toList(),
+            onChanged: (v) { if (v != null) provider.chargerDashboards(period: v); },
           ),
         ),
+        const SizedBox(width: 4),
         Stack(
           clipBehavior: Clip.none,
           children: [

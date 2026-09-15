@@ -296,7 +296,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
     );
   }
 
-  void _showAjouterBandeDialog() {
+  void _showAjouterBandeDialog() async {
     final nomController = TextEditingController();
     final raceController = TextEditingController();
     final nombreController = TextEditingController();
@@ -305,6 +305,17 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
     final batimentCtrl = TextEditingController();
     String selectedType = 'poulet_chair';
     DateTime dateOuverture = DateTime.now();
+    String? selectedProtocoleId;
+
+    // Charge les protocoles vaccinaux disponibles pour l'auto-planification.
+    List<Map<String, dynamic>> protocoles = const [];
+    try {
+      final data = await ApiService.getProtocoles();
+      protocoles = data.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (_) {
+      protocoles = const [];
+    }
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -333,6 +344,25 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                 TextField(controller: poidsArriveeCtrl, decoration: const InputDecoration(labelText: 'Poids arrivée (g)'), keyboardType: TextInputType.number),
                 TextField(controller: objectifPoidsCtrl, decoration: const InputDecoration(labelText: 'Objectif poids (g)'), keyboardType: TextInputType.number),
                 TextField(controller: batimentCtrl, decoration: const InputDecoration(labelText: 'Bâtiment')),
+                if (protocoles.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedProtocoleId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Protocole vaccinal (optionnel)',
+                      helperText: 'Génère les tâches de suivi aux bonnes dates',
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(value: null, child: Text('Aucun')),
+                      ...protocoles.map((p) {
+                        final id = (p['_id'] ?? '').toString();
+                        final nom = (p['nom'] ?? 'Protocole').toString();
+                        final nb = (p['etapes'] is List) ? (p['etapes'] as List).length : 0;
+                        return DropdownMenuItem<String>(value: id, child: Text('$nom ($nb étapes)', overflow: TextOverflow.ellipsis));
+                      }),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedProtocoleId = v),
+                  ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date d\'ouverture'),
@@ -370,6 +400,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                   'objectifPoidsG': double.tryParse(objectifPoidsCtrl.text) ?? 0,
                   'batiment': batimentCtrl.text,
                   'dateOuverture': dateOuverture.toIso8601String(),
+                  if (selectedProtocoleId != null && selectedProtocoleId!.isNotEmpty) 'protocoleId': selectedProtocoleId,
                 });
                 if (!mounted) return;
                 if (!success) {

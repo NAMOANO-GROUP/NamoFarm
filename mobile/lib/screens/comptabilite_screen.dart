@@ -127,6 +127,7 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                 _row('Mortalité', '${b['mortalite'] ?? 0} (${_n(b['tauxMortalite']).toStringAsFixed(1)} %)'),
                 const Divider(),
                 _row('Coût poussins', formatAmountFcfa(_n(b['coutPoussins']))),
+                _row('Coût aliment/conso', formatAmountFcfa(_n(b['coutAliment']))),
                 _row('Dépenses bande', formatAmountFcfa(_n(b['depenses']))),
                 _row('Coût total', formatAmountFcfa(_n(b['coutTotal'])), bold: true),
                 _row('Revenus', formatAmountFcfa(_n(b['revenus']))),

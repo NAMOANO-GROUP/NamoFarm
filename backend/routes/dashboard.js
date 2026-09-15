@@ -18,7 +18,10 @@ function mapBande(row) {
   const dateFermeture = row.date_fermeture || null;
   const fin = dateFermeture ? new Date(dateFermeture) : new Date();
   const debut = new Date(dateOuverture);
-  const ageJours = Math.max(0, Math.floor((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24)));
+  // Âge en jours calendaires : changement de jour à minuit (0h).
+  const debutMidnight = Date.UTC(debut.getUTCFullYear(), debut.getUTCMonth(), debut.getUTCDate());
+  const finMidnight = Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth(), fin.getUTCDate());
+  const ageJours = Math.max(0, Math.floor((finMidnight - debutMidnight) / (1000 * 60 * 60 * 24)));
 
   const nombreInitial = Number(row.nombre_initial || 0);
   const mortaliteTotale = Number(row.mortalite_totale || 0);

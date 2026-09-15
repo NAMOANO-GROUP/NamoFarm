@@ -63,19 +63,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _perfChip('Effectif initial', '${perf['effectifInitial'] ?? 0}'),
-              _perfChip('Effectif restant', '${perf['effectifRestant'] ?? 0}'),
-              _perfChip('Mortalité cumulée', '${(perf['mortaliteCumulee'] ?? 0).toStringAsFixed(2)} %'),
-              _perfChip('Conso cumulée', '${(perf['consommationCumuleeKg'] ?? 0).toStringAsFixed(2)} kg'),
-              _perfChip('Poids final', '${(perf['poidsMoyenFinal'] ?? 0).toStringAsFixed(0)} g'),
-              _perfChip('Écart poids théorique', '${(perf['ecartPoidsTheoriquePct'] ?? 0).toStringAsFixed(2)} %'),
-              _perfChip('Écart conso théorique', '${(perf['ecartConsoTheoriquePct'] ?? 0).toStringAsFixed(2)} %'),
-            ],
-          ),
+          _buildPerfPanel(perf),
           const SizedBox(height: 12),
           _cardChart(
             'Courbe de croissance (réel vs théorique)',
@@ -153,12 +141,70 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     );
   }
 
-  Widget _perfChip(String label, String value) {
-    return Chip(
-      label: Text('$label: $value'),
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.green.shade900.withValues(alpha: 0.30)
-          : Colors.green.shade50,
+  Widget _buildPerfPanel(Map<String, dynamic> perf) {
+    final ecartPoids = (perf['ecartPoidsTheoriquePct'] ?? 0).toDouble();
+    final ecartConso = (perf['ecartConsoTheoriquePct'] ?? 0).toDouble();
+    final isWide = MediaQuery.of(context).size.width > 600;
+    final items = <Widget>[
+      _statTile('Effectif initial', '${perf['effectifInitial'] ?? 0}', Icons.egg_outlined, Colors.blueGrey),
+      _statTile('Effectif restant', '${perf['effectifRestant'] ?? 0}', Icons.groups_outlined, Colors.teal),
+      _statTile('Mortalité cumulée', '${(perf['mortaliteCumulee'] ?? 0).toStringAsFixed(1)} %', Icons.warning_amber_outlined, Colors.red),
+      _statTile('Conso cumulée', '${(perf['consommationCumuleeKg'] ?? 0).toStringAsFixed(1)} kg', Icons.restaurant, Colors.brown),
+      _statTile('Poids final', '${(perf['poidsMoyenFinal'] ?? 0).toStringAsFixed(0)} g', Icons.monitor_weight_outlined, Colors.green),
+      _statTile('Écart poids', '${ecartPoids >= 0 ? '+' : ''}${ecartPoids.toStringAsFixed(1)} %', Icons.trending_up, ecartPoids >= 0 ? Colors.green : Colors.orange),
+      _statTile('Écart conso', '${ecartConso >= 0 ? '+' : ''}${ecartConso.toStringAsFixed(1)} %', Icons.show_chart, ecartConso <= 0 ? Colors.green : Colors.orange),
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Performance de la bande', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: isWide ? 4 : 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 2.4,
+              children: items,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statTile(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

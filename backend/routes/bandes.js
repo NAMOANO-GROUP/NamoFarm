@@ -187,7 +187,11 @@ function mapBandeRow(row) {
   const dateFermeture = row.date_fermeture || null;
   const fin = dateFermeture ? new Date(dateFermeture) : new Date();
   const debut = new Date(dateOuverture);
-  const ageJours = Math.max(0, Math.floor((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24)));
+  // Âge en jours calendaires : le changement de jour se fait à minuit (0h),
+  // indépendamment de l'heure exacte d'ouverture de la bande.
+  const debutMidnight = Date.UTC(debut.getUTCFullYear(), debut.getUTCMonth(), debut.getUTCDate());
+  const finMidnight = Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth(), fin.getUTCDate());
+  const ageJours = Math.max(0, Math.floor((finMidnight - debutMidnight) / (1000 * 60 * 60 * 24)));
 
   const nombreInitial = Number(row.nombre_initial || 0);
   const mortaliteTotale = Number(row.mortalite_totale || 0);
@@ -477,6 +481,43 @@ router.post('/', requirePermission('bandes.create'), async (req, res) => {
     const dateOuverture = req.body.dateOuverture ? new Date(req.body.dateOuverture) : new Date();
     if (Number.isNaN(dateOuverture.getTime())) return res.status(400).json({ message: 'Date d\'ouverture invalide' });
 
+    // Si un protocole vaccinal est choisi, on génère les événements prévisionnels
+    // à partir de ses étapes : datePrevue = jour d'installation + jourAge de l'étape.
+    let evenementsPrevisionnels = [];
+    const protocoleId = (req.body.protocoleId || '').toString().trim();
+    if (protocoleId) {
+      const protoRes = await api
+        .from('protocoles_vaccinaux')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('id', protocoleId)
+        .maybeSingle();
+      if (protoRes.data) {
+        const etapes = Array.isArray(protoRes.data.etapes) ? protoRes.data.etapes : [];
+        const baseMidnight = Date.UTC(dateOuverture.getUTCFullYear(), dateOuverture.getUTCMonth(), dateOuverture.getUTCDate());
+        evenementsPrevisionnels = etapes.map((e) => {
+          const jourAge = Number(e.jourAge || 0);
+          const datePrevue = new Date(baseMidnight + jourAge * 24 * 60 * 60 * 1000);
+          const intervention = (e.intervention || 'Intervention').toString();
+          const produit = (e.produit || '').toString();
+          return {
+            _id: crypto.randomUUID(),
+            type: 'vaccination',
+            datePrevue: datePrevue.toISOString(),
+            description: `J${jourAge} - ${intervention}${produit ? ` (${produit})` : ''}`,
+            priorite: 'haute',
+            commentaires: [e.dose ? `Dose: ${e.dose}` : '', e.voie ? `Voie: ${e.voie}` : '', e.notes || ''].filter(Boolean).join(' • '),
+            prophylaxieStockId: null,
+            prophylaxieType: produit,
+            prophylaxieQuantite: 0,
+            statut: 'planifie',
+            dateRealisation: null,
+            commentairesRealisation: '',
+          };
+        });
+      }
+    }
+
     const payload = {
       company_id: companyId,
       nom: req.body.nom,
@@ -492,6 +533,7 @@ router.post('/', requirePermission('bandes.create'), async (req, res) => {
       batiment: req.body.batiment || '',
       cout_poussin: Number(req.body.coutPoussin || 0),
       notes: req.body.notes || '',
+      evenements_previsionnels: evenementsPrevisionnels,
       updated_at: new Date().toISOString(),
     };
 

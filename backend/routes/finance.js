@@ -189,6 +189,33 @@ async function fetchCommandesCompat(api, companyId) {
   return { data: [], error: lastError };
 }
 
+// Coût analytique de consommation (aliment + prophylaxie) attribué à chaque bande.
+// Les sorties de stock liées à une bande ne génèrent pas de mouvement de trésorerie
+// (l'argent sort à l'achat du stock), mais leur VALEUR consommée doit être imputée
+// à la bande pour un coût de revient exact. Retourne une Map bandeId -> montant.
+async function fetchConsommationByBande(api, companyId) {
+  const consoByBande = new Map();
+  const stocksRes = await api
+    .from('stocks')
+    .select('mouvements')
+    .eq('company_id', companyId);
+  if (stocksRes.error) return consoByBande;
+
+  for (const stock of stocksRes.data || []) {
+    const mouvements = Array.isArray(stock.mouvements) ? stock.mouvements : [];
+    for (const mvt of mouvements) {
+      if ((mvt?.type || '') !== 'sortie') continue;
+      const bandeId = mvt.bandeId || mvt.bande_id;
+      if (!bandeId) continue;
+      const valeur = Number(mvt.quantite || 0) * Number(mvt.coutUnitaire || 0);
+      if (!valeur) continue;
+      const key = String(bandeId);
+      consoByBande.set(key, (consoByBande.get(key) || 0) + valeur);
+    }
+  }
+  return consoByBande;
+}
+
 router.get('/rapprochement', requirePermission('finance.read'), async (req, res) => {
   try {
     const api = getAdminClient();
@@ -351,10 +378,14 @@ router.get('/marge-par-bande', requirePermission('finance.read'), async (req, re
       }
     }
 
+    const consoByBande = await fetchConsommationByBande(api, companyId);
+
     const marges = (bandesRes.data || []).map((b) => {
       const id = String(b.id);
       const revenus = Number(revenusByBande.get(id) || 0);
-      const depenses = Number(depensesByBande.get(id) || 0);
+      const depensesManuelles = Number(depensesByBande.get(id) || 0);
+      const coutConsommation = Number(consoByBande.get(id) || 0);
+      const depenses = depensesManuelles + coutConsommation;
       const marge = revenus - depenses;
       const taux = revenus > 0 ? (marge / revenus) * 100 : 0;
       return {
@@ -365,6 +396,7 @@ router.get('/marge-par-bande', requirePermission('finance.read'), async (req, re
         dateFermeture: b.date_fermeture || null,
         revenus: Number(revenus.toFixed(2)),
         depenses: Number(depenses.toFixed(2)),
+        coutConsommation: Number(coutConsommation.toFixed(2)),
         marge: Number(marge.toFixed(2)),
         tauxMarge: Number(taux.toFixed(2)),
       };
@@ -432,6 +464,8 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       return maxG > 0 ? maxG / 1000 : 0;
     }
 
+    const consoByBande = await fetchConsommationByBande(api, companyId);
+
     const bandes = (bandesRes.data || []).map((b) => {
       const id = String(b.id);
       const nombreInitial = Number(b.nombre_initial || 0);
@@ -439,7 +473,9 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const mortalite = Number(b.mortalite_totale || 0);
       const coutPoussin = Number(b.cout_poussin || 0);
       const coutPoussins = coutPoussin * nombreInitial;
-      const depenses = Number(depensesByBande.get(id) || 0);
+      const depensesManuelles = Number(depensesByBande.get(id) || 0);
+      const coutAliment = Number(consoByBande.get(id) || 0);
+      const depenses = depensesManuelles + coutAliment;
       const coutTotal = coutPoussins + depenses;
       const revenus = Number(revenusByBande.get(id) || 0);
       const margeNette = revenus - coutTotal;
@@ -463,7 +499,8 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
         mortalite,
         tauxMortalite: Number(tauxMortalite.toFixed(2)),
         coutPoussins: Number(coutPoussins.toFixed(2)),
-        depenses: Number(depenses.toFixed(2)),
+        depenses: Number(depensesManuelles.toFixed(2)),
+        coutAliment: Number(coutAliment.toFixed(2)),
         coutTotal: Number(coutTotal.toFixed(2)),
         revenus: Number(revenus.toFixed(2)),
         margeNette: Number(margeNette.toFixed(2)),

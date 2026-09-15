@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/sante.dart';
 import '../providers/sante_provider.dart';
+import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
 
 class SanteScreen extends StatefulWidget {
@@ -16,6 +17,10 @@ class SanteScreen extends StatefulWidget {
 
 class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+
+  // Bandes chargées pour filtrer le registre et afficher les noms.
+  List<Map<String, dynamic>> _bandes = const [];
+  String _registreBandeFilter = '';
 
   static const List<String> _typesVolaille = [
     'poulet_chair', 'poule_pondeuse', 'dinde', 'canard', 'autre',
@@ -30,7 +35,29 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SanteProvider>().charger();
+      _loadBandes();
     });
+  }
+
+  Future<void> _loadBandes() async {
+    try {
+      final actives = await ApiService.getBandesActives();
+      final historiques = await ApiService.getBandesHistorique();
+      if (!mounted) return;
+      setState(() {
+        _bandes = [...actives, ...historiques].whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      });
+    } catch (_) {
+      // Filtre par bande simplement indisponible si le chargement échoue.
+    }
+  }
+
+  String _bandeNom(String? id) {
+    if (id == null || id.isEmpty) return '';
+    for (final b in _bandes) {
+      if ((b['_id'] ?? b['id']).toString() == id) return (b['nom'] ?? '').toString();
+    }
+    return '';
   }
 
   @override
@@ -273,15 +300,46 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
   // -------------------- Registre traitements --------------------
 
   Widget _registreTab(SanteProvider provider) {
+    // Filtre client-side par bande (couvre traitements ET vaccinations enregistrés).
+    final traitements = _registreBandeFilter.isEmpty
+        ? provider.traitements
+        : provider.traitements.where((t) => (t.bandeId ?? '') == _registreBandeFilter).toList();
+
     return RefreshIndicator(
       onRefresh: provider.charger,
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          if (provider.traitements.isEmpty)
-            const Padding(padding: EdgeInsets.only(top: 40), child: Center(child: Text('Aucun traitement enregistré')))
+          if (_bandes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: DropdownButtonFormField<String>(
+                initialValue: _registreBandeFilter.isEmpty ? '' : _registreBandeFilter,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Filtrer par bande',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.filter_list),
+                ),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Toutes les bandes')),
+                  ..._bandes.map((b) {
+                    final id = (b['_id'] ?? b['id']).toString();
+                    final nom = (b['nom'] ?? 'Bande').toString();
+                    return DropdownMenuItem(value: id, child: Text(nom, overflow: TextOverflow.ellipsis));
+                  }),
+                ],
+                onChanged: (v) => setState(() => _registreBandeFilter = v ?? ''),
+              ),
+            ),
+          if (traitements.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 40),
+              child: Center(child: Text(_registreBandeFilter.isEmpty ? 'Aucun traitement enregistré' : 'Aucun traitement pour cette bande')),
+            )
           else
-            ...provider.traitements.map(_traitementCard),
+            ...traitements.map(_traitementCard),
         ],
       ),
     );
@@ -308,7 +366,7 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
         ),
         title: Text('${t.type} • ${t.produit}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
-          '${_fmtDate(t.dateTraitement)}${t.dose.isNotEmpty ? ' • ${t.dose}' : ''}${t.motif.isNotEmpty ? ' • ${t.motif}' : ''}${badge.isNotEmpty ? '\n$badge' : ''}',
+          '${_bandeNom(t.bandeId).isNotEmpty ? '${_bandeNom(t.bandeId)} • ' : ''}${_fmtDate(t.dateTraitement)}${t.dose.isNotEmpty ? ' • ${t.dose}' : ''}${t.motif.isNotEmpty ? ' • ${t.motif}' : ''}${badge.isNotEmpty ? '\n$badge' : ''}',
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
         ),
