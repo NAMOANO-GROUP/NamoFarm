@@ -11,6 +11,7 @@ import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
+import '../widgets/status_pill.dart';
 import 'comptabilite_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
@@ -270,7 +271,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -278,18 +279,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
               children: [
                 const Expanded(
                   child: Text(
-                    'Analyses financieres avancees',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    'Analyses financières',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
-                OutlinedButton.icon(
+                IconButton.filledTonal(
                   onPressed: () => context.read<FinanceProvider>().chargerAnalysesAvancees(),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Actualiser'),
+                  icon: const Icon(Icons.refresh, size: 20),
+                  tooltip: 'Actualiser',
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
@@ -297,38 +299,116 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const ComptabiliteScreen()),
                 ),
-                icon: const Icon(Icons.calculate_outlined),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                icon: const Icon(Icons.calculate_outlined, size: 18),
                 label: const Text('Comptabilité par bande'),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             if (!rapprochementLoaded && !budgetLoaded && !projectionLoaded && marges.isEmpty)
-              const Text('Aucune analyse chargee pour le moment.')
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: Text('Aucune analyse chargée', style: TextStyle(color: Colors.grey))),
+              )
             else ...[
-              Text(
-                'Rapprochement: caisse ${formatCompactFcfa((r['caisseNet'] ?? 0) as num)} | banque ${formatCompactFcfa((r['banqueNet'] ?? 0) as num)} | ecart ${formatCompactFcfa((r['ecart'] ?? 0) as num)}',
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Budget prev.: entrees moy. ${formatCompactFcfa((budget['moyenneEntrees'] ?? 0) as num)} | sorties moy. ${formatCompactFcfa((budget['moyenneSorties'] ?? 0) as num)}',
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Projection tresorerie: solde actuel ${formatCompactFcfa((projection['soldeActuel'] ?? 0) as num)} | net mensuel moy. ${formatCompactFcfa((projection['netMoyenMensuel'] ?? 0) as num)}',
-              ),
+              _analyseSection('Rapprochement', Icons.account_balance_outlined, [
+                _miniStat('Caisse', formatCompactFcfa((r['caisseNet'] ?? 0) as num), Colors.blue),
+                _miniStat('Banque', formatCompactFcfa((r['banqueNet'] ?? 0) as num), Colors.indigo),
+                _miniStat('Écart', formatCompactFcfa((r['ecart'] ?? 0) as num), ((r['ecart'] ?? 0) as num) == 0 ? Colors.green : Colors.orange),
+              ]),
+              const SizedBox(height: 10),
+              _analyseSection('Budget prévisionnel (moyenne)', Icons.event_repeat_outlined, [
+                _miniStat('Entrées', formatCompactFcfa((budget['moyenneEntrees'] ?? 0) as num), Colors.green),
+                _miniStat('Sorties', formatCompactFcfa((budget['moyenneSorties'] ?? 0) as num), Colors.red),
+              ]),
+              const SizedBox(height: 10),
+              _analyseSection('Projection trésorerie', Icons.timeline_outlined, [
+                _miniStat('Solde actuel', formatCompactFcfa((projection['soldeActuel'] ?? 0) as num), ((projection['soldeActuel'] ?? 0) as num) >= 0 ? Colors.green : Colors.red),
+                _miniStat('Net mensuel', formatCompactFcfa((projection['netMoyenMensuel'] ?? 0) as num), ((projection['netMoyenMensuel'] ?? 0) as num) >= 0 ? Colors.green : Colors.red),
+              ]),
               if (top3.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                const Text('Top marges par bande:'),
-                const SizedBox(height: 4),
-                ...top3.map((m) => Text(
-                      '- ${(m['bandeNom'] ?? '').toString()}: marge ${formatCompactFcfa((m['marge'] ?? 0) as num)} (taux ${(m['tauxMarge'] ?? 0).toString()}%)',
-                    )),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Icon(Icons.leaderboard_outlined, size: 16, color: Colors.grey.shade600),
+                    const SizedBox(width: 6),
+                    const Text('Top marges par bande', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...top3.map((m) {
+                  final marge = (m['marge'] ?? 0) as num;
+                  final color = marge >= 0 ? Colors.green : Colors.red;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text((m['bandeNom'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                        StatusPill(
+                          label: '${formatCompactFcfa(marge)} • ${(m['tauxMarge'] ?? 0)}%',
+                          color: marge >= 0 ? Colors.green : Colors.red,
+                        ),
+                        const SizedBox(width: 0),
+                        Icon(marge >= 0 ? Icons.trending_up : Icons.trending_down, size: 16, color: color),
+                      ],
+                    ),
+                  );
+                }),
                 const SizedBox(height: 10),
                 _buildTopMargeChart(top3),
               ],
               const SizedBox(height: 12),
               _buildProjectionChart((projection['projection'] as List? ?? const [])),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Section d'analyse : titre + icône + rangée de mini-stats.
+  Widget _analyseSection(String title, IconData icon, List<Widget> stats) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(children: stats),
+      ],
+    );
+  }
+
+  Widget _miniStat(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+            ),
           ],
         ),
       ),
