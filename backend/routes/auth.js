@@ -208,10 +208,10 @@ async function getAppName(client) {
   try {
     const cfg = await client
       .from('app_config')
-      .select('nomApplication')
+      .select('nomapplication')
       .eq('key', 'main')
       .maybeSingle();
-    const name = cfg?.data?.nomApplication;
+    const name = cfg?.data?.nomapplication;
     return (name && String(name).trim()) || 'NamoFarm';
   } catch (_) {
     return 'NamoFarm';

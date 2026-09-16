@@ -14,16 +14,46 @@ const DEFAULT_REFERENCES = {
   autre: { dureeJours: 45, poidsFinalG: 2500, consoTotaleKgParTete: 5.0, courbeTheorique: [] },
 };
 
-function defaultConfig() {
+// Les colonnes Postgres de app_config sont en minuscules (créées sans guillemets).
+// L'API expose du camelCase : on mappe dans les deux sens.
+const API_TO_DB = {
+  nomApplication: 'nomapplication',
+  devise: 'devise',
+  langue: 'langue',
+  sessionTimeoutMinutes: 'sessiontimeoutminutes',
+  theme: 'theme',
+  notificationsEmail: 'notificationsemail',
+  referencesTheoriques: 'referencestheoriques',
+  notes: 'notes',
+};
+
+function mapConfigToApi(row) {
+  if (!row) return null;
+  return {
+    key: row.key,
+    nomApplication: row.nomapplication ?? row.nomApplication ?? 'NamoFarm',
+    devise: row.devise ?? 'FCFA',
+    langue: row.langue ?? 'fr',
+    sessionTimeoutMinutes: row.sessiontimeoutminutes ?? row.sessionTimeoutMinutes ?? 30,
+    theme: row.theme ?? 'light',
+    notificationsEmail: row.notificationsemail ?? row.notificationsEmail ?? false,
+    referencesTheoriques: row.referencestheoriques ?? row.referencesTheoriques ?? DEFAULT_REFERENCES,
+    notes: row.notes ?? '',
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null,
+  };
+}
+
+function defaultConfigRow() {
   return {
     key: 'main',
-    nomApplication: 'NamoFarm',
+    nomapplication: 'NamoFarm',
     devise: 'FCFA',
     langue: 'fr',
-    sessionTimeoutMinutes: 30,
+    sessiontimeoutminutes: 30,
     theme: 'light',
-    notificationsEmail: false,
-    referencesTheoriques: DEFAULT_REFERENCES,
+    notificationsemail: false,
+    referencestheoriques: DEFAULT_REFERENCES,
     notes: '',
   };
 }
@@ -33,7 +63,7 @@ async function ensureConfig(client) {
   if (current.error) throw new Error(current.error.message);
   if (current.data) return current.data;
 
-  const created = await client.from('app_config').insert(defaultConfig()).select('*').single();
+  const created = await client.from('app_config').insert(defaultConfigRow()).select('*').single();
   if (created.error) throw new Error(created.error.message);
   return created.data;
 }
@@ -42,7 +72,7 @@ router.get('/', async (req, res) => {
   try {
     const client = getAdminClient();
     const config = await ensureConfig(client);
-    return res.json(config);
+    return res.json(mapConfigToApi(config));
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -53,20 +83,10 @@ router.put('/', async (req, res) => {
     const client = getAdminClient();
     const existing = await ensureConfig(client);
 
-    const allowedFields = [
-      'nomApplication',
-      'devise',
-      'langue',
-      'sessionTimeoutMinutes',
-      'theme',
-      'notificationsEmail',
-      'referencesTheoriques',
-      'notes',
-    ];
-
+    // Traduit les champs API (camelCase) vers les colonnes DB (minuscules).
     const updates = {};
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    for (const [apiField, dbColumn] of Object.entries(API_TO_DB)) {
+      if (req.body[apiField] !== undefined) updates[dbColumn] = req.body[apiField];
     }
 
     const saved = await client
@@ -88,7 +108,7 @@ router.put('/', async (req, res) => {
       ip: '',
     });
 
-    return res.json(saved.data);
+    return res.json(mapConfigToApi(saved.data));
   } catch (err) {
     return res.status(400).json({ message: err.message });
   }

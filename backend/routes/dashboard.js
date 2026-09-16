@@ -271,8 +271,8 @@ router.get('/bandes/:id/suivi', requireAnyPermission(['dashboard.sales', 'dashbo
     if (!bandeRes.data) return res.status(404).json({ message: 'Bande non trouvée' });
 
     const bande = mapBande(bandeRes.data);
-    const configRes = await api.from('app_config').select('referencesTheoriques').eq('key', 'main').maybeSingle();
-    const references = configRes.error ? {} : (configRes.data?.referencesTheoriques || {});
+    const configRes = await api.from('app_config').select('referencestheoriques').eq('key', 'main').maybeSingle();
+    const references = configRes.error ? {} : (configRes.data?.referencestheoriques || {});
 
     const growth = toArray(bande.suiviJournalier).map((s, idx) => ({ age: idx + 1, poids: Number(s.poidsMotenG || 0), date: s.date }));
     const conso = toArray(bande.suiviJournalier).map((s, idx) => ({

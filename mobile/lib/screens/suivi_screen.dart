@@ -196,44 +196,41 @@ class _SuiviScreenState extends State<SuiviScreen> {
             const SizedBox(height: 16),
             const SizedBox(height: 8),
 
-            // SUIVI JOURNALIER
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Suivi journalier', style: Theme.of(context).textTheme.titleMedium),
-                Text('${bande.suiviJournalier.length} entrées', style: const TextStyle(color: Colors.grey)),
-              ],
+            // SUIVI JOURNALIER (replié par défaut)
+            Card(
+              child: ExpansionTile(
+                initiallyExpanded: false,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                title: Text('Suivi journalier', style: Theme.of(context).textTheme.titleMedium),
+                subtitle: Text('${bande.suiviJournalier.length} entrée(s)', style: const TextStyle(color: Colors.grey)),
+                children: [
+                  if (bande.suiviJournalier.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('Aucun suivi enregistré', style: TextStyle(color: Colors.grey))),
+                    )
+                  else
+                    ...bande.suiviJournalier.reversed.map((suivi) => ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green.shade100,
+                        child: Text('J${bande.suiviJournalier.indexOf(suivi) + 1}', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(dateFormat.format(suivi.date)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Poids: ${suivi.poidsMotenG}g | Alim: ${suivi.alimentationKg}kg | Eau: ${suivi.eauLitres}L'),
+                          if (suivi.mortaliteJour > 0)
+                            Text('Mortalité: ${suivi.mortaliteJour}', style: const TextStyle(color: Colors.red)),
+                          if (suivi.observations.isNotEmpty)
+                            Text(suivi.observations, style: const TextStyle(fontStyle: FontStyle.italic)),
+                        ],
+                      ),
+                      isThreeLine: true,
+                    )),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            if (bande.suiviJournalier.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: Text('Aucun suivi enregistré', style: TextStyle(color: Colors.grey))),
-                ),
-              )
-            else
-              ...bande.suiviJournalier.reversed.map((suivi) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green.shade100,
-                    child: Text('J${bande.suiviJournalier.indexOf(suivi) + 1}'),
-                  ),
-                  title: Text(dateFormat.format(suivi.date)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Poids: ${suivi.poidsMotenG}g | Alim: ${suivi.alimentationKg}kg | Eau: ${suivi.eauLitres}L'),
-                      if (suivi.mortaliteJour > 0)
-                        Text('Mortalité: ${suivi.mortaliteJour}', style: const TextStyle(color: Colors.red)),
-                      if (suivi.observations.isNotEmpty)
-                        Text(suivi.observations, style: const TextStyle(fontStyle: FontStyle.italic)),
-                    ],
-                  ),
-                  isThreeLine: true,
-                ),
-              )),
 
             const SizedBox(height: 24),
             _buildForecastCard(),

@@ -133,25 +133,37 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
     final hasAdvancedFilter = provider.selectedBatiment.isNotEmpty ||
         provider.selectedBandeId.isNotEmpty ||
         provider.hasSpecificSelection;
+    final currentLabel = _periodOptions.firstWhere(
+      (o) => o['value'] == provider.period,
+      orElse: () => _periodOptions[2],
+    )['label']!;
     return Row(
       children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            initialValue: provider.period,
-            isDense: true,
-            decoration: const InputDecoration(
-              labelText: 'Période',
-              isDense: true,
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        // Bouton période compact (menu déroulant) — prend le minimum de place.
+        PopupMenuButton<String>(
+          initialValue: provider.period,
+          onSelected: (v) => provider.chargerDashboards(period: v),
+          itemBuilder: (_) => _periodOptions
+              .map((opt) => PopupMenuItem<String>(value: opt['value'], child: Text(opt['label']!)))
+              .toList(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(8),
             ),
-            items: _periodOptions
-                .map((opt) => DropdownMenuItem(value: opt['value'], child: Text(opt['label']!)))
-                .toList(),
-            onChanged: (v) { if (v != null) provider.chargerDashboards(period: v); },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.date_range, size: 16),
+                const SizedBox(width: 6),
+                Text(currentLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const Icon(Icons.arrow_drop_down, size: 18),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 4),
+        const Spacer(),
         Stack(
           clipBehavior: Clip.none,
           children: [
