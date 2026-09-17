@@ -96,54 +96,96 @@ class _AlertesScreenState extends State<AlertesScreen> {
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _dateFilter,
-                isExpanded: true,
-                isDense: true,
-                style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                decoration: filterDecoration('Filtre date'),
-                items: _dateFilterOptions
-                    .map(
-                      (opt) => DropdownMenuItem<String>(
-                        value: opt['value'],
-                        child: Text(opt['label'] ?? '', style: kFilterTextStyle),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 130,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _dateFilter,
+                      isExpanded: true,
+                      isDense: true,
+                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: const InputDecoration(
+                        labelText: 'Date',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) async {
-                  if (value == null) return;
-                  if (value == 'date') {
-                    final picked = await showIsoDatePicker(
-                      context: context,
-                      initialDate: _selectedDate ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _selectedDate = picked;
-                        _dateFilter = 'date';
-                      });
-                    }
-                    return;
-                  }
-                  if (value == 'range') {
-                    final picked = await showIsoDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                      initialDateRange: _selectedRange,
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _selectedRange = picked;
-                        _dateFilter = 'range';
-                      });
-                    }
-                    return;
-                  }
-                  setState(() => _dateFilter = value);
-                },
+                      items: _dateFilterOptions
+                          .map(
+                            (opt) => DropdownMenuItem<String>(
+                              value: opt['value'],
+                              child: Text(opt['label'] ?? '', style: kFilterTextStyle),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) async {
+                        if (value == null) return;
+                        if (value == 'date') {
+                          final picked = await showIsoDatePicker(
+                            context: context,
+                            initialDate: _selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _selectedDate = picked;
+                              _dateFilter = 'date';
+                            });
+                          }
+                          return;
+                        }
+                        if (value == 'range') {
+                          final picked = await showIsoDateRangePicker(
+                            context: context,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                            initialDateRange: _selectedRange,
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _selectedRange = picked;
+                              _dateFilter = 'range';
+                            });
+                          }
+                          return;
+                        }
+                        setState(() => _dateFilter = value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 130,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: provider.todoPeriod,
+                      isExpanded: true,
+                      isDense: true,
+                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: const InputDecoration(
+                        labelText: 'Période',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      ),
+                      items: _periodOptions
+                          .map(
+                            (opt) => DropdownMenuItem<String>(
+                              value: opt['value'],
+                              child: Text(opt['label'] ?? '', style: kFilterTextStyle),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          provider.chargerAlertes(period: value);
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
               if (_dateFilter == 'date' && _selectedDate != null)
                 Padding(
@@ -155,27 +197,6 @@ class _AlertesScreenState extends State<AlertesScreen> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text('Du ${DateFormat('dd/MM').format(_selectedRange!.start)} au ${DateFormat('dd/MM').format(_selectedRange!.end)}'),
                 ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: provider.todoPeriod,
-                decoration: const InputDecoration(
-                  labelText: 'Période',
-                  border: OutlineInputBorder(),
-                ),
-                items: _periodOptions
-                    .map(
-                      (opt) => DropdownMenuItem<String>(
-                        value: opt['value'],
-                        child: Text(opt['label'] ?? ''),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    provider.chargerAlertes(period: value);
-                  }
-                },
-              ),
               const SizedBox(height: 12),
               if (historique.isNotEmpty)
                 Align(

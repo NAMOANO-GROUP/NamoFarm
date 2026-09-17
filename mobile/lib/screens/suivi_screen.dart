@@ -581,47 +581,108 @@ class _SuiviScreenState extends State<SuiviScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Prévisionnel 7 jours', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.insights_outlined, size: 18, color: Colors.grey.shade600),
+                const SizedBox(width: 6),
+                Text('Prévisionnel 7 jours', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 12),
             if (horizon != null)
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
+              Row(
                 children: [
-                  Text('Poids projeté: ${_fmt(horizon['poidsProjete'])} g'),
-                  Text('Conso cumulée: ${_fmt(horizon['consoCumulProjeteeKg'])} kg'),
-                  Text('Mortalité/j: ${_fmt(horizon['mortaliteJourProjetee'])}'),
+                  _forecastStat('Poids projeté', '${_fmt(horizon['poidsProjete'], digits: 0)} g', Icons.monitor_weight_outlined, Colors.green),
+                  _forecastStat('Conso cumulée', '${_fmt(horizon['consoCumulProjeteeKg'])} kg', Icons.restaurant, Colors.brown),
+                  _forecastStat('Mortalité/j', _fmt(horizon['mortaliteJourProjetee']), Icons.warning_amber_outlined, Colors.red),
                 ],
               )
             else
-              const Text('Pas assez de données pour une prévision fiable.'),
-            const SizedBox(height: 8),
-            Text(
-              'Conso cumulée réel/théorique: ${_fmt(consoReelleCourante)} / ${_fmt(consoTheoriqueCourante)} kg (ratio ${_fmt(ratioReelTheorique)})',
+              Text('Pas assez de données pour une prévision fiable.', style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 12),
+            // Ratio conso réel/théorique : > 1 = surconsommation (orange), sinon vert.
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (ratioReelTheorique > 1.1 ? Colors.orange : Colors.green).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: (ratioReelTheorique > 1.1 ? Colors.orange : Colors.green).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    ratioReelTheorique > 1.1 ? Icons.trending_up : Icons.check_circle_outline,
+                    size: 18,
+                    color: ratioReelTheorique > 1.1 ? Colors.orange.shade800 : Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Conso réel/théorique: ${_fmt(consoReelleCourante)} / ${_fmt(consoTheoriqueCourante)} kg (ratio ${_fmt(ratioReelTheorique)})',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (events.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+              Text('Alertes prévisionnelles', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade700, fontSize: 13)),
+              const SizedBox(height: 6),
               ...events.map((evt) {
                 final e = evt as Map<String, dynamic>;
                 final sev = (e['severite'] ?? '').toString();
                 final color = sev == 'haute' ? Colors.red : Colors.orange;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border(left: BorderSide(color: color, width: 3)),
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(Icons.warning_amber_rounded, color: color, size: 18),
                       const SizedBox(width: 8),
-                      Expanded(child: Text((e['message'] ?? '').toString())),
+                      Expanded(child: Text((e['message'] ?? '').toString(), style: const TextStyle(fontSize: 12.5))),
                     ],
                   ),
                 );
               }),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _forecastStat(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+            ),
           ],
         ),
       ),

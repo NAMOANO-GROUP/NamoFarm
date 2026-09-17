@@ -151,11 +151,22 @@ class _CheptelScreenState extends State<CheptelScreen> {
                   ],
                 ),
                 const Divider(),
-                const Text('Journal des mouvements', style: TextStyle(fontWeight: FontWeight.bold)),
-                if (c.mouvements.isEmpty)
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Aucun mouvement', style: TextStyle(color: Colors.grey)))
-                else
-                  ...c.mouvements.map((m) => _buildMouvementTile(c, m)),
+                Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    initiallyExpanded: false,
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    title: const Text('Journal des mouvements', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${c.mouvements.length} mouvement(s)', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    children: [
+                      if (c.mouvements.isEmpty)
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Aucun mouvement', style: TextStyle(color: Colors.grey)))
+                      else
+                        ...c.mouvements.map((m) => _buildMouvementTile(c, m)),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

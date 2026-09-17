@@ -508,11 +508,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Courbe projection tresorerie'),
-        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(Icons.show_chart, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 6),
+            const Text('Projection trésorerie (6 mois)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ],
+        ),
+        const SizedBox(height: 10),
         SizedBox(
-          height: 220,
-          child: LineChart(
+          height: 200,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: LineChart(
             LineChartData(
               gridData: const FlGridData(show: true),
               lineTouchData: LineTouchData(
@@ -537,6 +545,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
               titlesData: FlTitlesData(
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 46,
+                    getTitlesWidget: (value, meta) {
+                      if (value == meta.min || value == meta.max) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Text(formatCompactNumber(value), style: const TextStyle(fontSize: 9)),
+                      );
+                    },
+                  ),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -565,6 +586,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               ],
             ),
           ),
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -575,7 +597,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               children: [
                 Icon(Icons.circle, size: 10, color: Colors.blue),
                 SizedBox(width: 4),
-                Text('Solde projete'),
+                Text('Solde projeté'),
               ],
             ),
           ],

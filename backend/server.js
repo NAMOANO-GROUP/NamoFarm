@@ -68,7 +68,6 @@ const couveesRoutes = require('./routes/couvees');
 const santeRoutes = require('./routes/sante');
 const cheptelRoutes = require('./routes/cheptel');
 const previsionsRoutes = require('./routes/previsions');
-const achatsRoutes = require('./routes/achats');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/bandes', authenticate, bandesRoutes);
@@ -86,7 +85,6 @@ app.use('/api/reproduction', authenticate, couveesRoutes);
 app.use('/api/sante', authenticate, santeRoutes);
 app.use('/api/cheptel', authenticate, cheptelRoutes);
 app.use('/api/previsions', authenticate, previsionsRoutes);
-app.use('/api/achats', authenticate, achatsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/onboarding-codes', onboardingCodesRoutes);
