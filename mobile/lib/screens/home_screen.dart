@@ -222,72 +222,67 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF0B5D3B), Color(0xFF2E7D32)],
-                  ),
-                  borderRadius: BorderRadius.circular(18),
+        child: Column(
+          children: [
+            // Bandeau de bienvenue compact, fixe en haut.
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0B5D3B), Color(0xFF2E7D32)],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Image.asset('assets/logo/namofarm.png', height: 30,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset('assets/logo/namofarm.png', height: 40,
-                            errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            auth.appName,
-                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text(
+                          auth.appName,
+                          style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          prenom.isNotEmpty ? 'Bienvenue, $prenom 👋' : 'Bienvenue 👋',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      prenom.isNotEmpty ? 'Bienvenue, $prenom 👋' : 'Bienvenue 👋',
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Choisissez un module pour commencer.',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverGrid(
+            // Grille de modules scrollable.
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(12),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
                   childAspectRatio: 0.95,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    final m = modules[i];
-                    final color = _hubColors[i % _hubColors.length];
-                    return _hubTile(context, m.mobileDestination, color, () {
-                      setState(() => _currentIndex = i);
-                      context.read<NavHubProvider>().goModule();
-                    });
-                  },
-                  childCount: modules.length,
-                ),
+                itemCount: modules.length,
+                itemBuilder: (context, i) {
+                  final m = modules[i];
+                  final color = _hubColors[i % _hubColors.length];
+                  return _hubTile(context, m.mobileDestination, color, () {
+                    setState(() => _currentIndex = i);
+                    context.read<NavHubProvider>().goModule();
+                  });
+                },
               ),
             ),
           ],
@@ -297,14 +292,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _hubTile(BuildContext context, NavigationDestination dest, Color color, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: Theme.of(context).cardColor,
+      color: isDark ? Colors.white.withValues(alpha: 0.06) : Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(16),
-      elevation: 1,
+      elevation: isDark ? 0 : 1,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? color.withValues(alpha: 0.55) : Colors.grey.withValues(alpha: 0.20),
+              width: isDark ? 1.2 : 1,
+            ),
+          ),
           padding: const EdgeInsets.all(10),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -313,11 +316,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
+                  color: color.withValues(alpha: isDark ? 0.25 : 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: IconTheme(
-                  data: IconThemeData(color: color, size: 26),
+                  data: IconThemeData(color: isDark ? _lighten(color) : color, size: 26),
                   child: dest.selectedIcon ?? dest.icon,
                 ),
               ),
@@ -336,76 +339,60 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBottomNav(List<_ModuleItem> modules) {
-    // Material recommends 3-5 bottom destinations. When there are more modules than
-    // can fit comfortably on a phone, keep the first ones and gather the rest under a
-    // "Plus" entry that opens a bottom sheet. This adapts to any screen / module count.
-    const maxSlots = 5;
-
-    if (modules.length <= maxSlots) {
-      return NavigationBar(
-        selectedIndex: _currentIndex.clamp(0, modules.length - 1),
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        destinations: modules.map((m) => m.mobileDestination).toList(),
-      );
-    }
-
-    final primaryCount = maxSlots - 1;
-    final primary = modules.take(primaryCount).toList();
-    final overflow = modules.skip(primaryCount).toList();
-    final isOverflowSelected = _currentIndex >= primaryCount;
-
-    return NavigationBar(
-      selectedIndex: isOverflowSelected ? primaryCount : _currentIndex,
-      onDestinationSelected: (index) {
-        if (index < primaryCount) {
-          setState(() => _currentIndex = index);
-        } else {
-          _showMoreModules(overflow, primaryCount);
-        }
-      },
-      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-      destinations: [
-        ...primary.map((m) => m.mobileDestination),
-        const NavigationDestination(
-          icon: Icon(Icons.more_horiz),
-          selectedIcon: Icon(Icons.more_horiz),
-          label: 'Plus',
-        ),
-      ],
-    );
+  // Éclaircit une couleur pour un meilleur contraste sur fond sombre.
+  Color _lighten(Color c, [double amount = 0.25]) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
   }
 
-  void _showMoreModules(List<_ModuleItem> overflow, int primaryCount) {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.7,
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.only(bottom: 8),
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Text('Autres modules', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              for (var i = 0; i < overflow.length; i++)
-                ListTile(
-                  leading: overflow[i].mobileDestination.icon,
-                  title: Text(overflow[i].mobileDestination.label),
-                  selected: _currentIndex == primaryCount + i,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    setState(() => _currentIndex = primaryCount + i);
-                  },
+  Widget _buildBottomNav(List<_ModuleItem> modules) {
+    // Barre de navigation horizontale scrollable : tous les modules sont visibles
+    // en défilant, sans entrée "Plus".
+    final theme = Theme.of(context);
+    return Material(
+      elevation: 8,
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            itemCount: modules.length,
+            itemBuilder: (context, i) {
+              final selected = _currentIndex == i;
+              final dest = modules[i].mobileDestination;
+              final color = selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => _currentIndex = i),
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 68),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: selected ? theme.colorScheme.primary.withValues(alpha: 0.12) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconTheme(
+                        data: IconThemeData(color: color, size: 24),
+                        child: selected ? (dest.selectedIcon ?? dest.icon) : dest.icon,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dest.label,
+                        style: TextStyle(fontSize: 11, color: color, fontWeight: selected ? FontWeight.w700 : FontWeight.w400),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-            ],
+              );
+            },
           ),
         ),
       ),
