@@ -94,6 +94,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     }
 
     final horizon = forecast7j.isNotEmpty ? forecast7j.last as Map<String, dynamic> : null;
+    final isWide = MediaQuery.of(context).size.width > 600;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -102,34 +103,55 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Prévisionnel 7 jours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.insights_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                const Text('Prévisionnel 7 jours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
             if (horizon != null)
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
+              GridView.count(
+                crossAxisCount: isWide ? 3 : 1,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: isWide ? 2.4 : 5,
                 children: [
-                  Text('Poids projeté: ${_fmt(horizon['poidsProjete'], digits: 0)} g'),
-                  Text('Conso cumulée projetée: ${_fmt(horizon['consoCumulProjeteeKg'])} kg'),
-                  Text('Mortalité/j projetée: ${_fmt(horizon['mortaliteJourProjetee'])}'),
+                  _statTile('Poids projeté', '${_fmt(horizon['poidsProjete'], digits: 0)} g', Icons.monitor_weight_outlined, Colors.green),
+                  _statTile('Conso cumulée projetée', '${_fmt(horizon['consoCumulProjeteeKg'])} kg', Icons.restaurant, Colors.brown),
+                  _statTile('Mortalité/j projetée', _fmt(horizon['mortaliteJourProjetee']), Icons.warning_amber_outlined, Colors.red),
                 ],
               ),
             if (events.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               const Text('Événements prévisionnels', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               ...events.map((e) {
                 final evt = e as Map<String, dynamic>;
                 final sev = (evt['severite'] ?? '').toString();
                 final color = sev == 'haute' ? Colors.red : Colors.orange;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: color.withValues(alpha: 0.30)),
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning_amber_rounded, color: color, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text((evt['message'] ?? '').toString())),
+                      Icon(Icons.warning_amber_rounded, color: color, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          (evt['message'] ?? '').toString(),
+                          style: const TextStyle(fontSize: 13, height: 1.3),
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -321,17 +343,21 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     if (raw.isEmpty) return const Center(child: Text('Pas de données'));
 
     final bars = <BarChartGroupData>[];
+    var maxAge = 0;
     for (var i = 0; i < raw.length; i++) {
       final age = (raw[i]['age'] ?? i).toInt();
+      if (age > maxAge) maxAge = age;
       bars.add(
         BarChartGroupData(
           x: age,
           barRods: [
-            BarChartRodData(toY: (raw[i][yKey] ?? 0).toDouble(), color: color, width: 8)
+            BarChartRodData(toY: (raw[i][yKey] ?? 0).toDouble(), color: color, width: 8, borderRadius: BorderRadius.circular(3))
           ],
         ),
       );
     }
+
+    final step = maxAge > 40 ? 7 : maxAge > 20 ? 5 : maxAge > 10 ? 3 : 1;
 
     return BarChart(
       BarChartData(
@@ -355,11 +381,14 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 26,
-              interval: bars.length > 30 ? 10 : bars.length > 15 ? 5 : 2,
-              getTitlesWidget: (value, meta) => Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 9)),
-              ),
+              getTitlesWidget: (value, meta) {
+                final v = value.toInt();
+                if (v != 1 && v % step != 0) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text('$v', style: const TextStyle(fontSize: 9)),
+                );
+              },
             ),
           ),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),

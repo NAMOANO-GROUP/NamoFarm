@@ -52,6 +52,17 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
       appBar: AppBar(
         leading: const BrandLogo(),
         title: const Text('Reproduction / Couvoir'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton.filled(
+              tooltip: 'Mise en incubation',
+              onPressed: () => _showSetupForm(),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.add, size: 18),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -74,11 +85,6 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showSetupForm(),
-        icon: const Icon(Icons.add),
-        label: const Text('Mise en incubation'),
       ),
     );
   }

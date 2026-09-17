@@ -99,8 +99,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 130,
+                  Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: _dateFilter,
                       isExpanded: true,
@@ -157,8 +156,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  SizedBox(
-                    width: 130,
+                  Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: provider.todoPeriod,
                       isExpanded: true,
@@ -186,6 +184,18 @@ class _AlertesScreenState extends State<AlertesScreen> {
                     ),
                   ),
                 ],
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: IconButton.filled(
+                    tooltip: 'Nouvelle tâche',
+                    onPressed: () => _showAjouterAlerteDialog(),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.add_alert, size: 18),
+                  ),
+                ),
               ),
               if (_dateFilter == 'date' && _selectedDate != null)
                 Padding(
@@ -275,11 +285,6 @@ class _AlertesScreenState extends State<AlertesScreen> {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAjouterAlerteDialog(),
-        icon: const Icon(Icons.add_alert),
-        label: const Text('Nouvelle tâche'),
       ),
     );
   }

@@ -22,6 +22,7 @@ class _PoidsScreenState extends State<PoidsScreen> {
   final TextEditingController _obsCtrl = TextEditingController();
   bool _loading = false;
   List<Map<String, dynamic>> _historique = [];
+  bool _showHistory = false;
 
   @override
   void initState() {
@@ -114,26 +115,37 @@ class _PoidsScreenState extends State<PoidsScreen> {
             label: Text(_loading ? 'Enregistrement...' : 'Enregistrer'),
           ),
           const SizedBox(height: 20),
-          Text('Historique des relevés', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
           if (_historique.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Aucun relevé de poids'),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Historique des relevés', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Aucun relevé de poids'),
+                  ),
+                ),
+              ],
             )
           else
-            ..._historique.map((row) {
-              final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.monitor_weight),
-                  title: Text('${(row['poidsMotenG'] ?? 0).toString()} g'),
-                  subtitle: Text('${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
-                ),
-              );
-            }),
+            Card(
+              child: ExpansionTile(
+                initiallyExpanded: _showHistory,
+                onExpansionChanged: (expanded) => setState(() => _showHistory = expanded),
+                leading: const Icon(Icons.history),
+                title: Text('Historique des relevés (${_historique.length})'),
+                children: _historique.map((row) {
+                  final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
+                  return ListTile(
+                    leading: const Icon(Icons.monitor_weight),
+                    title: Text('${(row['poidsMotenG'] ?? 0).toString()} g'),
+                    subtitle: Text('${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
+                  );
+                }).toList(),
+              ),
+            ),
         ],
       ),
     );

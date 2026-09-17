@@ -24,6 +24,7 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
   final TextEditingController _obsCtrl = TextEditingController();
   bool _loading = false;
   List<Map<String, dynamic>> _historique = [];
+  bool _showHistory = false;
   List<Map<String, dynamic>> _stocksAliment = [];
   String? _selectedAlimentStockId;
 
@@ -199,28 +200,39 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
             label: Text(_loading ? 'Enregistrement...' : 'Enregistrer'),
           ),
           const SizedBox(height: 20),
-          Text('Historique alimentation', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
           if (_historique.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Aucun suivi alimentation enregistré'),
-              ),
-            )
-          else
-            ..._historique.map((row) {
-              final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.restaurant),
-                  title: Text('Alim: ${(row['alimentationKg'] ?? 0).toString()} kg • Eau: ${(row['eauLitres'] ?? 0).toString()} L'),
-                  subtitle: Text(
-                    '${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}',
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Historique alimentation', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Aucun suivi alimentation enregistré'),
                   ),
                 ),
-              );
-            }),
+              ],
+            )
+          else
+            Card(
+              child: ExpansionTile(
+                initiallyExpanded: _showHistory,
+                onExpansionChanged: (expanded) => setState(() => _showHistory = expanded),
+                leading: const Icon(Icons.history),
+                title: Text('Historique alimentation (${_historique.length})'),
+                children: _historique.map((row) {
+                  final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
+                  return ListTile(
+                    leading: const Icon(Icons.restaurant),
+                    title: Text('Alim: ${(row['alimentationKg'] ?? 0).toString()} kg • Eau: ${(row['eauLitres'] ?? 0).toString()} L'),
+                    subtitle: Text(
+                      '${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}',
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
         ],
       ),
     );

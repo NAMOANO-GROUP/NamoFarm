@@ -23,6 +23,7 @@ class _ClimatScreenState extends State<ClimatScreen> {
   final TextEditingController _obsCtrl = TextEditingController();
   bool _loading = false;
   List<Map<String, dynamic>> _historique = [];
+  bool _showHistory = false;
 
   @override
   void initState() {
@@ -124,26 +125,37 @@ class _ClimatScreenState extends State<ClimatScreen> {
             label: Text(_loading ? 'Enregistrement...' : 'Enregistrer'),
           ),
           const SizedBox(height: 20),
-          Text('Historique', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
           if (_historique.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Aucun relevé climat'),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Historique', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Aucun relevé climat'),
+                  ),
+                ),
+              ],
             )
           else
-            ..._historique.map((row) {
-              final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.thermostat),
-                  title: Text('T° ${(row['temperature'] ?? 0)} °C • H ${(row['humidite'] ?? 0)} %'),
-                  subtitle: Text('${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
-                ),
-              );
-            }),
+            Card(
+              child: ExpansionTile(
+                initiallyExpanded: _showHistory,
+                onExpansionChanged: (expanded) => setState(() => _showHistory = expanded),
+                leading: const Icon(Icons.history),
+                title: Text('Historique (${_historique.length})'),
+                children: _historique.map((row) {
+                  final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
+                  return ListTile(
+                    leading: const Icon(Icons.thermostat),
+                    title: Text('T° ${(row['temperature'] ?? 0)} °C • H ${(row['humidite'] ?? 0)} %'),
+                    subtitle: Text('${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
+                  );
+                }).toList(),
+              ),
+            ),
         ],
       ),
     );

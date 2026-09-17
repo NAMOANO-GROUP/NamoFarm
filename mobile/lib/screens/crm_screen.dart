@@ -910,14 +910,11 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                     ),
                   if (tachesHistorique.isNotEmpty) const SizedBox(width: 8),
                   const SizedBox(width: 8),
-                  ElevatedButton.icon(
+                  IconButton.filled(
+                    tooltip: 'Nouvelle tâche',
                     onPressed: _showAjoutTache,
-                    style: ElevatedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
+                    visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.add_task, size: 18),
-                    label: const Text('Nouvelle tâche'),
                   ),
                 ],
               ),

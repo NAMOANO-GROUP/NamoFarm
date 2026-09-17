@@ -76,6 +76,20 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
       appBar: AppBar(
         leading: const BrandLogo(),
         title: const Text('Santé / Prophylaxie'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: AnimatedBuilder(
+              animation: _tabController,
+              builder: (context, _) => IconButton.filled(
+                tooltip: _tabController.index == 0 ? 'Nouveau protocole' : 'Nouveau traitement',
+                onPressed: () => _tabController.index == 0 ? _showProtocoleForm() : _showTraitementForm(),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.add, size: 18),
+              ),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -95,14 +109,6 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
             ],
           );
         },
-      ),
-      floatingActionButton: AnimatedBuilder(
-        animation: _tabController,
-        builder: (context, _) => FloatingActionButton.extended(
-          onPressed: () => _tabController.index == 0 ? _showProtocoleForm() : _showTraitementForm(),
-          icon: const Icon(Icons.add),
-          label: Text(_tabController.index == 0 ? 'Protocole' : 'Traitement'),
-        ),
       ),
     );
   }

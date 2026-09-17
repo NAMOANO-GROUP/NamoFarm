@@ -117,6 +117,18 @@ class _StocksScreenState extends State<StocksScreen> {
                   });
                 },
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: IconButton.filled(
+                    tooltip: 'Nouveau stock',
+                    onPressed: () => _showAjouterStockDialog(),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.add, size: 18),
+                  ),
+                ),
+              ),
               const SizedBox(height: 8),
               // Alertes stock bas
               if (provider.stocks.any((s) => s.enAlerte == true))
@@ -180,11 +192,6 @@ class _StocksScreenState extends State<StocksScreen> {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAjouterStockDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau Stock'),
       ),
     );
   }

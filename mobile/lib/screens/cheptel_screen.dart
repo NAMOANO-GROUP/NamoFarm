@@ -67,7 +67,21 @@ class _CheptelScreenState extends State<CheptelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const BrandLogo(), title: const Text('Cheptel')),
+      appBar: AppBar(
+        leading: const BrandLogo(),
+        title: const Text('Cheptel'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton.filled(
+              tooltip: 'Nouveau cheptel',
+              onPressed: () => _showCheptelForm(),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.add, size: 18),
+            ),
+          ),
+        ],
+      ),
       body: Consumer<CheptelProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) return const Center(child: CircularProgressIndicator());
@@ -93,11 +107,6 @@ class _CheptelScreenState extends State<CheptelScreen> {
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCheptelForm(),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau cheptel'),
       ),
     );
   }

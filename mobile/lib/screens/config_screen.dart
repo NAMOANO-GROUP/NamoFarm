@@ -85,13 +85,6 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
         controller: _tabController,
         children: views,
       ),
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              onPressed: _showCreateUserDialog,
-              icon: const Icon(Icons.person_add),
-              label: const Text('Ajouter utilisateur'),
-            )
-          : null,
     );
   }
 
@@ -100,7 +93,29 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
       builder: (context, admin, _) {
         if (admin.isLoading) return const Center(child: CircularProgressIndicator());
 
-        if (admin.users.isEmpty) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: IconButton.filled(
+                  tooltip: 'Ajouter utilisateur',
+                  onPressed: _showCreateUserDialog,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.person_add, size: 18),
+                ),
+              ),
+            ),
+            Expanded(child: _usersList(admin)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _usersList(AdminProvider admin) {
+    if (admin.users.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),

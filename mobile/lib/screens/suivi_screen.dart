@@ -26,6 +26,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
   bool _loadingForecast = true;
   List<EvenementPrevisionnel> _eventsPrevisionnels = [];
   bool _loadingEvents = true;
+  bool _showEvents = false;
 
   @override
   void initState() {
@@ -243,6 +244,8 @@ class _SuiviScreenState extends State<SuiviScreen> {
   }
 
   Widget _buildEventsPrevisionnels() {
+    final pending = _eventsPrevisionnels.where((e) => e.statut != 'termine').toList();
+    final df = DateFormat('dd/MM/yyyy');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -264,36 +267,33 @@ class _SuiviScreenState extends State<SuiviScreen> {
               child: Center(child: CircularProgressIndicator()),
             ),
           )
-        else if (_eventsPrevisionnels.isEmpty)
+        else if (pending.isEmpty)
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: Text('Aucun événement prévisionnel planifié'),
+              child: Text('Aucune tâche planifiée à venir'),
             ),
           )
         else
-          ..._eventsPrevisionnels.map((evt) {
-            final isDone = evt.statut == 'termine';
-            final df = DateFormat('dd/MM/yyyy');
-            return Card(
-              child: ListTile(
-                leading: Icon(
-                  isDone ? Icons.check_circle : Icons.event,
-                  color: isDone ? Colors.green : Colors.orange,
-                ),
-                title: Text(evt.description),
-                subtitle: Text(
-                  'Prévu le ${df.format(evt.datePrevue)} • ${evt.priorite}${evt.dateRealisation != null ? ' • Réalisé le ${df.format(evt.dateRealisation!)}' : ''}',
-                ),
-                trailing: isDone
-                    ? const Chip(label: Text('Terminé'))
-                    : TextButton(
-                        onPressed: () => _terminerEvenement(evt),
-                        child: const Text('Terminer'),
-                      ),
-              ),
-            );
-          }),
+          Card(
+            child: ExpansionTile(
+              initiallyExpanded: _showEvents,
+              onExpansionChanged: (expanded) => setState(() => _showEvents = expanded),
+              leading: const Icon(Icons.event, color: Colors.orange),
+              title: Text('Tâches planifiées (${pending.length})'),
+              children: pending.map((evt) {
+                return ListTile(
+                  leading: const Icon(Icons.event, color: Colors.orange),
+                  title: Text(evt.description),
+                  subtitle: Text('Prévu le ${df.format(evt.datePrevue)} • ${evt.priorite}'),
+                  trailing: TextButton(
+                    onPressed: () => _terminerEvenement(evt),
+                    child: const Text('Terminer'),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }

@@ -44,6 +44,17 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
       appBar: AppBar(
         leading: const BrandLogo(),
         title: const Text('Gestion des Bandes'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton.filled(
+              tooltip: 'Nouvelle bande',
+              onPressed: () => _showAjouterBandeDialog(),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.add, size: 18),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -58,11 +69,6 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
           _buildBandesActives(),
           _buildHistorique(),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAjouterBandeDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouvelle Bande'),
       ),
     );
   }
