@@ -14,7 +14,8 @@ class ConfigScreen extends StatefulWidget {
   State<ConfigScreen> createState() => _ConfigScreenState();
 }
 
-class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderStateMixin {
+class _ConfigScreenState extends State<ConfigScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isSuperadmin = false;
 
@@ -91,7 +92,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
   Widget _usersTab() {
     return Consumer<AdminProvider>(
       builder: (context, admin, _) {
-        if (admin.isLoading) return const Center(child: CircularProgressIndicator());
+        if (admin.isLoading)
+          return const Center(child: CircularProgressIndicator());
 
         return Column(
           children: [
@@ -116,101 +118,127 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
 
   Widget _usersList(AdminProvider admin) {
     if (admin.users.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.people_outline, size: 48, color: Colors.grey),
-                  const SizedBox(height: 12),
-                  const Text('Aucun utilisateur affiché'),
-                  if ((admin.lastError ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      admin.lastError!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: admin.users.length,
-          itemBuilder: (_, i) {
-            final u = admin.users[i];
-            final isWide = MediaQuery.of(context).size.width >= 600;
-            final userId = (u['id'] ?? u['_id']).toString();
-            return Card(
-              child: ListTile(
-                title: Text('${u['nom'] ?? ''} ${u['prenom'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text('${u['email']} • rôle: ${_roleLabel((u['role'] ?? '').toString())}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Wrap(
-                  spacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (isWide)
-                      IconButton(
-                        tooltip: 'Réinitialiser mot de passe',
-                        onPressed: () async {
-                          final temp = await context.read<AdminProvider>().resetPassword(userId);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(temp == null ? 'Echec reset' : 'Mot de passe temporaire: $temp')),
-                          );
-                        },
-                        icon: const Icon(Icons.lock_reset),
-                      ),
-                    if (isWide)
-                      IconButton(
-                        tooltip: 'Supprimer utilisateur',
-                        onPressed: () => _confirmDeleteUser(userId, '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(), (u['email'] ?? '').toString()),
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                      ),
-                    Switch(
-                      value: (u['actif'] ?? false) == true,
-                      onChanged: (v) => context.read<AdminProvider>().toggleUserActive(userId, v),
-                    ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        if (value == 'reset') {
-                          final temp = await context.read<AdminProvider>().resetPassword(userId);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(temp == null ? 'Echec reset' : 'Mot de passe temporaire: $temp')),
-                          );
-                        } else if (value == 'delete') {
-                          _confirmDeleteUser(userId, '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(), (u['email'] ?? '').toString());
-                        } else {
-                          await context.read<AdminProvider>().updateUser(userId, {'role': value});
-                        }
-                      },
-                      itemBuilder: (_) {
-                        final roleItems = _userRoleOptions
-                            .map(
-                              (entry) => PopupMenuItem<String>(
-                                value: entry['value'],
-                                child: Text('Rôle ${entry['label']}'),
-                              ),
-                            )
-                            .toList();
-                        return [
-                          if (!isWide) const PopupMenuItem(value: 'reset', child: Text('Réinitialiser mot de passe')),
-                          ...roleItems,
-                          const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
-                        ];
-                      },
-                    )
-                  ],
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 12),
+              const Text('Aucun utilisateur affiché'),
+              if ((admin.lastError ?? '').isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  admin.lastError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.redAccent),
                 ),
-              ),
-            );
-          },
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: admin.users.length,
+      itemBuilder: (_, i) {
+        final u = admin.users[i];
+        final isWide = MediaQuery.of(context).size.width >= 600;
+        final userId = (u['id'] ?? u['_id']).toString();
+        return Card(
+          child: ListTile(
+            title: Text('${u['nom'] ?? ''} ${u['prenom'] ?? ''}',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+                '${u['email']} • rôle: ${_roleLabel((u['role'] ?? '').toString())}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            trailing: Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (isWide)
+                  IconButton(
+                    tooltip: 'Réinitialiser mot de passe',
+                    onPressed: () async {
+                      final temp = await context
+                          .read<AdminProvider>()
+                          .resetPassword(userId);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(temp == null
+                                ? 'Echec reset'
+                                : 'Mot de passe temporaire: $temp')),
+                      );
+                    },
+                    icon: const Icon(Icons.lock_reset),
+                  ),
+                if (isWide)
+                  IconButton(
+                    tooltip: 'Supprimer utilisateur',
+                    onPressed: () => _confirmDeleteUser(
+                        userId,
+                        '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(),
+                        (u['email'] ?? '').toString()),
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.redAccent),
+                  ),
+                Switch(
+                  value: (u['actif'] ?? false) == true,
+                  onChanged: (v) =>
+                      context.read<AdminProvider>().toggleUserActive(userId, v),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'reset') {
+                      final temp = await context
+                          .read<AdminProvider>()
+                          .resetPassword(userId);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(temp == null
+                                ? 'Echec reset'
+                                : 'Mot de passe temporaire: $temp')),
+                      );
+                    } else if (value == 'delete') {
+                      _confirmDeleteUser(
+                          userId,
+                          '${u['nom'] ?? ''} ${u['prenom'] ?? ''}'.trim(),
+                          (u['email'] ?? '').toString());
+                    } else {
+                      await context
+                          .read<AdminProvider>()
+                          .updateUser(userId, {'role': value});
+                    }
+                  },
+                  itemBuilder: (_) {
+                    final roleItems = _userRoleOptions
+                        .map(
+                          (entry) => PopupMenuItem<String>(
+                            value: entry['value'],
+                            child: Text('Rôle ${entry['label']}'),
+                          ),
+                        )
+                        .toList();
+                    return [
+                      if (!isWide)
+                        const PopupMenuItem(
+                            value: 'reset',
+                            child: Text('Réinitialiser mot de passe')),
+                      ...roleItems,
+                      const PopupMenuItem(
+                          value: 'delete', child: Text('Supprimer')),
+                    ];
+                  },
+                )
+              ],
+            ),
+          ),
         );
       },
     );
@@ -220,13 +248,20 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
     return Consumer<AdminProvider>(
       builder: (context, admin, _) {
         final cfg = admin.config ?? {};
-        final nameCtrl = TextEditingController(text: (cfg['nomApplication'] ?? 'NamoFarm').toString());
-        final deviseCtrl = TextEditingController(text: (cfg['devise'] ?? 'FCFA').toString());
-        final timeoutCtrl = TextEditingController(text: (cfg['sessionTimeoutMinutes'] ?? 30).toString());
-        final refs = Map<String, dynamic>.from((cfg['referencesTheoriques'] ?? {}) as Map);
+        final nameCtrl = TextEditingController(
+            text: (cfg['nomApplication'] ?? 'NamoFarm').toString());
+        final deviseCtrl =
+            TextEditingController(text: (cfg['devise'] ?? 'FCFA').toString());
+        final timeoutCtrl = TextEditingController(
+            text: (cfg['sessionTimeoutMinutes'] ?? 30).toString());
+        final refs = Map<String, dynamic>.from(
+            (cfg['referencesTheoriques'] ?? {}) as Map);
 
-        Map<String, dynamic> refFor(String key, {required int d, required int p, required double c}) {
-          final source = refs[key] is Map ? Map<String, dynamic>.from(refs[key] as Map) : <String, dynamic>{};
+        Map<String, dynamic> refFor(String key,
+            {required int d, required int p, required double c}) {
+          final source = refs[key] is Map
+              ? Map<String, dynamic>.from(refs[key] as Map)
+              : <String, dynamic>{};
           return {
             'dureeJours': source['dureeJours'] ?? d,
             'poidsFinalG': source['poidsFinalG'] ?? p,
@@ -241,34 +276,59 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
         final refCanard = refFor('canard', d: 50, p: 3200, c: 6.0);
         final refAutre = refFor('autre', d: 45, p: 2500, c: 5.0);
 
-        final pouletDureeCtrl = TextEditingController(text: '${refPoulet['dureeJours']}');
-        final pouletPoidsCtrl = TextEditingController(text: '${refPoulet['poidsFinalG']}');
-        final pouletConsoCtrl = TextEditingController(text: '${refPoulet['consoTotaleKgParTete']}');
+        final pouletDureeCtrl =
+            TextEditingController(text: '${refPoulet['dureeJours']}');
+        final pouletPoidsCtrl =
+            TextEditingController(text: '${refPoulet['poidsFinalG']}');
+        final pouletConsoCtrl =
+            TextEditingController(text: '${refPoulet['consoTotaleKgParTete']}');
 
-        final pondeuseDureeCtrl = TextEditingController(text: '${refPondeuse['dureeJours']}');
-        final pondeusePoidsCtrl = TextEditingController(text: '${refPondeuse['poidsFinalG']}');
-        final pondeuseConsoCtrl = TextEditingController(text: '${refPondeuse['consoTotaleKgParTete']}');
+        final pondeuseDureeCtrl =
+            TextEditingController(text: '${refPondeuse['dureeJours']}');
+        final pondeusePoidsCtrl =
+            TextEditingController(text: '${refPondeuse['poidsFinalG']}');
+        final pondeuseConsoCtrl = TextEditingController(
+            text: '${refPondeuse['consoTotaleKgParTete']}');
 
-        final dindeDureeCtrl = TextEditingController(text: '${refDinde['dureeJours']}');
-        final dindePoidsCtrl = TextEditingController(text: '${refDinde['poidsFinalG']}');
-        final dindeConsoCtrl = TextEditingController(text: '${refDinde['consoTotaleKgParTete']}');
+        final dindeDureeCtrl =
+            TextEditingController(text: '${refDinde['dureeJours']}');
+        final dindePoidsCtrl =
+            TextEditingController(text: '${refDinde['poidsFinalG']}');
+        final dindeConsoCtrl =
+            TextEditingController(text: '${refDinde['consoTotaleKgParTete']}');
 
-        final canardDureeCtrl = TextEditingController(text: '${refCanard['dureeJours']}');
-        final canardPoidsCtrl = TextEditingController(text: '${refCanard['poidsFinalG']}');
-        final canardConsoCtrl = TextEditingController(text: '${refCanard['consoTotaleKgParTete']}');
+        final canardDureeCtrl =
+            TextEditingController(text: '${refCanard['dureeJours']}');
+        final canardPoidsCtrl =
+            TextEditingController(text: '${refCanard['poidsFinalG']}');
+        final canardConsoCtrl =
+            TextEditingController(text: '${refCanard['consoTotaleKgParTete']}');
 
-        final autreDureeCtrl = TextEditingController(text: '${refAutre['dureeJours']}');
-        final autrePoidsCtrl = TextEditingController(text: '${refAutre['poidsFinalG']}');
-        final autreConsoCtrl = TextEditingController(text: '${refAutre['consoTotaleKgParTete']}');
+        final autreDureeCtrl =
+            TextEditingController(text: '${refAutre['dureeJours']}');
+        final autrePoidsCtrl =
+            TextEditingController(text: '${refAutre['poidsFinalG']}');
+        final autreConsoCtrl =
+            TextEditingController(text: '${refAutre['consoTotaleKgParTete']}');
 
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nom application')),
-            TextField(controller: deviseCtrl, decoration: const InputDecoration(labelText: 'Devise')),
-            TextField(controller: timeoutCtrl, decoration: const InputDecoration(labelText: 'Timeout session (minutes)'), keyboardType: TextInputType.number),
+            TextField(
+                controller: nameCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'Nom application')),
+            TextField(
+                controller: deviseCtrl,
+                decoration: const InputDecoration(labelText: 'Devise')),
+            TextField(
+                controller: timeoutCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Timeout session (minutes)'),
+                keyboardType: TextInputType.number),
             const SizedBox(height: 16),
-            Text('Références théoriques (courbes)', style: Theme.of(context).textTheme.titleMedium),
+            Text('Références théoriques (courbes)',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             _refSection(
               title: 'Poulet de chair',
@@ -277,7 +337,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
               conso: pouletConsoCtrl,
               courbeCount: (refPoulet['courbeTheorique'] as List).length,
               onEditCurve: () async {
-                final updated = await _showCourbeDialog('Poulet de chair', refPoulet['courbeTheorique'] as List<dynamic>);
+                final updated = await _showCourbeDialog('Poulet de chair',
+                    refPoulet['courbeTheorique'] as List<dynamic>);
                 if (updated != null) {
                   refPoulet['courbeTheorique'] = updated;
                 }
@@ -290,7 +351,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
               conso: pondeuseConsoCtrl,
               courbeCount: (refPondeuse['courbeTheorique'] as List).length,
               onEditCurve: () async {
-                final updated = await _showCourbeDialog('Poule pondeuse', refPondeuse['courbeTheorique'] as List<dynamic>);
+                final updated = await _showCourbeDialog('Poule pondeuse',
+                    refPondeuse['courbeTheorique'] as List<dynamic>);
                 if (updated != null) {
                   refPondeuse['courbeTheorique'] = updated;
                 }
@@ -303,7 +365,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
               conso: dindeConsoCtrl,
               courbeCount: (refDinde['courbeTheorique'] as List).length,
               onEditCurve: () async {
-                final updated = await _showCourbeDialog('Dinde', refDinde['courbeTheorique'] as List<dynamic>);
+                final updated = await _showCourbeDialog(
+                    'Dinde', refDinde['courbeTheorique'] as List<dynamic>);
                 if (updated != null) {
                   refDinde['courbeTheorique'] = updated;
                 }
@@ -316,7 +379,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
               conso: canardConsoCtrl,
               courbeCount: (refCanard['courbeTheorique'] as List).length,
               onEditCurve: () async {
-                final updated = await _showCourbeDialog('Canard', refCanard['courbeTheorique'] as List<dynamic>);
+                final updated = await _showCourbeDialog(
+                    'Canard', refCanard['courbeTheorique'] as List<dynamic>);
                 if (updated != null) {
                   refCanard['courbeTheorique'] = updated;
                 }
@@ -329,7 +393,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
               conso: autreConsoCtrl,
               courbeCount: (refAutre['courbeTheorique'] as List).length,
               onEditCurve: () async {
-                final updated = await _showCourbeDialog('Autre', refAutre['courbeTheorique'] as List<dynamic>);
+                final updated = await _showCourbeDialog(
+                    'Autre', refAutre['courbeTheorique'] as List<dynamic>);
                 if (updated != null) {
                   refAutre['courbeTheorique'] = updated;
                 }
@@ -345,43 +410,62 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                   'referencesTheoriques': {
                     'poulet_chair': {
                       'dureeJours': int.tryParse(pouletDureeCtrl.text) ?? 42,
-                      'poidsFinalG': double.tryParse(pouletPoidsCtrl.text) ?? 2500,
-                      'consoTotaleKgParTete': double.tryParse(pouletConsoCtrl.text) ?? 4.2,
-                      'courbeTheorique': _normalizeCourbe(refPoulet['courbeTheorique']),
+                      'poidsFinalG':
+                          double.tryParse(pouletPoidsCtrl.text) ?? 2500,
+                      'consoTotaleKgParTete':
+                          double.tryParse(pouletConsoCtrl.text) ?? 4.2,
+                      'courbeTheorique':
+                          _normalizeCourbe(refPoulet['courbeTheorique']),
                     },
                     'poule_pondeuse': {
                       'dureeJours': int.tryParse(pondeuseDureeCtrl.text) ?? 140,
-                      'poidsFinalG': double.tryParse(pondeusePoidsCtrl.text) ?? 1800,
-                      'consoTotaleKgParTete': double.tryParse(pondeuseConsoCtrl.text) ?? 14.0,
-                      'courbeTheorique': _normalizeCourbe(refPondeuse['courbeTheorique']),
+                      'poidsFinalG':
+                          double.tryParse(pondeusePoidsCtrl.text) ?? 1800,
+                      'consoTotaleKgParTete':
+                          double.tryParse(pondeuseConsoCtrl.text) ?? 14.0,
+                      'courbeTheorique':
+                          _normalizeCourbe(refPondeuse['courbeTheorique']),
                     },
                     'dinde': {
                       'dureeJours': int.tryParse(dindeDureeCtrl.text) ?? 90,
-                      'poidsFinalG': double.tryParse(dindePoidsCtrl.text) ?? 7000,
-                      'consoTotaleKgParTete': double.tryParse(dindeConsoCtrl.text) ?? 18.0,
-                      'courbeTheorique': _normalizeCourbe(refDinde['courbeTheorique']),
+                      'poidsFinalG':
+                          double.tryParse(dindePoidsCtrl.text) ?? 7000,
+                      'consoTotaleKgParTete':
+                          double.tryParse(dindeConsoCtrl.text) ?? 18.0,
+                      'courbeTheorique':
+                          _normalizeCourbe(refDinde['courbeTheorique']),
                     },
                     'canard': {
                       'dureeJours': int.tryParse(canardDureeCtrl.text) ?? 50,
-                      'poidsFinalG': double.tryParse(canardPoidsCtrl.text) ?? 3200,
-                      'consoTotaleKgParTete': double.tryParse(canardConsoCtrl.text) ?? 6.0,
-                      'courbeTheorique': _normalizeCourbe(refCanard['courbeTheorique']),
+                      'poidsFinalG':
+                          double.tryParse(canardPoidsCtrl.text) ?? 3200,
+                      'consoTotaleKgParTete':
+                          double.tryParse(canardConsoCtrl.text) ?? 6.0,
+                      'courbeTheorique':
+                          _normalizeCourbe(refCanard['courbeTheorique']),
                     },
                     'autre': {
                       'dureeJours': int.tryParse(autreDureeCtrl.text) ?? 45,
-                      'poidsFinalG': double.tryParse(autrePoidsCtrl.text) ?? 2500,
-                      'consoTotaleKgParTete': double.tryParse(autreConsoCtrl.text) ?? 5.0,
-                      'courbeTheorique': _normalizeCourbe(refAutre['courbeTheorique']),
+                      'poidsFinalG':
+                          double.tryParse(autrePoidsCtrl.text) ?? 2500,
+                      'consoTotaleKgParTete':
+                          double.tryParse(autreConsoCtrl.text) ?? 5.0,
+                      'courbeTheorique':
+                          _normalizeCourbe(refAutre['courbeTheorique']),
                     },
                   },
                 });
                 if (!context.mounted) return;
                 if (ok) {
-                  await context.read<AuthProvider>().setAppName(nameCtrl.text.trim());
+                  await context
+                      .read<AuthProvider>()
+                      .setAppName(nameCtrl.text.trim());
                 }
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(ok ? 'Paramètres sauvegardés' : 'Erreur sauvegarde')),
+                  SnackBar(
+                      content: Text(
+                          ok ? 'Paramètres sauvegardés' : 'Erreur sauvegarde')),
                 );
               },
               icon: const Icon(Icons.save),
@@ -416,23 +500,28 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                   child: TextField(
                     controller: duree,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Durée (jours)'),
+                    decoration:
+                        const InputDecoration(labelText: 'Durée (jours)'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: poids,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Poids final (g)'),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration:
+                        const InputDecoration(labelText: 'Poids final (g)'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: conso,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Conso totale/tête (kg)'),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Conso totale/tête (kg)'),
                   ),
                 ),
               ],
@@ -440,7 +529,9 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: Text('Courbe théorique: $courbeCount point(s) renseigné(s)')),
+                Expanded(
+                    child: Text(
+                        'Courbe théorique: $courbeCount point(s) renseigné(s)')),
                 OutlinedButton.icon(
                   onPressed: onEditCurve,
                   icon: const Icon(Icons.table_chart),
@@ -457,7 +548,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
   Widget _auditTab() {
     return Consumer<AdminProvider>(
       builder: (context, admin, _) {
-        if (admin.isLoading) return const Center(child: CircularProgressIndicator());
+        if (admin.isLoading)
+          return const Center(child: CircularProgressIndicator());
         return Column(
           children: [
             Padding(
@@ -467,10 +559,14 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                   const Expanded(child: Text('Historique d\'audit')),
                   OutlinedButton.icon(
                     onPressed: () async {
-                      final ok = await context.read<AdminProvider>().clearAuditLogs();
+                      final ok =
+                          await context.read<AdminProvider>().clearAuditLogs();
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(ok ? 'Audit effacé' : 'Erreur lors de l\'effacement')),
+                        SnackBar(
+                            content: Text(ok
+                                ? 'Audit effacé'
+                                : 'Erreur lors de l\'effacement')),
                       );
                     },
                     icon: const Icon(Icons.delete_sweep),
@@ -487,17 +583,31 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                       itemBuilder: (_, i) {
                         final log = admin.auditLogs[i];
                         final action = (log['action'] ?? '').toString();
-                        final targetType = (log['targetType'] ?? log['target_type'] ?? '').toString();
-                        final targetId = (log['targetId'] ?? log['target_id'] ?? '').toString();
-                        final actor = (log['actor'] ?? log['userEmail'] ?? log['user_email'] ?? log['userId'] ?? log['user_id'] ?? 'Système').toString();
-                        final createdAtRaw = (log['createdAt'] ?? log['created_at'] ?? '').toString();
+                        final targetType =
+                            (log['targetType'] ?? log['target_type'] ?? '')
+                                .toString();
+                        final targetId =
+                            (log['targetId'] ?? log['target_id'] ?? '')
+                                .toString();
+                        final actor = (log['actor'] ??
+                                log['userEmail'] ??
+                                log['user_email'] ??
+                                log['userId'] ??
+                                log['user_id'] ??
+                                'Système')
+                            .toString();
+                        final createdAtRaw =
+                            (log['createdAt'] ?? log['created_at'] ?? '')
+                                .toString();
                         final createdAt = DateTime.tryParse(createdAtRaw);
                         final when = createdAt == null
                             ? createdAtRaw
                             : '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year} ${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
                         final targetLabel = targetType.isEmpty
                             ? action
-                            : (targetId.isEmpty ? '$action • $targetType' : '$action • $targetType ($targetId)');
+                            : (targetId.isEmpty
+                                ? '$action • $targetType'
+                                : '$action • $targetType ($targetId)');
                         return ListTile(
                           leading: const Icon(Icons.history),
                           title: Text(targetLabel),
@@ -524,15 +634,20 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
       if (poids == null && conso == null) continue;
       points.add({
         'age': age,
-        ...(poids == null ? const <String, dynamic>{} : <String, dynamic>{'poidsG': poids}),
-        ...(conso == null ? const <String, dynamic>{} : <String, dynamic>{'consoCumuleeKg': conso}),
+        ...(poids == null
+            ? const <String, dynamic>{}
+            : <String, dynamic>{'poidsG': poids}),
+        ...(conso == null
+            ? const <String, dynamic>{}
+            : <String, dynamic>{'consoCumuleeKg': conso}),
       });
     }
     points.sort((a, b) => (a['age'] as int).compareTo(b['age'] as int));
     return points;
   }
 
-  Future<List<Map<String, dynamic>>?> _showCourbeDialog(String title, List<dynamic> initial) async {
+  Future<List<Map<String, dynamic>>?> _showCourbeDialog(
+      String title, List<dynamic> initial) async {
     final initialPoints = _normalizeCourbe(initial);
     final byAge = <int, Map<String, dynamic>>{
       for (final point in initialPoints) point['age'] as int: point,
@@ -558,7 +673,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Âge en abscisse, jusqu\'à 500 lignes. Tu peux laisser les lignes inutiles vides.'),
+                const Text(
+                    'Âge en abscisse, jusqu\'à 500 lignes. Tu peux laisser les lignes inutiles vides.'),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Scrollbar(
@@ -571,23 +687,32 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
                             children: [
-                              SizedBox(width: 70, child: Text('Age ${row['age']}')),
+                              SizedBox(
+                                  width: 70, child: Text('Age ${row['age']}')),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: TextFormField(
                                   initialValue: row['poidsText'] as String,
-                                  decoration: const InputDecoration(labelText: 'Poids théorique (g)'),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  onChanged: (value) => row['poidsText'] = value.trim(),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Poids théorique (g)'),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  onChanged: (value) =>
+                                      row['poidsText'] = value.trim(),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: TextFormField(
                                   initialValue: row['consoText'] as String,
-                                  decoration: const InputDecoration(labelText: 'Conso cumulée (kg/tête)'),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  onChanged: (value) => row['consoText'] = value.trim(),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Conso cumulée (kg/tête)'),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  onChanged: (value) =>
+                                      row['consoText'] = value.trim(),
                                 ),
                               ),
                             ],
@@ -601,7 +726,9 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () {
                 final points = <Map<String, dynamic>>[];
@@ -609,18 +736,26 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                   final poidsText = (row['poidsText'] as String).trim();
                   final consoText = (row['consoText'] as String).trim();
                   if (poidsText.isEmpty && consoText.isEmpty) continue;
-                  final poids = poidsText.isEmpty ? null : double.tryParse(poidsText);
-                  final conso = consoText.isEmpty ? null : double.tryParse(consoText);
+                  final poids =
+                      poidsText.isEmpty ? null : double.tryParse(poidsText);
+                  final conso =
+                      consoText.isEmpty ? null : double.tryParse(consoText);
                   if (poids == null && conso == null) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      SnackBar(content: Text('Valeurs invalides à l\'âge ${row['age']}')),
+                      SnackBar(
+                          content:
+                              Text('Valeurs invalides à l\'âge ${row['age']}')),
                     );
                     return;
                   }
                   points.add({
                     'age': row['age'],
-                    ...(poids == null ? const <String, dynamic>{} : <String, dynamic>{'poidsG': poids}),
-                    ...(conso == null ? const <String, dynamic>{} : <String, dynamic>{'consoCumuleeKg': conso}),
+                    ...(poids == null
+                        ? const <String, dynamic>{}
+                        : <String, dynamic>{'poidsG': poids}),
+                    ...(conso == null
+                        ? const <String, dynamic>{}
+                        : <String, dynamic>{'consoCumuleeKg': conso}),
                   });
                 }
                 Navigator.pop(dialogContext, points);
@@ -673,7 +808,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             if ((admin.lastError ?? '').isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(admin.lastError!, style: const TextStyle(color: Colors.redAccent)),
+                child: Text(admin.lastError!,
+                    style: const TextStyle(color: Colors.redAccent)),
               ),
             Expanded(
               child: codes.isEmpty
@@ -683,7 +819,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.vpn_key_outlined, size: 48, color: Colors.grey),
+                            Icon(Icons.vpn_key_outlined,
+                                size: 48, color: Colors.grey),
                             SizedBox(height: 12),
                             Text('Aucun code généré'),
                           ],
@@ -706,7 +843,9 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                           final isUsed = usedAt.isNotEmpty;
                           final expired = !isUsed &&
                               expiresAt.isNotEmpty &&
-                              (DateTime.tryParse(expiresAt)?.isBefore(DateTime.now()) ?? false);
+                              (DateTime.tryParse(expiresAt)
+                                      ?.isBefore(DateTime.now()) ??
+                                  false);
 
                           final Color statusColor = isUsed
                               ? Colors.grey
@@ -738,10 +877,13 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                                     tooltip: 'Copier',
                                     icon: const Icon(Icons.copy, size: 18),
                                     onPressed: () async {
-                                      await Clipboard.setData(ClipboardData(text: code));
+                                      await Clipboard.setData(
+                                          ClipboardData(text: code));
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Code copié')),
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text('Code copié')),
                                       );
                                     },
                                   ),
@@ -750,8 +892,11 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('$statusText${label.isNotEmpty ? ' • $label' : ''}',
-                                      style: TextStyle(color: statusColor, fontWeight: FontWeight.w600)),
+                                  Text(
+                                      '$statusText${label.isNotEmpty ? ' • $label' : ''}',
+                                      style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.w600)),
                                   if (isUsed && usedBy.isNotEmpty)
                                     Text('Par $usedBy le ${_fmtDate(usedAt)}',
                                         style: const TextStyle(fontSize: 12)),
@@ -764,12 +909,18 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                                   ? null
                                   : IconButton(
                                       tooltip: 'Supprimer',
-                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.redAccent),
                                       onPressed: () async {
-                                        final ok = await admin.deleteOnboardingCode(id);
+                                        final ok = await admin
+                                            .deleteOnboardingCode(id);
                                         if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(ok ? 'Code supprimé' : 'Suppression impossible')),
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(ok
+                                                  ? 'Code supprimé'
+                                                  : 'Suppression impossible')),
                                         );
                                       },
                                     ),
@@ -817,7 +968,9 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               final label = labelCtrl.text.trim();
@@ -837,7 +990,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Communique ce code à la personne autorisée :'),
+                        const Text(
+                            'Communique ce code à la personne autorisée :'),
                         const SizedBox(height: 12),
                         SelectableText(
                           code,
@@ -863,13 +1017,17 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                         },
                         child: const Text('Copier'),
                       ),
-                      ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+                      ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Fermer')),
                     ],
                   ),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(admin.lastError ?? 'Génération impossible')),
+                  SnackBar(
+                      content:
+                          Text(admin.lastError ?? 'Génération impossible')),
                 );
               }
             },
@@ -897,14 +1055,23 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nom, decoration: const InputDecoration(labelText: 'Nom')),
-                TextField(controller: prenom, decoration: const InputDecoration(labelText: 'Prénom')),
-                TextField(controller: email, decoration: const InputDecoration(labelText: 'Email')),
+                TextField(
+                    controller: nom,
+                    decoration: const InputDecoration(labelText: 'Nom')),
+                TextField(
+                    controller: prenom,
+                    decoration: const InputDecoration(labelText: 'Prénom')),
+                TextField(
+                    controller: email,
+                    decoration: const InputDecoration(labelText: 'Email')),
                 InternationalPhoneField(
                   controller: phone,
                   labelText: 'Téléphone',
                 ),
-                TextField(controller: mdp, decoration: const InputDecoration(labelText: 'Mot de passe temporaire')),
+                TextField(
+                    controller: mdp,
+                    decoration: const InputDecoration(
+                        labelText: 'Mot de passe temporaire')),
                 DropdownButtonFormField<String>(
                   initialValue: role,
                   items: _userRoleOptions
@@ -922,12 +1089,15 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () async {
                 final emailValue = email.text.trim();
                 final formattedPhone = phone.text.trim();
-                if (emailValue.isEmpty || !isValidInternationalPhone(formattedPhone)) {
+                if (emailValue.isEmpty ||
+                    !isValidInternationalPhone(formattedPhone)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Email et téléphone valides requis.'),
@@ -942,7 +1112,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
                   'email': emailValue,
                   'telephone': formattedPhone,
                   'role': role,
-                  if (mdp.text.trim().isNotEmpty) 'motDePasseTemporaire': mdp.text.trim(),
+                  if (mdp.text.trim().isNotEmpty)
+                    'motDePasseTemporaire': mdp.text.trim(),
                 });
 
                 if (!context.mounted) return;
@@ -964,7 +1135,8 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
     );
   }
 
-  Future<void> _confirmDeleteUser(String id, String fullName, String email) async {
+  Future<void> _confirmDeleteUser(
+      String id, String fullName, String email) async {
     final label = fullName.trim().isEmpty ? email : fullName;
     final ok = await showDialog<bool>(
       context: context,
@@ -972,7 +1144,9 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
         title: const Text('Supprimer utilisateur'),
         content: Text('Supprimer "$label" ?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -987,7 +1161,10 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
     final deleted = await admin.deleteUser(id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(deleted ? 'Utilisateur supprimé' : 'Erreur suppression utilisateur: ${admin.lastError ?? 'inconnue'}')),
+      SnackBar(
+          content: Text(deleted
+              ? 'Utilisateur supprimé'
+              : 'Erreur suppression utilisateur: ${admin.lastError ?? 'inconnue'}')),
     );
   }
 }
