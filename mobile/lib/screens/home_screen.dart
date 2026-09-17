@@ -14,6 +14,7 @@ import 'roadmap_screen.dart';
 import 'profile_screen.dart';
 import 'config_screen.dart';
 import '../providers/auth_provider.dart';
+import '../providers/nav_hub_provider.dart';
 
 class _ModuleItem {
   final Widget page;
@@ -40,6 +41,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // À l'entrée dans l'app (après connexion) on affiche la page hub.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<NavHubProvider>().reset();
+    });
+  }
 
   final List<_ModuleItem> _modules = const [
     _ModuleItem(
@@ -126,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final navHub = context.watch<NavHubProvider>();
     final isWide = MediaQuery.of(context).size.width >= 1000;
     final accessibleModules = _modules.where((m) {
       if (m.adminOnly && !auth.isAdmin) return false;
@@ -134,6 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (accessibleModules.isEmpty) {
       return const Scaffold(body: Center(child: Text('Aucun module autorisé')));
+    }
+
+    // Page d'accueil hub : grille de modules affichée après connexion.
+    if (navHub.showHub) {
+      return _buildHub(context, auth, accessibleModules);
     }
 
     if (_currentIndex >= accessibleModules.length) {
@@ -179,6 +195,144 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : accessibleModules[_currentIndex].page,
       bottomNavigationBar: isWide ? null : _buildBottomNav(accessibleModules),
+    );
+  }
+
+  // Palette de couleurs pour les tuiles de modules du hub (cyclique).
+  static const List<Color> _hubColors = [
+    Color(0xFF2E7D32), // vert
+    Color(0xFF1565C0), // bleu
+    Color(0xFF6A1B9A), // violet
+    Color(0xFFAD1457), // rose
+    Color(0xFFEF6C00), // orange
+    Color(0xFF00838F), // cyan
+    Color(0xFF4E342E), // brun
+    Color(0xFF283593), // indigo
+    Color(0xFFC62828), // rouge
+    Color(0xFF00695C), // teal
+    Color(0xFF558B2F), // vert olive
+    Color(0xFF37474F), // bleu-gris
+    Color(0xFF7B1FA2), // violet foncé
+  ];
+
+  Widget _buildHub(BuildContext context, AuthProvider auth, List<_ModuleItem> modules) {
+    final prenom = (auth.user?['prenom'] ?? '').toString().trim();
+    final size = MediaQuery.of(context).size;
+    final crossAxisCount = size.width > 900 ? 5 : (size.width > 600 ? 4 : 3);
+
+    return Scaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0B5D3B), Color(0xFF2E7D32)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Image.asset('assets/logo/namofarm.png', height: 40,
+                            errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            auth.appName,
+                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      prenom.isNotEmpty ? 'Bienvenue, $prenom 👋' : 'Bienvenue 👋',
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Choisissez un module pour commencer.',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                  childAspectRatio: 0.95,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final m = modules[i];
+                    final color = _hubColors[i % _hubColors.length];
+                    return _hubTile(context, m.mobileDestination, color, () {
+                      setState(() => _currentIndex = i);
+                      context.read<NavHubProvider>().goModule();
+                    });
+                  },
+                  childCount: modules.length,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _hubTile(BuildContext context, NavigationDestination dest, Color color, VoidCallback onTap) {
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: IconTheme(
+                  data: IconThemeData(color: color, size: 26),
+                  child: dest.selectedIcon ?? dest.icon,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                dest.label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
