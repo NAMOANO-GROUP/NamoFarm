@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/brand_logo.dart';
 import 'package:provider/provider.dart';
 
+import '../config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/international_phone_field.dart';
@@ -119,7 +120,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-          )
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'NamoFarm • Version $kAppVersion',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );

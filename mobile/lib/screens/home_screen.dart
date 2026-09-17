@@ -13,6 +13,8 @@ import 'finance_screen.dart';
 import 'roadmap_screen.dart';
 import 'profile_screen.dart';
 import 'config_screen.dart';
+import 'help_screen.dart';
+import '../config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/nav_hub_provider.dart';
 
@@ -22,6 +24,7 @@ class _ModuleItem {
   final NavigationDestination mobileDestination;
   final String permission;
   final bool adminOnly;
+  final bool alwaysVisible;
 
   const _ModuleItem({
     required this.page,
@@ -29,6 +32,7 @@ class _ModuleItem {
     required this.mobileDestination,
     required this.permission,
     this.adminOnly = false,
+    this.alwaysVisible = false,
   });
 }
 
@@ -131,6 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
       permission: 'config:view',
       adminOnly: true,
     ),
+    _ModuleItem(
+      page: HelpScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.help_outline), selectedIcon: Icon(Icons.help), label: 'Aide'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.help_outline), selectedIcon: Icon(Icons.help), label: 'Aide'),
+      permission: 'dashboard:view',
+      alwaysVisible: true,
+    ),
   ];
 
   @override
@@ -139,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final navHub = context.watch<NavHubProvider>();
     final isWide = MediaQuery.of(context).size.width >= 1000;
     final accessibleModules = _modules.where((m) {
+      if (m.alwaysVisible) return true;
       if (m.adminOnly && !auth.isAdmin) return false;
       return auth.hasPermission(m.permission);
     }).toList();
@@ -259,6 +271,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'v$kAppVersion',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],

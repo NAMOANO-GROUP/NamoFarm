@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+/// Version publique de l'application (doit rester alignée avec pubspec.yaml).
+const String kAppVersion = '1.0.0';
+
 const String _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
 
 String get baseUrl {
