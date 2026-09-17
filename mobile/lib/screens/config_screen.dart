@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/international_phone_field.dart';
+import '../widgets/brand_logo.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -73,6 +74,7 @@ class _ConfigScreenState extends State<ConfigScreen> with SingleTickerProviderSt
     ];
     return Scaffold(
       appBar: AppBar(
+        leading: const BrandLogo(),
         title: const Text('Configuration administrateur'),
         bottom: TabBar(
           controller: _tabController,

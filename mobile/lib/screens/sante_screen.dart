@@ -7,6 +7,8 @@ import '../models/sante.dart';
 import '../providers/sante_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/form_section.dart';
 
 class SanteScreen extends StatefulWidget {
   const SanteScreen({super.key});
@@ -116,7 +118,14 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
           if (provider.lastError != null && provider.lastError!.isNotEmpty)
             Card(color: Theme.of(context).brightness == Brightness.dark ? Colors.red.shade900.withValues(alpha: 0.30) : Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)))),
           if (provider.protocoles.isEmpty)
-            const Padding(padding: EdgeInsets.only(top: 40), child: Center(child: Text('Aucun protocole vaccinal')))
+            const Padding(
+              padding: EdgeInsets.only(top: 40),
+              child: EmptyState(
+                icon: Icons.vaccines_outlined,
+                title: 'Aucun protocole vaccinal',
+                subtitle: 'Créez un protocole pour générer les tâches de vaccination des bandes.',
+              ),
+            )
           else
             ...provider.protocoles.map(_protocoleCard),
         ],
@@ -177,7 +186,9 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const FormSection('Informations', icon: Icons.info_outline, padding: EdgeInsets.only(bottom: 4)),
                 TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom du protocole *')),
                 DropdownButtonFormField<String>(
                   initialValue: type,
@@ -336,7 +347,11 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
           if (traitements.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 40),
-              child: Center(child: Text(_registreBandeFilter.isEmpty ? 'Aucun traitement enregistré' : 'Aucun traitement pour cette bande')),
+              child: EmptyState(
+                icon: Icons.medical_services_outlined,
+                title: _registreBandeFilter.isEmpty ? 'Aucun traitement enregistré' : 'Aucun traitement pour cette bande',
+                subtitle: 'Enregistrez vaccinations et traitements pour suivre les délais d’attente.',
+              ),
             )
           else
             ...traitements.map(_traitementCard),

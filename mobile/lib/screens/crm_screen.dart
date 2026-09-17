@@ -15,6 +15,7 @@ import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/international_phone_field.dart';
+import '../widgets/form_section.dart';
 
 class CrmScreen extends StatefulWidget {
   const CrmScreen({super.key});
@@ -224,11 +225,14 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const FormSection('Identité', icon: Icons.person_outline, padding: EdgeInsets.only(bottom: 4)),
                 TextField(controller: prenom, decoration: const InputDecoration(labelText: 'Prénom *')),
                 TextField(controller: nom, decoration: const InputDecoration(labelText: 'Nom *')),
                 InternationalPhoneField(controller: telephone, labelText: 'Téléphone *'),
                 TextField(controller: email, decoration: const InputDecoration(labelText: 'Email')),
+                const FormSection('Localisation & activité', icon: Icons.place_outlined),
                 TextField(controller: adresse, decoration: const InputDecoration(labelText: 'Adresse *')),
                 DropdownButtonFormField<String>(
                   initialValue: typeClient,
@@ -245,6 +249,7 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                   decoration: const InputDecoration(labelText: 'Activité / commentaire *'),
                 ),
                 TextField(controller: entreprise, decoration: const InputDecoration(labelText: 'Entreprise')),
+                const FormSection('Statut', icon: Icons.flag_outlined),
                 DropdownButtonFormField<String>(
                   initialValue: statut,
                   items: const [
@@ -331,11 +336,14 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const FormSection('Identité', icon: Icons.person_outline, padding: EdgeInsets.only(bottom: 4)),
                 TextField(controller: prenom, decoration: const InputDecoration(labelText: 'Prénom *')),
                 TextField(controller: nom, decoration: const InputDecoration(labelText: 'Nom *')),
                 InternationalPhoneField(controller: telephone, labelText: 'Téléphone *'),
                 TextField(controller: email, decoration: const InputDecoration(labelText: 'Email')),
+                const FormSection('Localisation & activité', icon: Icons.place_outlined),
                 TextField(controller: adresse, decoration: const InputDecoration(labelText: 'Adresse *')),
                 DropdownButtonFormField<String>(
                   initialValue: typeClient,
@@ -352,6 +360,7 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                   decoration: const InputDecoration(labelText: 'Activité / commentaire *'),
                 ),
                 TextField(controller: entreprise, decoration: const InputDecoration(labelText: 'Entreprise')),
+                const FormSection('Statut', icon: Icons.flag_outlined),
                 DropdownButtonFormField<String>(
                   initialValue: statut,
                   items: const [

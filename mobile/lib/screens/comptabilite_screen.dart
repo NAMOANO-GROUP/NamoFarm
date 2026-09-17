@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../utils/money_format.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/stat_tile.dart';
 
 class ComptabiliteScreen extends StatefulWidget {
   const ComptabiliteScreen({super.key});
@@ -66,7 +68,14 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                   _buildTotauxCard(),
                   const SizedBox(height: 8),
                   if (_bandes.isEmpty)
-                    const Padding(padding: EdgeInsets.only(top: 40), child: Center(child: Text('Aucune bande')))
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: EmptyState(
+                        icon: Icons.calculate_outlined,
+                        title: 'Aucune bande',
+                        subtitle: 'La comptabilité par bande apparaîtra ici une fois des bandes créées.',
+                      ),
+                    )
                   else
                     ..._bandes.map(_buildBandeCard),
                 ],
@@ -103,12 +112,15 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
     final marge = _n(b['margeNette']);
     final coutParKg = b['coutParKg'];
     final type = (b['typeVolaille'] ?? '').toString();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final margeColor = marge >= 0 ? Colors.green : Colors.red;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: marge >= 0 ? Colors.green.shade100 : Colors.red.shade100,
-          child: Icon(marge >= 0 ? Icons.trending_up : Icons.trending_down, color: marge >= 0 ? Colors.green.shade700 : Colors.red),
+          backgroundColor: margeColor.withValues(alpha: isDark ? 0.25 : 0.15),
+          child: Icon(marge >= 0 ? Icons.trending_up : Icons.trending_down,
+              color: isDark ? (marge >= 0 ? Colors.green.shade300 : Colors.red.shade300) : (marge >= 0 ? Colors.green.shade700 : Colors.red)),
         ),
         title: Text((b['bandeNom'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
@@ -131,7 +143,7 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                 _row('Dépenses bande', formatAmountFcfa(_n(b['depenses']))),
                 _row('Coût total', formatAmountFcfa(_n(b['coutTotal'])), bold: true),
                 _row('Revenus', formatAmountFcfa(_n(b['revenus']))),
-                _row('Marge nette', '${formatAmountFcfa(marge)} (${_n(b['tauxMarge']).toStringAsFixed(1)} %)', bold: true),
+                _row('Marge nette', '${formatAmountFcfa(marge)} (${_n(b['tauxMarge']).toStringAsFixed(1)} %)', bold: true, valueColor: margeColor),
                 const Divider(),
                 _row('Coût de revient / sujet', formatAmountFcfa(_n(b['coutParSujet']))),
                 _row('Seuil rentabilité / sujet', formatAmountFcfa(_n(b['seuilRentabiliteParSujet']))),
@@ -145,23 +157,7 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
     );
   }
 
-  Widget _row(String label, String value, {bool bold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label, style: const TextStyle(color: Colors.grey))),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal),
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget _row(String label, String value, {bool bold = false, Color? valueColor}) {
+    return StatRow(label, value, bold: bold, valueColor: valueColor);
   }
 }

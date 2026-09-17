@@ -294,9 +294,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _hubTile(BuildContext context, NavigationDestination dest, Color color, VoidCallback onTap) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: isDark ? Colors.white.withValues(alpha: 0.06) : Theme.of(context).cardColor,
+      color: color.withValues(alpha: isDark ? 0.06 : 0.10),
       borderRadius: BorderRadius.circular(16),
-      elevation: isDark ? 0 : 1,
+      elevation: 0,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -304,8 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? color.withValues(alpha: 0.55) : Colors.grey.withValues(alpha: 0.20),
-              width: isDark ? 1.2 : 1,
+              color: color.withValues(alpha: isDark ? 0.55 : 0.60),
+              width: 1.4,
             ),
           ),
           padding: const EdgeInsets.all(10),
@@ -316,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: isDark ? 0.25 : 0.15),
+                  color: color.withValues(alpha: isDark ? 0.28 : 0.20),
                   shape: BoxShape.circle,
                 ),
                 child: IconTheme(

@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../models/couvee.dart';
 import '../providers/reproduction_provider.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/stat_tile.dart';
 
 class ReproductionScreen extends StatefulWidget {
   const ReproductionScreen({super.key});
@@ -100,7 +102,11 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
         if (couvees.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 40),
-            child: Center(child: Text('Aucune couvée')),
+            child: EmptyState(
+              icon: Icons.egg_alt_outlined,
+              title: 'Aucune couvée',
+              subtitle: 'Mettez des œufs en incubation pour suivre l’éclosion.',
+            ),
           )
         else
           ...couvees.map(_buildCouveeCard),
@@ -137,13 +143,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
   }
 
   Widget _stat(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      ],
-    );
+    return StatChip(label, value);
   }
 
   Widget _buildHatchChart(List<Couvee> couvees) {

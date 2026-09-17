@@ -9,6 +9,7 @@ import 'poids_screen.dart';
 import 'climat_screen.dart';
 import 'mortalite_screen.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/stat_tile.dart';
 
 class SuiviScreen extends StatefulWidget {
   final Bande bande;
@@ -709,15 +710,6 @@ class _SuiviScreenState extends State<SuiviScreen> {
   }
 
   Widget _statRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
+    return StatRow(label, value);
   }
 }

@@ -8,6 +8,8 @@ import '../models/cheptel.dart';
 import '../providers/cheptel_provider.dart';
 import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/stat_tile.dart';
 
 class CheptelScreen extends StatefulWidget {
   const CheptelScreen({super.key});
@@ -79,7 +81,11 @@ class _CheptelScreenState extends State<CheptelScreen> {
                 if (provider.cheptels.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 40),
-                    child: Center(child: Text('Aucun cheptel. Créez-en un (chèvres, poules locales, pintades...).')),
+                    child: EmptyState(
+                      icon: Icons.pets_outlined,
+                      title: 'Aucun cheptel',
+                      subtitle: 'Créez un cheptel (chèvres, poules locales, pintades...) pour commencer.',
+                    ),
                   )
                 else
                   ...provider.cheptels.map(_buildCheptelCard),
@@ -176,13 +182,7 @@ class _CheptelScreenState extends State<CheptelScreen> {
   }
 
   Widget _stat(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ],
-    );
+    return StatChip(label, value);
   }
 
   Widget _buildEffectifChart(Cheptel c) {

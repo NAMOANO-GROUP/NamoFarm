@@ -12,6 +12,7 @@ import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/status_pill.dart';
+import '../widgets/empty_state.dart';
 import 'comptabilite_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
@@ -241,7 +242,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   title: Text('Afficher historique (${provider.mouvements.length})'),
                   children: [
                     if (provider.mouvements.isEmpty)
-                      const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Aucun mouvement enregistre')))
+                      const Card(child: Padding(padding: EdgeInsets.all(20), child: EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Aucun mouvement',
+                        subtitle: 'Les entrées et sorties de trésorerie apparaîtront ici.',
+                      )))
                     else
                       ...provider.mouvements.map(_buildMouvementTile),
                   ],
