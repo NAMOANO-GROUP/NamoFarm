@@ -9,6 +9,7 @@ import '../providers/reproduction_provider.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/stat_tile.dart';
+import '../widgets/add_button.dart';
 
 class ReproductionScreen extends StatefulWidget {
   const ReproductionScreen({super.key});
@@ -55,11 +56,10 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: IconButton.filled(
+            child: AddButton(
               tooltip: 'Mise en incubation',
+              icon: Icons.egg_alt,
               onPressed: () => _showSetupForm(),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.add, size: 18),
             ),
           ),
         ],

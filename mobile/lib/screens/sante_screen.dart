@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/form_section.dart';
+import '../widgets/add_button.dart';
 
 class SanteScreen extends StatefulWidget {
   const SanteScreen({super.key});
@@ -81,11 +82,10 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
             padding: const EdgeInsets.only(right: 12),
             child: AnimatedBuilder(
               animation: _tabController,
-              builder: (context, _) => IconButton.filled(
+              builder: (context, _) => AddButton(
                 tooltip: _tabController.index == 0 ? 'Nouveau protocole' : 'Nouveau traitement',
+                icon: _tabController.index == 0 ? Icons.vaccines : Icons.medication,
                 onPressed: () => _tabController.index == 0 ? _showProtocoleForm() : _showTraitementForm(),
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.add, size: 18),
               ),
             ),
           ),

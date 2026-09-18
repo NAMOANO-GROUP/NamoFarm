@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/brand_logo.dart';
+import '../widgets/add_button.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/bandes_provider.dart';
@@ -47,11 +48,10 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: IconButton.filled(
+            child: AddButton(
               tooltip: 'Nouvelle bande',
+              icon: Icons.post_add,
               onPressed: () => _showAjouterBandeDialog(),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.add, size: 18),
             ),
           ),
         ],

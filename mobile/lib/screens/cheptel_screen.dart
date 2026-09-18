@@ -10,6 +10,7 @@ import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/stat_tile.dart';
+import '../widgets/add_button.dart';
 
 class CheptelScreen extends StatefulWidget {
   const CheptelScreen({super.key});
@@ -73,11 +74,10 @@ class _CheptelScreenState extends State<CheptelScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: IconButton.filled(
+            child: AddButton(
               tooltip: 'Nouveau cheptel',
+              icon: Icons.pets,
               onPressed: () => _showCheptelForm(),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.add, size: 18),
             ),
           ),
         ],
