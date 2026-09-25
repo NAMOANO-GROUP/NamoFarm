@@ -10,6 +10,9 @@ import 'climat_screen.dart';
 import 'mortalite_screen.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/stat_tile.dart';
+import '../widgets/number_field.dart';
+import '../widgets/async_button.dart';
+import '../utils/number_input.dart';
 
 class SuiviScreen extends StatefulWidget {
   final Bande bande;
@@ -374,17 +377,17 @@ class _SuiviScreenState extends State<SuiviScreen> {
                   onChanged: (v) => setDialogState(() => prophylaxieStockId = (v == null || v.isEmpty) ? null : v),
                   decoration: const InputDecoration(labelText: 'Consommable prophylaxie lié (optionnel)'),
                 ),
-                TextField(
+                NumberField(
                   controller: prophylaxieQteCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Quantité prophylaxie prévue (optionnel)'),
+                  label: 'Quantité prophylaxie prévue (optionnel)',
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Planifier'),
               onPressed: () async {
                 if (widget.bande.id == null || widget.bande.id!.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -398,7 +401,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
                   );
                   return;
                 }
-                final prophylaxieQte = double.tryParse(prophylaxieQteCtrl.text.trim()) ?? 0;
+                final prophylaxieQte = parseAmount(prophylaxieQteCtrl.text) ?? 0;
                 if (prophylaxieStockId != null && prophylaxieQte <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Renseigne une quantité prophylaxie > 0 ou enlève le consommable sélectionné')),
@@ -433,7 +436,6 @@ class _SuiviScreenState extends State<SuiviScreen> {
                   _loadEvents();
                 }
               },
-              child: const Text('Planifier'),
             ),
           ],
         ),
@@ -489,19 +491,19 @@ class _SuiviScreenState extends State<SuiviScreen> {
                   onChanged: (v) => setDialogState(() => prophylaxieStockId = (v == null || v.isEmpty) ? null : v),
                   decoration: const InputDecoration(labelText: 'Consommable prophylaxie utilisé (optionnel)'),
                 ),
-                TextField(
+                NumberField(
                   controller: prophylaxieQteCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Quantité prophylaxie consommée (optionnel)'),
+                  label: 'Quantité prophylaxie consommée (optionnel)',
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Confirmer'),
               onPressed: () async {
-                final prophylaxieQte = double.tryParse(prophylaxieQteCtrl.text.trim()) ?? 0;
+                final prophylaxieQte = parseAmount(prophylaxieQteCtrl.text) ?? 0;
                 if (prophylaxieStockId != null && prophylaxieQte <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Renseigne une quantité prophylaxie > 0 ou enlève le consommable sélectionné')),
@@ -535,7 +537,6 @@ class _SuiviScreenState extends State<SuiviScreen> {
                   _loadStocks();
                 }
               },
-              child: const Text('Confirmer'),
             ),
           ],
         ),

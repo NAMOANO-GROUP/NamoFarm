@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/add_button.dart';
+import '../widgets/number_field.dart';
+import '../utils/number_input.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/bandes_provider.dart';
@@ -346,9 +348,9 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                   decoration: const InputDecoration(labelText: 'Type de volaille'),
                 ),
                 TextField(controller: raceController, decoration: const InputDecoration(labelText: 'Race *')),
-                TextField(controller: nombreController, decoration: const InputDecoration(labelText: 'Nombre de poussins *'), keyboardType: TextInputType.number),
-                TextField(controller: poidsArriveeCtrl, decoration: const InputDecoration(labelText: 'Poids arrivée (g)'), keyboardType: TextInputType.number),
-                TextField(controller: objectifPoidsCtrl, decoration: const InputDecoration(labelText: 'Objectif poids (g)'), keyboardType: TextInputType.number),
+                NumberField(controller: nombreController, label: 'Nombre de poussins *', decimal: false),
+                NumberField(controller: poidsArriveeCtrl, label: 'Poids arrivée (g)'),
+                NumberField(controller: objectifPoidsCtrl, label: 'Objectif poids (g)'),
                 TextField(controller: batimentCtrl, decoration: const InputDecoration(labelText: 'Bâtiment')),
                 if (protocoles.isNotEmpty)
                   DropdownButtonFormField<String>(
@@ -401,9 +403,9 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                   'nom': nomController.text,
                   'typeVolaille': selectedType,
                   'race': raceController.text,
-                  'nombreInitial': int.parse(nombreController.text),
-                  'poidsArriveeG': double.tryParse(poidsArriveeCtrl.text) ?? 0,
-                  'objectifPoidsG': double.tryParse(objectifPoidsCtrl.text) ?? 0,
+                  'nombreInitial': parseInteger(nombreController.text) ?? 0,
+                  'poidsArriveeG': parseAmount(poidsArriveeCtrl.text) ?? 0,
+                  'objectifPoidsG': parseAmount(objectifPoidsCtrl.text) ?? 0,
                   'batiment': batimentCtrl.text,
                   'dateOuverture': dateOuverture.toIso8601String(),
                   if (selectedProtocoleId != null && selectedProtocoleId!.isNotEmpty) 'protocoleId': selectedProtocoleId,

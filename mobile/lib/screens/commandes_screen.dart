@@ -11,6 +11,9 @@ import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/international_phone_field.dart';
 import '../widgets/status_pill.dart';
+import '../widgets/number_field.dart';
+import '../widgets/async_button.dart';
+import '../utils/number_input.dart';
 
 class CommandesScreen extends StatefulWidget {
   final bool embedded;
@@ -36,7 +39,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
   ];
 
   double _parseDecimal(String value) {
-    final normalized = value.trim().replaceAll(',', '.');
+    final normalized = value.replaceAll('\u00A0', '').replaceAll(' ', '').trim().replaceAll(',', '.');
     if (normalized.isEmpty) return 0;
     return double.tryParse(normalized) ?? 0;
   }
@@ -473,8 +476,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
             children: [
               const Text('Produit:', style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(controller: produitNomController, decoration: const InputDecoration(labelText: 'Nom du produit')),
-              TextField(controller: produitQteController, decoration: const InputDecoration(labelText: 'Quantité'), keyboardType: TextInputType.number),
-              TextField(controller: produitPrixController, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+              NumberField(controller: produitQteController, label: 'Quantité', decimal: false),
+              NumberField(controller: produitPrixController, label: 'Prix unitaire (FCFA)'),
             ],
           ),
         ),
@@ -483,7 +486,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
           ElevatedButton(
             onPressed: () {
               if (produitNomController.text.isEmpty) return;
-              final qte = int.tryParse(produitQteController.text) ?? 0;
+              final qte = parseInteger(produitQteController.text) ?? 0;
               final prix = _parseDecimal(produitPrixController.text);
               Navigator.pop(ctx);
               _selectBandePuisClientPourCommande(
@@ -863,16 +866,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   controller: nomProduitCtrl,
                   decoration: const InputDecoration(labelText: 'Nom du produit *'),
                 ),
-                TextField(
-                  controller: quantiteCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Quantité *'),
-                ),
-                TextField(
-                  controller: prixCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA) *'),
-                ),
+                NumberField(controller: quantiteCtrl, label: 'Quantité *', decimal: false),
+                NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA) *'),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date de livraison'),
@@ -911,13 +906,14 @@ class _CommandesScreenState extends State<CommandesScreen> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler'),
             ),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Enregistrer'),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(rootContext);
                 final navigator = Navigator.of(dialogContext);
 
                 final nomProduit = nomProduitCtrl.text.trim();
-                final quantite = int.tryParse(quantiteCtrl.text.trim()) ?? 0;
+                final quantite = parseInteger(quantiteCtrl.text) ?? 0;
                 final prix = _parseDecimal(prixCtrl.text);
                 if (commande.id == null || commande.id!.isEmpty) {
                   messenger.showSnackBar(const SnackBar(content: Text('Commande invalide')));
@@ -946,7 +942,6 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   SnackBar(content: Text(ok ? 'Commande modifiée' : 'Erreur modification commande')),
                 );
               },
-              child: const Text('Enregistrer'),
             ),
           ],
         ),

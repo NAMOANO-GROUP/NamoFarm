@@ -6,6 +6,8 @@ import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/international_phone_field.dart';
 import '../widgets/brand_logo.dart';
+import '../widgets/number_field.dart';
+import '../utils/number_input.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -411,7 +413,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                     'poulet_chair': {
                       'dureeJours': int.tryParse(pouletDureeCtrl.text) ?? 42,
                       'poidsFinalG':
-                          double.tryParse(pouletPoidsCtrl.text) ?? 2500,
+                          parseAmount(pouletPoidsCtrl.text) ?? 2500,
                       'consoTotaleKgParTete':
                           double.tryParse(pouletConsoCtrl.text) ?? 4.2,
                       'courbeTheorique':
@@ -420,7 +422,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                     'poule_pondeuse': {
                       'dureeJours': int.tryParse(pondeuseDureeCtrl.text) ?? 140,
                       'poidsFinalG':
-                          double.tryParse(pondeusePoidsCtrl.text) ?? 1800,
+                          parseAmount(pondeusePoidsCtrl.text) ?? 1800,
                       'consoTotaleKgParTete':
                           double.tryParse(pondeuseConsoCtrl.text) ?? 14.0,
                       'courbeTheorique':
@@ -429,7 +431,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                     'dinde': {
                       'dureeJours': int.tryParse(dindeDureeCtrl.text) ?? 90,
                       'poidsFinalG':
-                          double.tryParse(dindePoidsCtrl.text) ?? 7000,
+                          parseAmount(dindePoidsCtrl.text) ?? 7000,
                       'consoTotaleKgParTete':
                           double.tryParse(dindeConsoCtrl.text) ?? 18.0,
                       'courbeTheorique':
@@ -438,7 +440,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                     'canard': {
                       'dureeJours': int.tryParse(canardDureeCtrl.text) ?? 50,
                       'poidsFinalG':
-                          double.tryParse(canardPoidsCtrl.text) ?? 3200,
+                          parseAmount(canardPoidsCtrl.text) ?? 3200,
                       'consoTotaleKgParTete':
                           double.tryParse(canardConsoCtrl.text) ?? 6.0,
                       'courbeTheorique':
@@ -447,7 +449,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                     'autre': {
                       'dureeJours': int.tryParse(autreDureeCtrl.text) ?? 45,
                       'poidsFinalG':
-                          double.tryParse(autrePoidsCtrl.text) ?? 2500,
+                          parseAmount(autrePoidsCtrl.text) ?? 2500,
                       'consoTotaleKgParTete':
                           double.tryParse(autreConsoCtrl.text) ?? 5.0,
                       'courbeTheorique':
@@ -506,12 +508,9 @@ class _ConfigScreenState extends State<ConfigScreen>
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: poids,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration:
-                        const InputDecoration(labelText: 'Poids final (g)'),
+                    label: 'Poids final (g)',
                   ),
                 ),
                 const SizedBox(width: 8),

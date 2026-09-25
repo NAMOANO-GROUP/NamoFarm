@@ -10,6 +10,9 @@ import '../widgets/iso_calendar_picker.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/add_button.dart';
+import '../widgets/number_field.dart';
+import '../widgets/async_button.dart';
+import '../utils/number_input.dart';
 
 class ReproductionScreen extends StatefulWidget {
   const ReproductionScreen({super.key});
@@ -380,7 +383,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               children: [
                 TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Code / référence *')),
                 TextField(controller: raceCtrl, decoration: const InputDecoration(labelText: 'Race')),
-                TextField(controller: incubesCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Œufs mis en incubation *')),
+                NumberField(controller: incubesCtrl, label: 'Œufs mis en incubation *', decimal: false),
                 _dateTile('Date de mise en incubation', date, () async {
                   final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
                   if (picked != null) setDialog(() => date = picked);
@@ -395,7 +398,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               onPressed: () {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
-                final incubes = int.tryParse(incubesCtrl.text.trim());
+                final incubes = parseInteger(incubesCtrl.text);
                 if (codeCtrl.text.trim().isEmpty || incubes == null) {
                   messenger.showSnackBar(const SnackBar(content: Text('Code et nombre d\'œufs obligatoires')));
                   return;
@@ -432,7 +435,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               children: [
                 Text('Œufs mis en incubation: ${c.nbOeufsIncubes}'),
                 const SizedBox(height: 8),
-                TextField(controller: fertilesCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Œufs fertiles *')),
+                NumberField(controller: fertilesCtrl, label: 'Œufs fertiles *', decimal: false),
                 _dateTile('Date du mirage', date, () async {
                   final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
                   if (picked != null) setDialog(() => date = picked);
@@ -446,7 +449,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               onPressed: () {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
-                final fertiles = int.tryParse(fertilesCtrl.text.trim());
+                final fertiles = parseInteger(fertilesCtrl.text);
                 if (fertiles == null) {
                   messenger.showSnackBar(const SnackBar(content: Text('Nombre d\'œufs fertiles obligatoire')));
                   return;
@@ -482,8 +485,8 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               children: [
                 Text('Œufs fertiles: ${c.nbOeufsFertiles ?? '-'} / incubés: ${c.nbOeufsIncubes}'),
                 const SizedBox(height: 8),
-                TextField(controller: eclosCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Poussins éclos *')),
-                TextField(controller: viablesCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Poussins viables')),
+                NumberField(controller: eclosCtrl, label: 'Poussins éclos *', decimal: false),
+                NumberField(controller: viablesCtrl, label: 'Poussins viables', decimal: false),
                 _dateTile('Date d\'éclosion', date, () async {
                   final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
                   if (picked != null) setDialog(() => date = picked);
@@ -497,14 +500,14 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               onPressed: () {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
-                final eclos = int.tryParse(eclosCtrl.text.trim());
+                final eclos = parseInteger(eclosCtrl.text);
                 if (eclos == null) {
                   messenger.showSnackBar(const SnackBar(content: Text('Nombre de poussins éclos obligatoire')));
                   return;
                 }
                 _saveStage(c.id, {
                   'nbEclos': eclos,
-                  'nbPoussinsViables': int.tryParse(viablesCtrl.text.trim()),
+                  'nbPoussinsViables': parseInteger(viablesCtrl.text),
                   'dateEclosion': date.toIso8601String(),
                   'statut': 'eclos',
                 }, navigator, messenger, isCreate: false);
@@ -531,7 +534,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
     DateTime? dateEclosion = couvee?.dateEclosion;
     String statut = couvee?.statut ?? 'en_incubation';
 
-    int? parseIntOrNull(String s) => s.trim().isEmpty ? null : int.tryParse(s.trim());
+    int? parseIntOrNull(String s) => s.trim().isEmpty ? null : parseInteger(s);
 
     showDialog(
       context: context,
@@ -544,11 +547,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               children: [
                 TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Code / référence *')),
                 TextField(controller: raceCtrl, decoration: const InputDecoration(labelText: 'Race')),
-                TextField(
-                  controller: incubesCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Œufs incubés *'),
-                ),
+                NumberField(controller: incubesCtrl, label: 'Œufs incubés *', decimal: false),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date mise en incubation'),
@@ -566,11 +565,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                 ),
                 const Divider(),
                 const Align(alignment: Alignment.centerLeft, child: Text('Mirage', style: TextStyle(fontWeight: FontWeight.bold))),
-                TextField(
-                  controller: fertilesCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Œufs fertiles (au mirage)'),
-                ),
+                NumberField(controller: fertilesCtrl, label: 'Œufs fertiles (au mirage)', decimal: false),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date mirage'),
@@ -588,16 +583,8 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                 ),
                 const Divider(),
                 const Align(alignment: Alignment.centerLeft, child: Text('Éclosion', style: TextStyle(fontWeight: FontWeight.bold))),
-                TextField(
-                  controller: eclosCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Poussins éclos'),
-                ),
-                TextField(
-                  controller: viablesCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Poussins viables'),
-                ),
+                NumberField(controller: eclosCtrl, label: 'Poussins éclos', decimal: false),
+                NumberField(controller: viablesCtrl, label: 'Poussins viables', decimal: false),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date éclosion'),
@@ -628,7 +615,8 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Enregistrer'),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
@@ -664,7 +652,6 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                   ),
                 );
               },
-              child: const Text('Enregistrer'),
             ),
           ],
         ),

@@ -11,6 +11,9 @@ import '../widgets/iso_calendar_picker.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/add_button.dart';
+import '../widgets/number_field.dart';
+import '../widgets/async_button.dart';
+import '../utils/number_input.dart';
 
 class CheptelScreen extends StatefulWidget {
   const CheptelScreen({super.key});
@@ -355,14 +358,15 @@ class _CheptelScreenState extends State<CheptelScreen> {
                   onChanged: (v) => setDialog(() => espece = v ?? espece),
                 ),
                 if (!isEdit)
-                  TextField(controller: effectifCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Effectif initial (optionnel)')),
+                  NumberField(controller: effectifCtrl, label: 'Effectif initial (optionnel)', decimal: false),
                 TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
               ],
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Enregistrer'),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
@@ -380,14 +384,13 @@ class _CheptelScreenState extends State<CheptelScreen> {
                     : await provider.creerCheptel({
                         'nom': nomCtrl.text.trim(),
                         'espece': espece,
-                        'effectifInitial': int.tryParse(effectifCtrl.text.trim()) ?? 0,
+                        'effectifInitial': parseInteger(effectifCtrl.text) ?? 0,
                         'notes': notesCtrl.text.trim(),
                       });
                 if (!mounted) return;
                 navigator.pop();
                 messenger.showSnackBar(SnackBar(content: Text(ok ? 'Enregistré' : 'Erreur: ${provider.lastError ?? ''}')));
               },
-              child: const Text('Enregistrer'),
             ),
           ],
         ),
@@ -406,8 +409,8 @@ class _CheptelScreenState extends State<CheptelScreen> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (dialogContext, setDialog) {
-          final qtePreview = int.tryParse(qteCtrl.text.trim()) ?? 0;
-          final prixPreview = double.tryParse(prixUnitaireCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+          final qtePreview = parseInteger(qteCtrl.text) ?? 0;
+          final prixPreview = parseAmount(prixUnitaireCtrl.text) ?? 0;
           final totalPreview = qtePreview * prixPreview;
           return AlertDialog(
           title: Text('Mouvement — ${c.nom}'),
@@ -423,20 +426,15 @@ class _CheptelScreenState extends State<CheptelScreen> {
                   items: _mvtLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
                   onChanged: (v) => setDialog(() => type = v ?? type),
                 ),
-                TextField(
+                NumberField(
                   controller: qteCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: type == 'ajustement' ? 'Nouvel effectif *' : 'Quantité *',
-                  ),
-                  onChanged: (_) => setDialog(() {}),
+                  label: type == 'ajustement' ? 'Nouvel effectif *' : 'Quantité *',
+                  decimal: false,
                 ),
                 if (type == 'vente' || type == 'entree') ...[
-                  TextField(
+                  NumberField(
                     controller: prixUnitaireCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'),
-                    onChanged: (_) => setDialog(() {}),
+                    label: 'Prix unitaire (FCFA)',
                   ),
                   if (qtePreview > 0 && prixPreview > 0) ...[
                     const SizedBox(height: 6),
@@ -465,17 +463,19 @@ class _CheptelScreenState extends State<CheptelScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            AsyncButton(
+              label: const Text('Enregistrer'),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
                 final provider = context.read<CheptelProvider>();
-                final qte = int.tryParse(qteCtrl.text.trim());
+                final qte = parseInteger(qteCtrl.text);
                 if (qte == null || qte < 0) {
                   messenger.showSnackBar(const SnackBar(content: Text('Quantité invalide')));
                   return;
                 }
-                final prixUnitaire = double.tryParse(prixUnitaireCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+                final prixUnitaire = parseAmount(prixUnitaireCtrl.text) ?? 0;
                 final montantTotal = qte * prixUnitaire;
                 final ok = await provider.ajouterMouvement(c.id!, {
                   'type': type,
@@ -488,7 +488,6 @@ class _CheptelScreenState extends State<CheptelScreen> {
                 navigator.pop();
                 messenger.showSnackBar(SnackBar(content: Text(ok ? 'Mouvement enregistré' : 'Erreur: ${provider.lastError ?? ''}')));
               },
-              child: const Text('Enregistrer'),
             ),
           ],
         );
