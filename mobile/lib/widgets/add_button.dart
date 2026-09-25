@@ -25,7 +25,26 @@ class AddButton extends StatelessWidget {
         foregroundColor: scheme.onPrimary,
         shape: const CircleBorder(),
       ),
-      icon: Icon(icon, size: 20),
+      // Icône thématique + petit badge "+" pour signaler l'ajout.
+      icon: SizedBox(
+        width: 24,
+        height: 24,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(icon, size: 18),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                decoration: BoxDecoration(color: scheme.onPrimary, shape: BoxShape.circle),
+                padding: const EdgeInsets.all(1),
+                child: Icon(Icons.add, size: 10, color: scheme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

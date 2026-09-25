@@ -52,7 +52,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
             padding: const EdgeInsets.only(right: 12),
             child: AddButton(
               tooltip: 'Nouvelle bande',
-              icon: Icons.post_add,
+              icon: Icons.egg,
               onPressed: () => _showAjouterBandeDialog(),
             ),
           ),

@@ -8,6 +8,7 @@ import '../widgets/iso_calendar_picker.dart';
 import '../utils/money_format.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/number_field.dart';
+import '../widgets/add_button.dart';
 
 class StocksScreen extends StatefulWidget {
   const StocksScreen({super.key});
@@ -122,11 +123,10 @@ class _StocksScreenState extends State<StocksScreen> {
                 alignment: Alignment.centerRight,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: IconButton.filled(
+                  child: AddButton(
                     tooltip: 'Nouveau stock',
+                    icon: Icons.inventory_2_outlined,
                     onPressed: () => _showAjouterStockDialog(),
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.add, size: 18),
                   ),
                 ),
               ),

@@ -34,6 +34,36 @@ class _FinanceScreenState extends State<FinanceScreen> {
     return double.tryParse(normalized);
   }
 
+  Widget _financeActionTile(String label, IconData icon, List<Color> gradient, VoidCallback onTap) {
+    return Material(
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.20), shape: BoxShape.circle),
+                child: Icon(icon, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   static const List<Map<String, String>> _sourceOptions = [
     {'value': '', 'label': 'Tous les types'},
     {'value': 'approvisionnement', 'label': 'Approvisionnement'},
@@ -153,18 +183,20 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _showAjouterDepenseDialog,
-                        icon: const Icon(Icons.remove_circle_outline),
-                        label: const Text('Ajouter depense'),
+                      child: _financeActionTile(
+                        'Ajouter dépense',
+                        Icons.remove_circle_outline,
+                        const [Color(0xFF7A1F1F), Color(0xFFC62828)],
+                        _showAjouterDepenseDialog,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _showApprovisionnementDialog,
-                        icon: const Icon(Icons.add_circle_outline),
-                        label: const Text('Approvisionner'),
+                      child: _financeActionTile(
+                        'Approvisionner',
+                        Icons.add_circle_outline,
+                        const [Color(0xFF0B5D3B), Color(0xFF2E7D32)],
+                        _showApprovisionnementDialog,
                       ),
                     ),
                   ],

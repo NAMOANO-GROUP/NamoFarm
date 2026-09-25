@@ -5,6 +5,7 @@ import '../models/client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/fournisseurs_provider.dart';
 import '../widgets/international_phone_field.dart';
+import '../widgets/add_button.dart';
 
 class FournisseursTab extends StatefulWidget {
   const FournisseursTab({super.key});
@@ -67,11 +68,10 @@ class _FournisseursTabState extends State<FournisseursTab> {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: IconButton.filled(
+                child: AddButton(
                   tooltip: 'Nouveau fournisseur',
+                  icon: Icons.business,
                   onPressed: _showAjoutFournisseur,
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.business, size: 18),
                 ),
               ),
             ),
