@@ -43,10 +43,14 @@ async function authenticate(req, res, next) {
       }
     }
 
+    // L'email est stocké dans Supabase auth (pas dans profiles) : on prend celui du
+    // token en repli pour que la détection super-admin fonctionne côté API.
+    const email = (profile.email || payload.email || '').toString();
+
     req.user = {
       _id: profile.id,
       id: profile.id,
-      email: profile.email || '',
+      email,
       role: toAppRole(profile.role),
       permissions: Array.isArray(profile.permissions) ? profile.permissions : [],
       actif: profile.actif !== false,
@@ -55,7 +59,7 @@ async function authenticate(req, res, next) {
       nomComplet: fullName,
       fullName,
       telephone: profile.telephone || '',
-      isSuperadmin: isSuperadminEmail(profile.email || ''),
+      isSuperadmin: isSuperadminEmail(email),
     };
     next();
   } catch (err) {

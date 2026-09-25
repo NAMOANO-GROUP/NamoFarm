@@ -27,6 +27,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   String? _error;
   List<Map<String, dynamic>> _bandes = [];
   Map<String, dynamic> _totaux = {};
+  Map<String, dynamic> _global = {}; // Totaux ferme-wide (toutes ventes/depenses, all-time).
 
   int? _filtreAnnee; // null = toutes
   int? _filtreMois; // null = tous
@@ -51,10 +52,21 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
+      // Totaux de toute la ferme (all-time) : toutes les ventes et dépenses, pas seulement par bande.
+      Map<String, dynamic> global = {};
+      try {
+        global = await ApiService.getGlobalDashboard(
+          dateFrom: DateTime(2000, 1, 1),
+          dateTo: DateTime.now(),
+        );
+      } catch (_) {
+        global = {};
+      }
       if (!mounted) return;
       setState(() {
         _bandes = bandes;
         _totaux = Map<String, dynamic>.from(data['totaux'] ?? {});
+        _global = global;
         _loading = false;
       });
     } catch (e) {
@@ -263,32 +275,69 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+          child: _tendanceCard(
+            'Tendance des ventes',
+            Icons.trending_up,
+            const [Color(0xFF0B5D3B), Color(0xFF2E7D32)],
+            () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const TendanceScreen(titre: 'Tendance des ventes', kind: 'ventes', color: Colors.green),
             )),
-            icon: const Icon(Icons.trending_up),
-            label: const Text('Tendance des ventes'),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+          child: _tendanceCard(
+            'Tendance des dépenses',
+            Icons.trending_down,
+            const [Color(0xFF7A1F1F), Color(0xFFC62828)],
+            () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const TendanceScreen(titre: 'Tendance des dépenses', kind: 'depenses', color: Colors.red),
             )),
-            icon: const Icon(Icons.trending_down),
-            label: const Text('Tendance des dépenses'),
           ),
         ),
       ],
     );
   }
 
+  Widget _tendanceCard(String titre, IconData icon, List<Color> gradient, VoidCallback onTap) {
+    return Material(
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.20), shape: BoxShape.circle),
+                    child: Icon(icon, color: Colors.white, size: 20),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right, color: Colors.white70, size: 20),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(titre, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text('Histogramme 12 mois', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _crmBloc(DashboardProvider provider) {
-    final g = provider.global;
+    final g = _global.isNotEmpty ? _global : provider.global;
     final crm = provider.crm;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final items = [
@@ -314,10 +363,11 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
 
   Widget _totauxBloc() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ca = _n(_totaux['revenus']);
-    final depense = _n(_totaux['coutTotal']);
-    final benefice = _n(_totaux['margeNette']);
-    final marge = _n(_totaux['tauxMarge']);
+    // Totaux de toute la ferme : CA = toutes les ventes, Dépense = toutes les sorties de trésorerie.
+    final ca = _n(_global['chiffreAffairesTotal']);
+    final depense = _n(_global['depensesTotales']);
+    final benefice = _n(_global['beneficeNet']);
+    final marge = _n(_global['marge']);
     return GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),

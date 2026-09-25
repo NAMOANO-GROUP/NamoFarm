@@ -297,6 +297,17 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
       }
     }
 
+    // Pas de l'axe des jours calculé sur l'étendue réelle ET la largeur d'écran,
+    // pour éviter le chevauchement des libellés sur petit écran.
+    final allX = <double>[...spots.map((s) => s.x), ...secondSpots.map((s) => s.x)];
+    final maxX = allX.isEmpty ? 1.0 : allX.reduce((a, b) => a > b ? a : b);
+    final width = MediaQuery.of(context).size.width;
+    final targetTicks = width < 360 ? 4 : (width < 500 ? 6 : 8);
+    double xStep = maxX / targetTicks;
+    if (xStep < 1) xStep = 1;
+    const nicePas = [1.0, 2.0, 5.0, 7.0, 10.0, 14.0, 20.0, 30.0, 60.0];
+    xStep = nicePas.firstWhere((n) => n >= xStep, orElse: () => (xStep / 10).ceilToDouble() * 10);
+
     return LineChart(
       LineChartData(
         minX: 1,
@@ -319,11 +330,15 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 26,
-              interval: spots.length > 30 ? 10 : spots.length > 15 ? 5 : 2,
-              getTitlesWidget: (value, meta) => Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 9)),
-              ),
+              interval: xStep,
+              getTitlesWidget: (value, meta) {
+                // On ne dépasse pas le dernier jour réel.
+                if (value < 1 || value > maxX + 0.5) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 9)),
+                );
+              },
             ),
           ),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),

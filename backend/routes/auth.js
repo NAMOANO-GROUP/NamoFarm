@@ -26,7 +26,7 @@ function normalizeInternationalPhone(value) {
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, role: user.role },
+    { id: user.id, role: user.role, email: user.email || '' },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
   );

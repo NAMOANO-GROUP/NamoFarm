@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../utils/money_format.dart';
-import '../widgets/brand_logo.dart';
 
 /// Bilan financier simple d'une bande (données issues de /finance/analytique).
 class BandeBilanScreen extends StatelessWidget {
@@ -29,7 +28,6 @@ class BandeBilanScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const BrandLogo(),
         title: Text(nom),
       ),
       body: ListView(

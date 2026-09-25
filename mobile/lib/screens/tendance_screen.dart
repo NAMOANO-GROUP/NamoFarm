@@ -3,7 +3,6 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../services/api_service.dart';
 import '../utils/money_format.dart';
-import '../widgets/brand_logo.dart';
 
 /// Page dédiée montrant la tendance mensuelle (ventes ou dépenses) sur 12 mois,
 /// avec un filtre Année propre à la page.
@@ -79,7 +78,6 @@ class _TendanceScreenState extends State<TendanceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const BrandLogo(),
         title: Text(widget.titre),
       ),
       body: _loading
