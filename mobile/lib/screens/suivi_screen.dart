@@ -160,42 +160,32 @@ class _SuiviScreenState extends State<SuiviScreen> {
             _buildEventsPrevisionnels(),
             const SizedBox(height: 16),
 
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            GridView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: 62,
+              ),
               children: [
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => PoidsScreen(bande: bande)));
-                  },
-                  icon: const Icon(Icons.monitor_weight),
-                  label: const Text('Prise de poids'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (_) => AlimentationScreen(bande: bande)));
-                    if (!mounted) return;
-                    await _loadForecast();
-                  },
-                  icon: const Icon(Icons.restaurant),
-                  label: const Text('Suivi alimentation'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (_) => MortaliteScreen(bande: bande)));
-                    if (!mounted) return;
-                    await _loadForecast();
-                  },
-                  icon: const Icon(Icons.health_and_safety),
-                  label: const Text('Mortalité'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ClimatScreen(bande: bande)));
-                  },
-                  icon: const Icon(Icons.thermostat),
-                  label: const Text('Température/Humidité'),
-                ),
+                _actionTile('Prise de poids', Icons.monitor_weight, Colors.blue, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => PoidsScreen(bande: bande)));
+                }),
+                _actionTile('Suivi alimentation', Icons.restaurant, Colors.brown, () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => AlimentationScreen(bande: bande)));
+                  if (!mounted) return;
+                  await _loadForecast();
+                }),
+                _actionTile('Mortalité', Icons.health_and_safety, Colors.red, () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => MortaliteScreen(bande: bande)));
+                  if (!mounted) return;
+                  await _loadForecast();
+                }),
+                _actionTile('Température/Humidité', Icons.thermostat, Colors.teal, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ClimatScreen(bande: bande)));
+                }),
               ],
             ),
             const SizedBox(height: 16),
@@ -721,5 +711,46 @@ class _SuiviScreenState extends State<SuiviScreen> {
 
   Widget _statRow(String label, String value) {
     return StatRow(label, value);
+  }
+
+  Widget _actionTile(String label, IconData icon, Color color, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: isDark ? 0.40 : 0.25)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05), blurRadius: 8, offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(color: color.withValues(alpha: isDark ? 0.28 : 0.14), shape: BoxShape.circle),
+                child: Icon(icon, size: 19, color: isDark ? _lighten(color) : color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _lighten(Color c, [double amount = 0.25]) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
   }
 }
