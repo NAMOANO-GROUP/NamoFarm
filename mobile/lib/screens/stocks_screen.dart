@@ -7,6 +7,7 @@ import '../models/stock.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../utils/money_format.dart';
 import '../widgets/filter_styles.dart';
+import '../widgets/number_field.dart';
 
 class StocksScreen extends StatefulWidget {
   const StocksScreen({super.key});
@@ -29,7 +30,7 @@ class _StocksScreenState extends State<StocksScreen> {
   ];
 
   double? _parseDecimal(String value) {
-    final normalized = value.trim().replaceAll(',', '.');
+    final normalized = value.replaceAll('\u00A0', '').replaceAll(' ', '').trim().replaceAll(',', '.');
     if (normalized.isEmpty) return null;
     return double.tryParse(normalized);
   }
@@ -471,20 +472,16 @@ class _StocksScreenState extends State<StocksScreen> {
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () => choisirDate(setDialogState),
                 ),
-              TextField(
+              NumberField(
                 controller: qteCtrl,
-                decoration: InputDecoration(
-                  labelText: type == 'ajustement'
-                      ? 'Nouvelle quantité (${stock.unite})'
-                      : 'Quantité (${stock.unite})',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                label: type == 'ajustement'
+                    ? 'Nouvelle quantité (${stock.unite})'
+                    : 'Quantité (${stock.unite})',
               ),
               if (type == 'entree' || type == 'ajustement')
-                TextField(
+                NumberField(
                   controller: prixCtrl,
-                  decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  label: 'Prix unitaire (FCFA)',
                 ),
               TextField(controller: motifCtrl, decoration: const InputDecoration(labelText: 'Motif')),
             ],
@@ -636,8 +633,8 @@ class _StocksScreenState extends State<StocksScreen> {
                   decoration: const InputDecoration(labelText: 'Catégorie'),
                 ),
                 TextField(controller: uniteCtrl, decoration: const InputDecoration(labelText: 'Unité (kg, litres, boîtes...)')),
-                TextField(controller: seuilCtrl, decoration: const InputDecoration(labelText: 'Seuil d\'alerte'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                TextField(controller: prixCtrl, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                NumberField(controller: seuilCtrl, label: 'Seuil d\'alerte'),
+                NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)'),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date *'),
@@ -708,8 +705,8 @@ class _StocksScreenState extends State<StocksScreen> {
                   decoration: const InputDecoration(labelText: 'Catégorie'),
                 ),
                 TextField(controller: uniteCtrl, decoration: const InputDecoration(labelText: 'Unité (kg, litres, boîtes...)')),
-                TextField(controller: seuilCtrl, decoration: const InputDecoration(labelText: 'Seuil d\'alerte'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                TextField(controller: prixCtrl, decoration: const InputDecoration(labelText: 'Prix unitaire (FCFA)'), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                NumberField(controller: seuilCtrl, label: 'Seuil d\'alerte'),
+                NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)'),
                 TextField(controller: fournisseurCtrl, decoration: const InputDecoration(labelText: 'Fournisseur')),
                 TextField(controller: emplacementCtrl, decoration: const InputDecoration(labelText: 'Emplacement')),
                 TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'Notes'), maxLines: 2),

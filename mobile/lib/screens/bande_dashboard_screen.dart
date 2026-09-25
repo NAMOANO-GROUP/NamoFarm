@@ -67,7 +67,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
           const SizedBox(height: 12),
           _cardChart(
             'Courbe de croissance (réel vs théorique)',
-            _lineChart(growth, 'poids', Colors.green, yUnit: 'g', second: theoriqueGrowth, secondYKey: 'poids', secondColor: Colors.orange),
+            _lineChart(growth, 'poids', Colors.green, yUnit: 'g', second: theoriqueGrowth, secondYKey: 'poids', secondColor: Colors.orange, interpolateReal: true),
             legend: const [
               _LegendItem('Réel', Colors.green),
               _LegendItem('Théorique', Colors.orange),
@@ -274,14 +274,20 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     List<dynamic>? second,
     String? secondYKey,
     Color? secondColor,
+    bool interpolateReal = false,
   }) {
     if (raw.isEmpty) return const Center(child: Text('Pas de données'));
 
     final spots = <FlSpot>[];
     for (var i = 0; i < raw.length; i++) {
       final age = (raw[i]['age'] ?? (i + 1)).toDouble();
-      spots.add(FlSpot(age, (raw[i][yKey] ?? 0).toDouble()));
+      final y = (raw[i][yKey] ?? 0).toDouble();
+      // On ne garde que les jours réellement pesés pour relier les points (pesée hebdomadaire).
+      if (interpolateReal && y <= 0) continue;
+      spots.add(FlSpot(age, y));
     }
+    spots.sort((a, b) => a.x.compareTo(b.x));
+    if (spots.isEmpty) return const Center(child: Text('Pas de données'));
 
     final secondSpots = <FlSpot>[];
     if (second != null && secondYKey != null && second.isNotEmpty) {
@@ -324,7 +330,13 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         lineBarsData: [
-          LineChartBarData(spots: spots, isCurved: true, color: color, barWidth: 3, dotData: const FlDotData(show: false)),
+          LineChartBarData(
+            spots: spots,
+            isCurved: !interpolateReal,
+            color: color,
+            barWidth: 3,
+            dotData: FlDotData(show: interpolateReal),
+          ),
           if (secondSpots.isNotEmpty)
             LineChartBarData(
               spots: secondSpots,

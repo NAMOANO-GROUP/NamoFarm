@@ -254,6 +254,8 @@ function mapBandeRow(row) {
     dureeElevageJours: Number(row.duree_elevage_jours || 45),
     batiment: row.batiment || '',
     coutPoussin: Number(row.cout_poussin || 0),
+    coutFixeParSujet: Number(row.cout_fixe_par_sujet || 0),
+    amortissementParSujet: Number(row.amortissement_par_sujet || 0),
     suiviJournalier,
     evenementsSante,
     evenementsPrevisionnels,
@@ -571,6 +573,8 @@ router.put('/:id', requirePermission('bandes.update'), async (req, res) => {
       dureeElevageJours: 'duree_elevage_jours',
       batiment: 'batiment',
       coutPoussin: 'cout_poussin',
+      coutFixeParSujet: 'cout_fixe_par_sujet',
+      amortissementParSujet: 'amortissement_par_sujet',
       notes: 'notes',
     };
 

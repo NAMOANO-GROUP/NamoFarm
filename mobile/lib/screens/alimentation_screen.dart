@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
 
 import '../models/bande.dart';
 import '../providers/bandes_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/number_field.dart';
+import '../utils/number_input.dart';
 
 class AlimentationScreen extends StatefulWidget {
   final Bande bande;
@@ -100,7 +101,7 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
   }
 
   Future<void> _enregistrer() async {
-    final alimentation = double.tryParse(_alimentationCtrl.text.replaceAll(',', '.')) ?? 0;
+    final alimentation = parseAmount(_alimentationCtrl.text) ?? 0;
     final observations = _obsCtrl.text.trim();
     if (alimentation <= 0 || observations.isEmpty || _selectedAlimentStockId == null || _selectedAlimentStockId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,7 +117,7 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
       'alimentationStockId': _selectedAlimentStockId,
       'alimentationType': _stockNameById(_selectedAlimentStockId),
       'mortaliteJour': 0,
-      'eauLitres': double.tryParse(_eauCtrl.text.replaceAll(',', '.')) ?? 0,
+      'eauLitres': parseAmount(_eauCtrl.text) ?? 0,
       'observations': observations,
     });
 
@@ -159,13 +160,9 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
               if (d != null) setState(() => _date = d);
             },
           ),
-          TextField(
+          NumberField(
             controller: _alimentationCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
-            decoration: const InputDecoration(labelText: 'Alimentation (kg) *'),
+            label: 'Alimentation (kg) *',
           ),
           DropdownButtonFormField<String>(
             initialValue: _selectedAlimentStockId,
@@ -185,13 +182,9 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
             maxLines: 2,
             decoration: const InputDecoration(labelText: 'Observations *'),
           ),
-          TextField(
+          NumberField(
             controller: _eauCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
-            decoration: const InputDecoration(labelText: 'Eau (litres) (optionnel)'),
+            label: 'Eau (litres) (optionnel)',
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(

@@ -8,6 +8,8 @@ import '../providers/finance_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
+import '../widgets/number_field.dart';
+import '../widgets/async_button.dart';
 import '../utils/money_format.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
@@ -27,7 +29,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   bool _showMouvements = false;
 
   double? _parseDecimal(String value) {
-    final normalized = value.trim().replaceAll(',', '.');
+    final normalized = value.replaceAll('\u00A0', '').replaceAll(' ', '').trim().replaceAll(',', '.');
     if (normalized.isEmpty) return null;
     return double.tryParse(normalized);
   }
@@ -992,7 +994,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     });
                   },
                 ),
-                TextField(controller: montantCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Montant *')),
+                NumberField(controller: montantCtrl, label: 'Montant *'),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date'),
@@ -1016,7 +1018,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Enregistrer'),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
@@ -1045,7 +1048,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   SnackBar(content: Text(ok ? 'Depense enregistree' : 'Erreur enregistrement depense')),
                 );
               },
-              child: const Text('Enregistrer'),
             ),
           ],
         ),
@@ -1071,7 +1073,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               children: [
                 TextField(controller: quiPrenomCtrl, decoration: const InputDecoration(labelText: 'Prenom *')),
                 TextField(controller: quiNomCtrl, decoration: const InputDecoration(labelText: 'Nom *')),
-                TextField(controller: montantCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Montant *')),
+                NumberField(controller: montantCtrl, label: 'Montant *'),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date'),
@@ -1095,7 +1097,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
+            AsyncButton(
+              label: const Text('Enregistrer'),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
@@ -1117,7 +1120,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   SnackBar(content: Text(ok ? 'Approvisionnement enregistre' : 'Erreur enregistrement approvisionnement')),
                 );
               },
-              child: const Text('Enregistrer'),
             ),
           ],
         ),

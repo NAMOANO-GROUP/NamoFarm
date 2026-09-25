@@ -6,6 +6,8 @@ import '../models/bande.dart';
 import '../providers/bandes_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/number_field.dart';
+import '../utils/number_input.dart';
 
 class PoidsScreen extends StatefulWidget {
   final Bande bande;
@@ -51,7 +53,7 @@ class _PoidsScreenState extends State<PoidsScreen> {
   }
 
   Future<void> _enregistrer() async {
-    final poids = double.tryParse(_poidsCtrl.text) ?? 0;
+    final poids = parseAmount(_poidsCtrl.text) ?? 0;
     if (poids <= 0) return;
 
     setState(() => _loading = true);
@@ -98,10 +100,9 @@ class _PoidsScreenState extends State<PoidsScreen> {
               if (d != null) setState(() => _date = d);
             },
           ),
-          TextField(
+          NumberField(
             controller: _poidsCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Poids moyen (g) *'),
+            label: 'Poids moyen (g) *',
           ),
           TextField(
             controller: _obsCtrl,

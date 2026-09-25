@@ -141,6 +141,8 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                 _row('Coût poussins', formatAmountFcfa(_n(b['coutPoussins']))),
                 _row('Coût aliment/conso', formatAmountFcfa(_n(b['coutAliment']))),
                 _row('Dépenses bande', formatAmountFcfa(_n(b['depenses']))),
+                _row('Coût Fixe', formatAmountFcfa(_n(b['coutFixe']))),
+                _row('Amortissement', formatAmountFcfa(_n(b['coutAmortissement']))),
                 _row('Coût total', formatAmountFcfa(_n(b['coutTotal'])), bold: true),
                 _row('Revenus', formatAmountFcfa(_n(b['revenus']))),
                 _row('Marge nette', '${formatAmountFcfa(marge)} (${_n(b['tauxMarge']).toStringAsFixed(1)} %)', bold: true, valueColor: margeColor),
@@ -149,6 +151,15 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                 _row('Seuil rentabilité / sujet', formatAmountFcfa(_n(b['seuilRentabiliteParSujet']))),
                 if (coutParKg != null) _row('Coût de revient / kg', formatAmountFcfa(_n(coutParKg))),
                 if (_n(b['poidsMoyenKg']) > 0) _row('Poids moyen', '${_n(b['poidsMoyenKg']).toStringAsFixed(2)} kg'),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showCoutsForm(b),
+                    icon: const Icon(Icons.tune, size: 18),
+                    label: const Text('Coût Fixe & Amortissement'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -159,5 +170,60 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
 
   Widget _row(String label, String value, {bool bold = false, Color? valueColor}) {
     return StatRow(label, value, bold: bold, valueColor: valueColor);
+  }
+
+  Future<void> _showCoutsForm(Map<String, dynamic> b) async {
+    final bandeId = (b['bandeId'] ?? '').toString();
+    if (bandeId.isEmpty) return;
+    final coutFixeCtrl = TextEditingController(text: _n(b['coutFixeParSujet']) == 0 ? '' : _n(b['coutFixeParSujet']).toString());
+    final amortCtrl = TextEditingController(text: _n(b['amortissementParSujet']) == 0 ? '' : _n(b['amortissementParSujet']).toString());
+    final effectif = _n(b['effectifVivant']);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Coût Fixe & Amortissement'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Montants par sujet (appliqués à ${effectif.toStringAsFixed(0)} sujets).',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: coutFixeCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Coût Fixe / sujet (FCFA)'),
+              ),
+              TextField(
+                controller: amortCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Amortissement / sujet (FCFA)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Enregistrer')),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ApiService.mettreAJourBande(bandeId, {
+        'coutFixeParSujet': double.tryParse(coutFixeCtrl.text.trim().replaceAll(',', '.')) ?? 0,
+        'amortissementParSujet': double.tryParse(amortCtrl.text.trim().replaceAll(',', '.')) ?? 0,
+      });
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Coûts mis à jour')));
+      await _charger();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Erreur: ${e.toString().replaceFirst('Exception: ', '')}')));
+    }
   }
 }

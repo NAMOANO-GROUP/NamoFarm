@@ -6,6 +6,8 @@ import '../models/bande.dart';
 import '../providers/bandes_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/iso_calendar_picker.dart';
+import '../widgets/number_field.dart';
+import '../utils/number_input.dart';
 
 class MortaliteScreen extends StatefulWidget {
   final Bande bande;
@@ -57,7 +59,7 @@ class _MortaliteScreenState extends State<MortaliteScreen> {
   }
 
   Future<void> _enregistrer() async {
-    final mortalite = int.tryParse(_mortaliteCtrl.text) ?? -1;
+    final mortalite = parseInteger(_mortaliteCtrl.text) ?? -1;
     if (mortalite <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('La mortalité du jour doit être supérieure à 0')),
@@ -109,10 +111,10 @@ class _MortaliteScreenState extends State<MortaliteScreen> {
               if (d != null) setState(() => _date = d);
             },
           ),
-          TextField(
+          NumberField(
             controller: _mortaliteCtrl,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Mortalité du jour *'),
+            label: 'Mortalité du jour *',
+            decimal: false,
           ),
           TextField(
             controller: _obsCtrl,

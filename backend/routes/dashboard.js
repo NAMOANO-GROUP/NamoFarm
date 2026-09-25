@@ -261,6 +261,53 @@ router.get('/global', requireAnyPermission(['dashboard.sales', 'dashboard.tech',
   }
 });
 
+// Ventes et dépenses agrégées par mois (12 mois) pour une année donnée.
+router.get('/tendance-mensuelle', requireAnyPermission(['dashboard.sales', 'dashboard.tech', 'dashboard.full']), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+    const year = Number(req.query.year) || new Date().getUTCFullYear();
+    const start = new Date(Date.UTC(year, 0, 1));
+    const end = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+    const cmdRes = await api
+      .from('commandes')
+      .select('montant_total,created_at')
+      .eq('company_id', companyId)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString());
+    if (cmdRes.error) return res.status(500).json({ message: cmdRes.error.message });
+
+    const tresoRes = await api
+      .from('tresorerie_mouvements')
+      .select('montant,nature,date_mouvement')
+      .eq('company_id', companyId)
+      .gte('date_mouvement', start.toISOString())
+      .lte('date_mouvement', end.toISOString());
+    if (tresoRes.error) return res.status(500).json({ message: tresoRes.error.message });
+
+    const ventes = new Array(12).fill(0);
+    for (const c of cmdRes.data || []) {
+      const m = new Date(c.created_at).getUTCMonth();
+      ventes[m] += Number(c.montant_total || 0);
+    }
+    const depenses = new Array(12).fill(0);
+    for (const d of tresoRes.data || []) {
+      if (d.nature !== 'sortie') continue;
+      const m = new Date(d.date_mouvement).getUTCMonth();
+      depenses[m] += Number(d.montant || 0);
+    }
+
+    return res.json({
+      year,
+      ventes: ventes.map((total, i) => ({ mois: i + 1, total: Number(total.toFixed(2)) })),
+      depenses: depenses.map((total, i) => ({ mois: i + 1, total: Number(total.toFixed(2)) })),
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 router.get('/bandes/:id/suivi', requireAnyPermission(['dashboard.sales', 'dashboard.tech', 'dashboard.full']), async (req, res) => {
   try {
     const api = getAdminClient();

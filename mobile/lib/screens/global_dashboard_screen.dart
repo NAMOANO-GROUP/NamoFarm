@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../widgets/brand_logo.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/dashboard_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../utils/money_format.dart';
-import '../widgets/iso_calendar_picker.dart';
+import '../widgets/brand_logo.dart';
+import 'tendance_screen.dart';
+import 'bande_bilan_screen.dart';
 
 class GlobalDashboardScreen extends StatefulWidget {
   const GlobalDashboardScreen({super.key});
@@ -17,17 +18,18 @@ class GlobalDashboardScreen extends StatefulWidget {
 }
 
 class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
-  static const List<Map<String, String>> _periodOptions = [
-    {'value': 'jour', 'label': 'Jour'},
-    {'value': 'semaine', 'label': 'Semaine'},
-    {'value': 'mois', 'label': 'Mois'},
-    {'value': 'annee', 'label': 'Année'},
-  ];
-
   static const List<String> _moisFr = [
     'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
   ];
+
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _bandes = [];
+  Map<String, dynamic> _totaux = {};
+
+  int? _filtreAnnee; // null = toutes
+  int? _filtreMois; // null = tous
 
   @override
   void initState() {
@@ -35,6 +37,59 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().chargerDashboards();
     });
+    _chargerAnalytique();
+  }
+
+  Future<void> _chargerAnalytique() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await ApiService.getComptabiliteAnalytique();
+      final bandes = (data['bandes'] as List? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _bandes = bandes;
+        _totaux = Map<String, dynamic>.from(data['totaux'] ?? {});
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  num _n(dynamic v) => (v ?? 0) as num;
+
+  DateTime? _dateOuverture(Map<String, dynamic> b) => DateTime.tryParse((b['dateOuverture'] ?? '').toString());
+
+  List<Map<String, dynamic>> get _bandesActives {
+    return _bandes.where((b) {
+      if ((b['statut'] ?? '').toString() != 'ouverte') return false;
+      final d = _dateOuverture(b);
+      if (_filtreAnnee != null && (d == null || d.year != _filtreAnnee)) return false;
+      if (_filtreMois != null && (d == null || d.month != _filtreMois)) return false;
+      return true;
+    }).toList()
+      ..sort((a, b) => (_dateOuverture(b) ?? DateTime(2000)).compareTo(_dateOuverture(a) ?? DateTime(2000)));
+  }
+
+  List<int> get _anneesDispo {
+    final years = _bandes
+        .where((b) => (b['statut'] ?? '').toString() == 'ouverte')
+        .map((b) => _dateOuverture(b)?.year)
+        .whereType<int>()
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    return years;
   }
 
   @override
@@ -46,454 +101,291 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
-            tooltip: 'Rapport PDF',
+            tooltip: 'Rapport',
             onPressed: _showExportLinks,
           ),
         ],
       ),
-      body: Consumer<DashboardProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final g = provider.global;
-          final crm = provider.crm;
-
-          if (g.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Aucune donnée disponible'),
-                    if ((provider.lastError ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        provider.lastError!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: () async {
+                await _chargerAnalytique();
+                if (mounted) await context.read<DashboardProvider>().chargerDashboards();
+              },
+              child: ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  if (_error != null && _error!.isNotEmpty)
+                    Card(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.red.shade900.withValues(alpha: 0.30)
+                          : Colors.red.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.red.shade200 : Colors.red),
+                        ),
                       ),
-                    ],
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => provider.chargerDashboards(),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Réessayer'),
                     ),
-                  ],
-                ),
+                  _sectionTitle('Bandes actives', Icons.egg_outlined),
+                  const SizedBox(height: 8),
+                  _bandesFiltres(),
+                  const SizedBox(height: 8),
+                  _bandesListe(),
+                  const SizedBox(height: 20),
+                  _boutonsTendance(),
+                  const SizedBox(height: 20),
+                  _sectionTitle('CRM & Commercial', Icons.people_outline),
+                  const SizedBox(height: 8),
+                  Consumer<DashboardProvider>(builder: (_, provider, __) => _crmBloc(provider)),
+                  const SizedBox(height: 20),
+                  _sectionTitle('Totaux globaux', Icons.summarize_outlined),
+                  const SizedBox(height: 8),
+                  _totauxBloc(),
+                  const SizedBox(height: 12),
+                ],
               ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => provider.chargerDashboards(),
-            child: ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                _buildCompactFilters(provider, context),
-                const SizedBox(height: 10),
-                GridView.count(
-                  crossAxisCount: MediaQuery.of(context).size.width > 900 ? 4 : 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: MediaQuery.of(context).size.width > 900
-                      ? 1.6
-                      : (MediaQuery.of(context).size.width < 360 ? 1.25 : 1.45),
-                  children: [
-                    _kpiCard('CA total', formatAmountFcfa(g['chiffreAffairesTotal'] ?? 0), Colors.green, icon: Icons.trending_up),
-                    _kpiCard('Dépenses', formatAmountFcfa(g['depensesTotales'] ?? 0), Colors.red, icon: Icons.trending_down),
-                    _kpiCard('Bénéfice net', formatAmountFcfa(g['beneficeNet'] ?? 0), Colors.blue, icon: Icons.account_balance_wallet),
-                    _kpiCard('Marge', '${(g['marge'] ?? 0).toStringAsFixed(2)} %', Colors.orange, icon: Icons.percent),
-                    _kpiCard('Consommation aliment', '${(g['consoAliment'] ?? 0).toStringAsFixed(2)} kg', Colors.brown, icon: Icons.restaurant),
-                    _kpiCard('Taux mortalité', '${(g['tauxMortalite'] ?? 0).toStringAsFixed(2)} %', Colors.deepOrange, icon: Icons.warning_amber),
-                    _kpiCard('Clients actifs', '${g['clientsActifs'] ?? 0}', Colors.teal, icon: Icons.people),
-                    _kpiCard('Commandes', '${g['nbCommandes'] ?? 0}', Colors.purple, icon: Icons.shopping_cart),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _chartCard('Évolution des ventes', _lineChartFromAgg(g['ventesParPeriode'] ?? [], Colors.green)),
-                const SizedBox(height: 12),
-                _chartCard('Évolution des dépenses', _lineChartFromAgg(g['depensesParPeriode'] ?? [], Colors.red)),
-                const SizedBox(height: 12),
-                _crmSummaryCard(crm),
-              ],
             ),
-          );
-        },
-      ),
     );
   }
 
-  Widget _buildCompactFilters(DashboardProvider provider, BuildContext context) {
-    final hasAdvancedFilter = provider.selectedBatiment.isNotEmpty ||
-        provider.selectedBandeId.isNotEmpty ||
-        provider.hasSpecificSelection;
-    final currentLabel = _periodOptions.firstWhere(
-      (o) => o['value'] == provider.period,
-      orElse: () => _periodOptions[2],
-    )['label']!;
+  Widget _sectionTitle(String title, IconData icon) {
+    final color = Theme.of(context).colorScheme.primary;
     return Row(
       children: [
-        // Bouton période compact (menu déroulant) — prend le minimum de place.
-        PopupMenuButton<String>(
-          initialValue: provider.period,
-          onSelected: (v) => provider.chargerDashboards(period: v),
-          itemBuilder: (_) => _periodOptions
-              .map((opt) => PopupMenuItem<String>(value: opt['value'], child: Text(opt['label']!)))
-              .toList(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.date_range, size: 16),
-                const SizedBox(width: 6),
-                Text(currentLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const Icon(Icons.arrow_drop_down, size: 18),
-              ],
-            ),
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _bandesFiltres() {
+    final annees = _anneesDispo;
+    return Row(
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<int?>(
+            initialValue: _filtreAnnee,
+            isDense: true,
+            decoration: const InputDecoration(labelText: 'Année', isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+            items: [
+              const DropdownMenuItem<int?>(value: null, child: Text('Toutes')),
+              ...annees.map((y) => DropdownMenuItem<int?>(value: y, child: Text('$y'))),
+            ],
+            onChanged: (v) => setState(() => _filtreAnnee = v),
           ),
         ),
-        const Spacer(),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.tune, size: 20),
-              tooltip: 'Bâtiment / Bande / Date précise',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => _showAdvancedFilters(context, provider),
-            ),
-            if (hasAdvancedFilter)
-              Positioned(
-                right: 6, top: 6,
-                child: Container(
-                  width: 8, height: 8,
-                  decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                ),
-              ),
-          ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: DropdownButtonFormField<int?>(
+            initialValue: _filtreMois,
+            isDense: true,
+            decoration: const InputDecoration(labelText: 'Mois', isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+            items: [
+              const DropdownMenuItem<int?>(value: null, child: Text('Tous')),
+              for (var i = 1; i <= 12; i++) DropdownMenuItem<int?>(value: i, child: Text(_moisFr[i - 1])),
+            ],
+            onChanged: (v) => setState(() => _filtreMois = v),
+          ),
         ),
       ],
     );
   }
 
-  void _showAdvancedFilters(BuildContext context, DashboardProvider provider) {
-    int dialogMonth = provider.specificMonth ?? DateTime.now().month;
-    int dialogYear = provider.specificYear ?? DateTime.now().year;
-    final years = List<int>.generate(6, (i) => DateTime.now().year - i);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-        title: const Text('Filtres avancés'),
-        scrollable: true,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DropdownButtonFormField<String>(
-              value: provider.selectedBatiment.isEmpty ? '' : provider.selectedBatiment,
-              decoration: const InputDecoration(labelText: 'Bâtiment', isDense: true),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('Tous les bâtiments')),
-                ...provider.batiments.map((b) => DropdownMenuItem(value: b, child: Text(b))),
-              ],
-              onChanged: (v) { provider.chargerDashboards(batiment: v ?? '', bandeId: ''); Navigator.pop(ctx); },
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: provider.selectedBandeId.isEmpty ? '' : provider.selectedBandeId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Bande', isDense: true),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('Toutes les bandes')),
-                ...provider.bandesFiltreesPourBatiment.map((b) {
-                  final id = (b['id'] ?? b['_id']).toString();
-                  final nom = '${b['nom'] ?? ''}${(b['batiment'] ?? '').toString().isNotEmpty ? ' – ${b['batiment']}' : ''}';
-                  return DropdownMenuItem(value: id, child: Text(nom, overflow: TextOverflow.ellipsis));
-                }),
-              ],
-              onChanged: (v) { provider.chargerDashboards(bandeId: v ?? ''); Navigator.pop(ctx); },
-            ),
-            if (provider.selectedBatiment.isNotEmpty || provider.selectedBandeId.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () { provider.chargerDashboards(batiment: '', bandeId: ''); Navigator.pop(ctx); },
-                icon: const Icon(Icons.clear),
-                label: const Text('Effacer bâtiment/bande'),
-              ),
-            ],
-            const Divider(height: 20),
-            Text(
-              'Sélection précise (${_periodOptions.firstWhere((o) => o['value'] == provider.period)['label']})',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            if (provider.period == 'jour')
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(provider.specificDate != null
-                    ? DateFormat('dd/MM/yyyy').format(provider.specificDate!)
-                    : 'Aujourd\'hui (relatif)'),
-                trailing: const Icon(Icons.calendar_today, size: 18),
-                onTap: () async {
-                  final picked = await showIsoDatePicker(
-                    context: ctx,
-                    initialDate: provider.specificDate ?? DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    await provider.definirJourPrecis(picked);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  }
-                },
-              )
-            else if (provider.period == 'mois')
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: dialogMonth,
-                      decoration: const InputDecoration(labelText: 'Mois', isDense: true),
-                      items: List.generate(12, (i) => i + 1)
-                          .map((m) => DropdownMenuItem(value: m, child: Text(_moisFr[m - 1])))
-                          .toList(),
-                      onChanged: (v) => setDialogState(() => dialogMonth = v ?? dialogMonth),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: dialogYear,
-                      decoration: const InputDecoration(labelText: 'Année', isDense: true),
-                      items: years.map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
-                      onChanged: (v) => setDialogState(() => dialogYear = v ?? dialogYear),
-                    ),
-                  ),
-                ],
-              )
-            else if (provider.period == 'annee')
-              DropdownButtonFormField<int>(
-                value: dialogYear,
-                decoration: const InputDecoration(labelText: 'Année', isDense: true),
-                items: years.map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
-                onChanged: (v) async {
-                  if (v == null) return;
-                  await provider.definirAnneePrecise(v);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              )
-            else
-              Text('Aucune sélection précise pour « Semaine »', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-            if (provider.period == 'mois') ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await provider.definirMoisPrecis(dialogMonth, dialogYear);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  },
-                  child: const Text('Appliquer'),
-                ),
-              ),
-            ],
-            if (provider.hasSpecificSelection) ...[
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () async {
-                  await provider.effacerSelectionPrecise();
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-                icon: const Icon(Icons.clear),
-                label: const Text('Revenir à la période relative'),
-              ),
-            ],
-          ],
+  Widget _bandesListe() {
+    final bandes = _bandesActives;
+    if (bandes.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Center(child: Text('Aucune bande active pour ce filtre', style: TextStyle(color: Colors.grey))),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
-        ],
-        ),
-      ),
-    );
-  }
-
-  Widget _kpiCard(String title, String value, Color color, {IconData? icon}) {
+      );
+    }
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: ConstrainedBox(
+        // Zone scrollable : la liste défile même avec de nombreuses bandes.
+        constraints: const BoxConstraints(maxHeight: 320),
+        child: Scrollbar(
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            itemCount: bandes.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) => _bandeTile(bandes[i]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bandeTile(Map<String, dynamic> b) {
+    final marge = _n(b['margeNette']);
+    final positif = marge >= 0;
+    final color = positif ? Colors.green : Colors.red;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final d = _dateOuverture(b);
+    final effectif = _n(b['effectifVivant']).toStringAsFixed(0);
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: color.withValues(alpha: isDark ? 0.25 : 0.15),
+        child: Icon(positif ? Icons.trending_up : Icons.trending_down,
+            color: isDark ? (positif ? Colors.green.shade300 : Colors.red.shade300) : (positif ? Colors.green.shade700 : Colors.red)),
+      ),
+      title: Text((b['bandeNom'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text('$effectif sujets${d != null ? ' • ouverte le ${DateFormat('dd/MM/yyyy').format(d)}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Container(width: 5, color: color),
+          Text(formatCompactFcfa(marge),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: positif
+                    ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
+                    : (isDark ? Colors.red.shade300 : Colors.red),
+                fontSize: 13,
+              )),
+          const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+        ],
+      ),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => BandeBilanScreen(bande: b)),
+      ),
+    );
+  }
+
+  Widget _boutonsTendance() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const TendanceScreen(titre: 'Tendance des ventes', kind: 'ventes', color: Colors.green),
+            )),
+            icon: const Icon(Icons.trending_up),
+            label: const Text('Tendance des ventes'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const TendanceScreen(titre: 'Tendance des dépenses', kind: 'depenses', color: Colors.red),
+            )),
+            icon: const Icon(Icons.trending_down),
+            label: const Text('Tendance des dépenses'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _crmBloc(DashboardProvider provider) {
+    final g = provider.global;
+    final crm = provider.crm;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final items = [
+      _MiniStat('Clients actifs', '${g['clientsActifs'] ?? crm['totalClients'] ?? 0}', Icons.people, Colors.teal),
+      _MiniStat('Commandes', '${g['nbCommandes'] ?? 0}', Icons.shopping_cart, Colors.purple),
+      _MiniStat('Prospects', '${crm['totalProspects'] ?? 0}', Icons.person_search, Colors.indigo),
+      _MiniStat('Nouveaux', '${crm['nouveauxClients'] ?? 0}', Icons.person_add, Colors.blue),
+      _MiniStat('Relances à faire', '${crm['relancesAFaire'] ?? 0}', Icons.notifications_active, Colors.orange),
+      _MiniStat('Cmd. en attente', '${crm['commandesEnAttente'] ?? g['commandesEnAttente'] ?? 0}', Icons.hourglass_bottom, Colors.brown),
+    ];
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        mainAxisExtent: 74,
+      ),
+      children: items.map((it) => _statTile(it.label, it.value, it.icon, it.color, isDark)).toList(),
+    );
+  }
+
+  Widget _totauxBloc() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final ca = _n(_totaux['revenus']);
+    final depense = _n(_totaux['coutTotal']);
+    final benefice = _n(_totaux['margeNette']);
+    final marge = _n(_totaux['tauxMarge']);
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        mainAxisExtent: 84,
+      ),
+      children: [
+        _statTile('CA Total', formatAmountFcfa(ca), Icons.point_of_sale, Colors.green, isDark),
+        _statTile('Dépense Total', formatAmountFcfa(depense), Icons.trending_down, Colors.red, isDark),
+        _statTile('Bénéfice Total', formatAmountFcfa(benefice), Icons.account_balance_wallet, Colors.blue, isDark),
+        _statTile('Marge Total', '${marge.toStringAsFixed(1)} %', Icons.percent, Colors.orange, isDark),
+      ],
+    );
+  }
+
+  Widget _statTile(String label, String value, IconData icon, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: isDark ? 0.35 : 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: isDark ? 0.28 : 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: isDark ? _lighten(color) : color, size: 20),
+          ),
+          const SizedBox(width: 10),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, size: 16, color: color),
-                        const SizedBox(width: 4),
-                      ],
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chartCard(String title, Widget chart) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            SizedBox(height: 220, child: chart),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _lineChartFromAgg(List<dynamic> raw, Color color) {
-    if (raw.isEmpty) return const Center(child: Text('Pas de données'));
-
-    final points = <FlSpot>[];
-    for (var i = 0; i < raw.length; i++) {
-      final val = (raw[i]['total'] ?? 0).toDouble();
-      points.add(FlSpot(i.toDouble(), val));
-    }
-
-    final xInterval = raw.length > 8 ? (raw.length / 6).ceilToDouble() : 1.0;
-
-    return LineChart(
-      LineChartData(
-        lineTouchData: LineTouchData(
-          enabled: true,
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (touched) => touched.map((s) {
-              final i = s.x.toInt();
-              final label = (i >= 0 && i < raw.length) ? (raw[i]['periode'] ?? '').toString() : '';
-              return LineTooltipItem(
-                '${label.isNotEmpty ? "$label\n" : ""}${formatCompactNumber(s.y)}',
-                const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              );
-            }).toList(),
-          ),
-        ),
-        gridData: const FlGridData(show: true),
-        borderData: FlBorderData(show: true),
-        titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 56,
-              getTitlesWidget: (value, meta) {
-                if (value == meta.min) return const SizedBox.shrink();
-                return Text(formatCompactNumber(value), style: const TextStyle(fontSize: 9));
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 28,
-              interval: xInterval,
-              getTitlesWidget: (value, meta) {
-                final i = value.toInt();
-                if (i < 0 || i >= raw.length) return const SizedBox.shrink();
-                final label = (raw[i]['periode'] ?? '').toString();
-                final compact = label.length > 6 ? label.substring(label.length - 5) : label;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(compact, style: const TextStyle(fontSize: 9)),
-                );
-              },
-            ),
-          ),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: points,
-            isCurved: true,
-            barWidth: 3,
-            color: color,
-            dotData: const FlDotData(show: false),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _crmSummaryCard(Map<String, dynamic> crm) {
-    if (crm.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Synthèse CRM', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Total clients: ${crm['totalClients'] ?? 0}'),
-                Text('Prospects: ${crm['totalProspects'] ?? 0}'),
-                Text('Nouveaux clients: ${crm['nouveauxClients'] ?? 0}'),
-                Text('Relances à faire: ${crm['relancesAFaire'] ?? 0}'),
-                Text('Commandes en attente: ${crm['commandesEnAttente'] ?? 0}'),
+                Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  Color _lighten(Color c, [double amount = 0.25]) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
   }
 
   void _showExportLinks() {
@@ -542,4 +434,12 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
       ),
     );
   }
+}
+
+class _MiniStat {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  const _MiniStat(this.label, this.value, this.icon, this.color);
 }

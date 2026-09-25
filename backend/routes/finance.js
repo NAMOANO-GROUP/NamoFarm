@@ -418,7 +418,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
 
     const bandesRes = await api
       .from('bandes')
-      .select('id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_poussin,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture')
+      .select('id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_poussin,cout_fixe_par_sujet,amortissement_par_sujet,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture')
       .eq('company_id', companyId)
       .order('date_ouverture', { ascending: false })
       .limit(300);
@@ -475,12 +475,16 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const coutPoussins = coutPoussin * nombreInitial;
       const depensesManuelles = Number(depensesByBande.get(id) || 0);
       const coutAliment = Number(consoByBande.get(id) || 0);
+      const effectifVivant = nombreActuel > 0 ? nombreActuel : nombreInitial;
+      const coutFixeParSujet = Number(b.cout_fixe_par_sujet || 0);
+      const amortissementParSujet = Number(b.amortissement_par_sujet || 0);
+      const coutFixe = coutFixeParSujet * effectifVivant;
+      const coutAmortissement = amortissementParSujet * effectifVivant;
       const depenses = depensesManuelles + coutAliment;
-      const coutTotal = coutPoussins + depenses;
+      const coutTotal = coutPoussins + depenses + coutFixe + coutAmortissement;
       const revenus = Number(revenusByBande.get(id) || 0);
       const margeNette = revenus - coutTotal;
       const tauxMarge = revenus > 0 ? (margeNette / revenus) * 100 : 0;
-      const effectifVivant = nombreActuel > 0 ? nombreActuel : nombreInitial;
       const tauxMortalite = nombreInitial > 0 ? (mortalite / nombreInitial) * 100 : 0;
       const coutParSujet = effectifVivant > 0 ? coutTotal / effectifVivant : 0;
       const poidsMoyenKg = lastPoidsKg(b);
@@ -501,6 +505,10 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
         coutPoussins: Number(coutPoussins.toFixed(2)),
         depenses: Number(depensesManuelles.toFixed(2)),
         coutAliment: Number(coutAliment.toFixed(2)),
+        coutFixe: Number(coutFixe.toFixed(2)),
+        coutAmortissement: Number(coutAmortissement.toFixed(2)),
+        coutFixeParSujet: Number(coutFixeParSujet.toFixed(2)),
+        amortissementParSujet: Number(amortissementParSujet.toFixed(2)),
         coutTotal: Number(coutTotal.toFixed(2)),
         revenus: Number(revenus.toFixed(2)),
         margeNette: Number(margeNette.toFixed(2)),

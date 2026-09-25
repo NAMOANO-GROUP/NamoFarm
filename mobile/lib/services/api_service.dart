@@ -408,6 +408,9 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getComptabiliteAnalytique() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/analytique')));
+
+  static Future<Map<String, dynamic>> getTendanceMensuelle(int year) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _get('/dashboard/tendance-mensuelle', query: {'year': '$year'})));
   static Future<Map<String, dynamic>> getCrmDashboard() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/crm/dashboard')));
 
