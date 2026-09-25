@@ -57,6 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<_ModuleItem> _modules = const [
     _ModuleItem(
+      page: ProfileScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profil'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profil'),
+      permission: 'dashboard:view',
+    ),
+    _ModuleItem(
       page: GlobalDashboardScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
@@ -120,12 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
       page: RoadmapScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: 'Roadmap'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: 'Roadmap'),
-      permission: 'dashboard:view',
-    ),
-    _ModuleItem(
-      page: ProfileScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profil'),
-      mobileDestination: NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profil'),
       permission: 'dashboard:view',
     ),
     _ModuleItem(

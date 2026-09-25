@@ -217,8 +217,14 @@ class _SuiviScreenState extends State<SuiviScreen> {
                   else
                     ...bande.suiviJournalier.reversed.map((suivi) => ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.green.shade100,
-                        child: Text('J${bande.suiviJournalier.indexOf(suivi) + 1}', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold)),
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.green.shade900.withValues(alpha: 0.45)
+                            : Colors.green.shade100,
+                        child: Text('J${_ageJour(suivi.date)}',
+                            style: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.green.shade200 : Colors.green.shade800,
+                              fontWeight: FontWeight.bold,
+                            )),
                       ),
                       title: Text(dateFormat.format(suivi.date)),
                       subtitle: Column(
@@ -253,16 +259,13 @@ class _SuiviScreenState extends State<SuiviScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Événements prévisionnels', style: Theme.of(context).textTheme.titleMedium),
-            TextButton.icon(
-              onPressed: _showPlanifierEvenementDialog,
-              icon: const Icon(Icons.add_task),
-              label: const Text('Planifier'),
-            ),
+            Icon(Icons.event_available_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Événements prévisionnels', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
+        const SizedBox(height: 8),
         if (_loadingEvents)
           const Card(
             child: Padding(
@@ -698,6 +701,12 @@ class _SuiviScreenState extends State<SuiviScreen> {
 
   int _calcAge(Bande bande) {
     return DateTime.now().difference(bande.dateOuverture).inDays;
+  }
+
+  // Âge (en jours) des sujets à la date d'une entrée de suivi = jours depuis l'ouverture.
+  int _ageJour(DateTime d) {
+    final a = DateUtils.dateOnly(d).difference(DateUtils.dateOnly(widget.bande.dateOuverture)).inDays;
+    return a < 0 ? 0 : a;
   }
 
   String _typeLabel(String type) {
