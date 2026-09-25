@@ -21,7 +21,7 @@ class BandeBilanScreen extends StatelessWidget {
     final marge = _n(bande['tauxMarge']);
     final mortalite = _n(bande['mortalite']);
     final tauxMortalite = _n(bande['tauxMortalite']);
-    final coutAliment = _n(bande['coutAliment']);
+    final consoAlimentKg = _n(bande['consoAlimentKg']);
     final effectif = _n(bande['effectifVivant']);
     final beneficePositif = benefice >= 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -82,7 +82,7 @@ class BandeBilanScreen extends StatelessWidget {
             children: [
               _tile(context, 'CA (ventes)', formatAmountFcfa(ca), Icons.point_of_sale, Colors.green, isDark),
               _tile(context, 'Dépense totale', formatAmountFcfa(depense), Icons.trending_down, Colors.red, isDark),
-              _tile(context, 'Coût aliment', formatAmountFcfa(coutAliment), Icons.restaurant, Colors.brown, isDark),
+              _tile(context, 'Conso aliment', '${consoAlimentKg.toStringAsFixed(1)} kg', Icons.restaurant, Colors.brown, isDark),
               _tile(context, 'Mortalité', '${mortalite.toStringAsFixed(0)} (${tauxMortalite.toStringAsFixed(1)} %)', Icons.warning_amber_outlined, Colors.deepOrange, isDark),
               _tile(context, 'Effectif vivant', effectif.toStringAsFixed(0), Icons.groups_outlined, Colors.teal, isDark),
               _tile(context, 'Coût / sujet', formatAmountFcfa(_n(bande['coutParSujet'])), Icons.person_outline, Colors.indigo, isDark),

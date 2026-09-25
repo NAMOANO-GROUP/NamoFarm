@@ -490,6 +490,8 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const poidsMoyenKg = lastPoidsKg(b);
       const productionKg = effectifVivant * poidsMoyenKg;
       const coutParKg = productionKg > 0 ? coutTotal / productionKg : null;
+      const suiviAliment = Array.isArray(b.suivi_journalier) ? b.suivi_journalier : [];
+      const consoAlimentKg = suiviAliment.reduce((s, j) => s + Number(j.alimentationKg || 0), 0);
 
       return {
         bandeId: b.id,
@@ -505,6 +507,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
         coutPoussins: Number(coutPoussins.toFixed(2)),
         depenses: Number(depensesManuelles.toFixed(2)),
         coutAliment: Number(coutAliment.toFixed(2)),
+        consoAlimentKg: Number(consoAlimentKg.toFixed(2)),
         coutFixe: Number(coutFixe.toFixed(2)),
         coutAmortissement: Number(coutAmortissement.toFixed(2)),
         coutFixeParSujet: Number(coutFixeParSujet.toFixed(2)),
