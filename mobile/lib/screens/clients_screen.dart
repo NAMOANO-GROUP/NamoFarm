@@ -5,6 +5,8 @@ import '../providers/clients_provider.dart';
 import '../models/client.dart';
 import '../widgets/international_phone_field.dart';
 import '../widgets/filter_styles.dart';
+import '../widgets/app_form.dart';
+import '../widgets/form_section.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -356,34 +358,74 @@ class _ClientsScreenState extends State<ClientsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: Text(isEdit ? 'Modifier Client' : 'Nouveau Client'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: prenomController, decoration: const InputDecoration(labelText: 'Prénom *')),
-                TextField(controller: nomController, decoration: const InputDecoration(labelText: 'Nom *')),
-                InternationalPhoneField(controller: telephoneController, labelText: 'Téléphone *'),
-                TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
-                TextField(controller: adresseController, decoration: const InputDecoration(labelText: 'Adresse *')),
-                DropdownButtonFormField<String>(
-                  initialValue: typeClient,
-                  items: const [
-                    DropdownMenuItem(value: 'particulier', child: Text('Particulier')),
-                    DropdownMenuItem(value: 'pro', child: Text('Professionnel (Pro)')),
-                  ],
-                  onChanged: (v) => setDialogState(() => typeClient = v ?? 'particulier'),
-                  decoration: const InputDecoration(labelText: 'Type client *'),
-                ),
-                TextField(
-                  controller: activiteController,
-                  decoration: const InputDecoration(labelText: 'Activité / commentaire *'),
-                  maxLines: 2,
-                ),
-                TextField(controller: entrepriseController, decoration: const InputDecoration(labelText: 'Entreprise')),
-                TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notes')),
-              ],
+          content: AppFormBody([
+            const FormSection('Identité', icon: Icons.person_outline),
+            TextField(
+              controller: prenomController,
+              decoration: const InputDecoration(
+                labelText: 'Prénom *',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
             ),
-          ),
+            TextField(
+              controller: nomController,
+              decoration: const InputDecoration(
+                labelText: 'Nom *',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+            ),
+            InternationalPhoneField(controller: telephoneController, labelText: 'Téléphone *'),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const FormSection('Localisation & activité', icon: Icons.place_outlined),
+            TextField(
+              controller: adresseController,
+              decoration: const InputDecoration(
+                labelText: 'Adresse *',
+                prefixIcon: Icon(Icons.home_outlined),
+              ),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: typeClient,
+              decoration: const InputDecoration(
+                labelText: 'Type client *',
+                prefixIcon: Icon(Icons.group_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'particulier', child: Text('Particulier')),
+                DropdownMenuItem(value: 'pro', child: Text('Professionnel (Pro)')),
+              ],
+              onChanged: (v) => setDialogState(() => typeClient = v ?? 'particulier'),
+            ),
+            TextField(
+              controller: activiteController,
+              decoration: const InputDecoration(
+                labelText: 'Activité / commentaire *',
+                prefixIcon: Icon(Icons.work_outline),
+              ),
+              maxLines: 2,
+            ),
+            TextField(
+              controller: entrepriseController,
+              decoration: const InputDecoration(
+                labelText: 'Entreprise',
+                prefixIcon: Icon(Icons.business_outlined),
+              ),
+            ),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
             ElevatedButton(

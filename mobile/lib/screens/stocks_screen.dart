@@ -9,6 +9,7 @@ import '../utils/money_format.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/number_field.dart';
 import '../widgets/add_button.dart';
+import '../widgets/app_form.dart';
 
 class StocksScreen extends StatefulWidget {
   const StocksScreen({super.key});
@@ -614,37 +615,45 @@ class _StocksScreenState extends State<StocksScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Nouveau Stock'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom du produit *')),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategorie,
-                  items: const [
-                    DropdownMenuItem(value: 'aliment', child: Text('Aliment')),
-                    DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
-                    DropdownMenuItem(value: 'vitamine', child: Text('Vitamine')),
-                    DropdownMenuItem(value: 'desinfectant', child: Text('Désinfectant')),
-                    DropdownMenuItem(value: 'materiel', child: Text('Matériel')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
-                  ],
-                  onChanged: (v) => setDialogState(() => selectedCategorie = v!),
-                  decoration: const InputDecoration(labelText: 'Catégorie'),
-                ),
-                TextField(controller: uniteCtrl, decoration: const InputDecoration(labelText: 'Unité (kg, litres, boîtes...)')),
-                NumberField(controller: seuilCtrl, label: 'Seuil d\'alerte'),
-                NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)'),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date *'),
-                  subtitle: Text(DateFormat('dd/MM/yyyy').format(dateStock)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () => choisirDateStock(setDialogState),
-                ),
-              ],
+          content: AppFormBody([
+            TextField(
+              controller: nomCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Nom du produit *',
+                prefixIcon: Icon(Icons.inventory_2_outlined),
+              ),
             ),
-          ),
+            DropdownButtonFormField<String>(
+              initialValue: selectedCategorie,
+              decoration: const InputDecoration(
+                labelText: 'Catégorie',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'aliment', child: Text('Aliment')),
+                DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
+                DropdownMenuItem(value: 'vitamine', child: Text('Vitamine')),
+                DropdownMenuItem(value: 'desinfectant', child: Text('Désinfectant')),
+                DropdownMenuItem(value: 'materiel', child: Text('Matériel')),
+                DropdownMenuItem(value: 'autre', child: Text('Autre')),
+              ],
+              onChanged: (v) => setDialogState(() => selectedCategorie = v!),
+            ),
+            TextField(
+              controller: uniteCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Unité (kg, litres, boîtes...)',
+                prefixIcon: Icon(Icons.straighten_outlined),
+              ),
+            ),
+            NumberField(controller: seuilCtrl, label: 'Seuil d\'alerte', prefixIcon: Icons.notifications_active_outlined),
+            NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)', prefixIcon: Icons.payments_outlined),
+            FormDateTile(
+              label: 'Date *',
+              value: DateFormat('dd/MM/yyyy').format(dateStock),
+              onTap: () => choisirDateStock(setDialogState),
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(
@@ -686,33 +695,62 @@ class _StocksScreenState extends State<StocksScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Modifier le stock'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom du produit *')),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategorie,
-                  items: const [
-                    DropdownMenuItem(value: 'aliment', child: Text('Aliment')),
-                    DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
-                    DropdownMenuItem(value: 'vitamine', child: Text('Vitamine')),
-                    DropdownMenuItem(value: 'desinfectant', child: Text('Désinfectant')),
-                    DropdownMenuItem(value: 'materiel', child: Text('Matériel')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
-                  ],
-                  onChanged: (v) => setDialogState(() => selectedCategorie = v!),
-                  decoration: const InputDecoration(labelText: 'Catégorie'),
-                ),
-                TextField(controller: uniteCtrl, decoration: const InputDecoration(labelText: 'Unité (kg, litres, boîtes...)')),
-                NumberField(controller: seuilCtrl, label: 'Seuil d\'alerte'),
-                NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)'),
-                TextField(controller: fournisseurCtrl, decoration: const InputDecoration(labelText: 'Fournisseur')),
-                TextField(controller: emplacementCtrl, decoration: const InputDecoration(labelText: 'Emplacement')),
-                TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'Notes'), maxLines: 2),
-              ],
+          content: AppFormBody([
+            TextField(
+              controller: nomCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Nom du produit *',
+                prefixIcon: Icon(Icons.inventory_2_outlined),
+              ),
             ),
-          ),
+            DropdownButtonFormField<String>(
+              initialValue: selectedCategorie,
+              decoration: const InputDecoration(
+                labelText: 'Catégorie',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'aliment', child: Text('Aliment')),
+                DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
+                DropdownMenuItem(value: 'vitamine', child: Text('Vitamine')),
+                DropdownMenuItem(value: 'desinfectant', child: Text('Désinfectant')),
+                DropdownMenuItem(value: 'materiel', child: Text('Matériel')),
+                DropdownMenuItem(value: 'autre', child: Text('Autre')),
+              ],
+              onChanged: (v) => setDialogState(() => selectedCategorie = v!),
+            ),
+            TextField(
+              controller: uniteCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Unité (kg, litres, boîtes...)',
+                prefixIcon: Icon(Icons.straighten_outlined),
+              ),
+            ),
+            NumberField(controller: seuilCtrl, label: 'Seuil d\'alerte', prefixIcon: Icons.notifications_active_outlined),
+            NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)', prefixIcon: Icons.payments_outlined),
+            TextField(
+              controller: fournisseurCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Fournisseur',
+                prefixIcon: Icon(Icons.local_shipping_outlined),
+              ),
+            ),
+            TextField(
+              controller: emplacementCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Emplacement',
+                prefixIcon: Icon(Icons.place_outlined),
+              ),
+            ),
+            TextField(
+              controller: notesCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+              maxLines: 2,
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(

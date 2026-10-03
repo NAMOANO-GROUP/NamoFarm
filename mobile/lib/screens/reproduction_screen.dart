@@ -26,7 +26,6 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
 
   static const Map<String, String> _statutLabels = {
     'en_incubation': 'En incubation',
-    'mire': 'Miré',
     'eclos': 'Éclos',
     'termine': 'Terminé',
     'annule': 'Annulé',
@@ -139,9 +138,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               children: [
                 _stat('Couvées', '${s['totalCouvees'] ?? 0}'),
                 _stat('Œufs incubés', '${s['totalIncubes'] ?? 0}'),
-                _stat('Fertiles', '${s['totalFertiles'] ?? 0}'),
                 _stat('Éclos', '${s['totalEclos'] ?? 0}'),
-                _stat('Taux fertilité', _fmtPct((s['tauxFertiliteMoyen'] as num?)?.toDouble())),
                 _stat('Taux éclosion', _fmtPct((s['tauxEclosionMoyen'] as num?)?.toDouble())),
               ],
             ),
@@ -244,7 +241,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
         leading: const CircleAvatar(child: Icon(Icons.egg_alt_outlined)),
         title: Text(c.code, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          '${_statutLabels[c.statut] ?? c.statut} • ${c.nbOeufsIncubes} œufs • Fert. ${_fmtPct(c.tauxFertilite)} • Écl. ${_fmtPct(c.tauxEclosion)}',
+          '${_statutLabels[c.statut] ?? c.statut} • ${c.nbOeufsIncubes} œufs • Écl. ${_fmtPct(c.tauxEclosion)}',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -256,9 +253,8 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
               children: [
                 if (c.race.isNotEmpty) Text('Race: ${c.race}'),
                 Text('Mise en incubation: ${_fmtDate(c.dateMiseIncubation)}'),
-                Text('Mirage: ${_fmtDate(c.dateMirage)} • Fertiles: ${c.nbOeufsFertiles ?? '-'}'),
                 Text('Éclosion: ${_fmtDate(c.dateEclosion)} • Éclos: ${c.nbEclos ?? '-'} • Viables: ${c.nbPoussinsViables ?? '-'}'),
-                Text('Taux fertilité: ${_fmtPct(c.tauxFertilite)} | Taux éclosion: ${_fmtPct(c.tauxEclosion)} | Viabilité: ${_fmtPct(c.tauxViabilite)}'),
+                Text('Taux éclosion: ${_fmtPct(c.tauxEclosion)} | Viabilité: ${_fmtPct(c.tauxViabilite)}'),
                 if (c.notes.isNotEmpty) Text('Notes: ${c.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
                 const SizedBox(height: 8),
                 Wrap(
@@ -266,12 +262,6 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                   runSpacing: 8,
                   children: [
                     if (c.statut == 'en_incubation')
-                      FilledButton.icon(
-                        onPressed: () => _showMirageForm(c),
-                        icon: const Icon(Icons.visibility_outlined, size: 18),
-                        label: const Text('Mirage'),
-                      ),
-                    if (c.statut == 'en_incubation' || c.statut == 'mire')
                       FilledButton.icon(
                         onPressed: () => _showEclosionForm(c),
                         icon: const Icon(Icons.egg_alt, size: 18),
@@ -419,56 +409,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
     );
   }
 
-  // Étape 2 — Mirage (œufs fertiles)
-  void _showMirageForm(Couvee c) {
-    final fertilesCtrl = TextEditingController(text: c.nbOeufsFertiles?.toString() ?? '');
-    DateTime date = c.dateMirage ?? DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: Text('Mirage — ${c.code}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Œufs mis en incubation: ${c.nbOeufsIncubes}'),
-                const SizedBox(height: 8),
-                NumberField(controller: fertilesCtrl, label: 'Œufs fertiles *', decimal: false),
-                _dateTile('Date du mirage', date, () async {
-                  final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                  if (picked != null) setDialog(() => date = picked);
-                }),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final fertiles = parseInteger(fertilesCtrl.text);
-                if (fertiles == null) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Nombre d\'œufs fertiles obligatoire')));
-                  return;
-                }
-                _saveStage(c.id, {
-                  'nbOeufsFertiles': fertiles,
-                  'dateMirage': date.toIso8601String(),
-                  'statut': 'mire',
-                }, navigator, messenger, isCreate: false);
-              },
-              child: const Text('Enregistrer le mirage'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Étape 3 — Éclosion (sortie)
+  // Étape 2 — Éclosion (sortie)
   void _showEclosionForm(Couvee c) {
     final eclosCtrl = TextEditingController(text: c.nbEclos?.toString() ?? '');
     final viablesCtrl = TextEditingController(text: c.nbPoussinsViables?.toString() ?? '');
@@ -483,7 +424,7 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Œufs fertiles: ${c.nbOeufsFertiles ?? '-'} / incubés: ${c.nbOeufsIncubes}'),
+                Text('Œufs incubés: ${c.nbOeufsIncubes}'),
                 const SizedBox(height: 8),
                 NumberField(controller: eclosCtrl, label: 'Poussins éclos *', decimal: false),
                 NumberField(controller: viablesCtrl, label: 'Poussins viables', decimal: false),
@@ -525,12 +466,10 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
     final codeCtrl = TextEditingController(text: couvee?.code ?? '');
     final raceCtrl = TextEditingController(text: couvee?.race ?? '');
     final incubesCtrl = TextEditingController(text: isEdit ? couvee.nbOeufsIncubes.toString() : '');
-    final fertilesCtrl = TextEditingController(text: couvee?.nbOeufsFertiles?.toString() ?? '');
     final eclosCtrl = TextEditingController(text: couvee?.nbEclos?.toString() ?? '');
     final viablesCtrl = TextEditingController(text: couvee?.nbPoussinsViables?.toString() ?? '');
     final notesCtrl = TextEditingController(text: couvee?.notes ?? '');
     DateTime dateIncubation = couvee?.dateMiseIncubation ?? DateTime.now();
-    DateTime? dateMirage = couvee?.dateMirage;
     DateTime? dateEclosion = couvee?.dateEclosion;
     String statut = couvee?.statut ?? 'en_incubation';
 
@@ -561,24 +500,6 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                       lastDate: DateTime(2100),
                     );
                     if (picked != null) setDialog(() => dateIncubation = picked);
-                  },
-                ),
-                const Divider(),
-                const Align(alignment: Alignment.centerLeft, child: Text('Mirage', style: TextStyle(fontWeight: FontWeight.bold))),
-                NumberField(controller: fertilesCtrl, label: 'Œufs fertiles (au mirage)', decimal: false),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date mirage'),
-                  subtitle: Text(_fmtDate(dateMirage)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(
-                      context: dialogContext,
-                      initialDate: dateMirage ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) setDialog(() => dateMirage = picked);
                   },
                 ),
                 const Divider(),
@@ -630,10 +551,8 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
                   'race': raceCtrl.text.trim(),
                   'dateMiseIncubation': dateIncubation.toIso8601String(),
                   'nbOeufsIncubes': parseIntOrNull(incubesCtrl.text),
-                  'nbOeufsFertiles': parseIntOrNull(fertilesCtrl.text),
                   'nbEclos': parseIntOrNull(eclosCtrl.text),
                   'nbPoussinsViables': parseIntOrNull(viablesCtrl.text),
-                  'dateMirage': dateMirage?.toIso8601String(),
                   'dateEclosion': dateEclosion?.toIso8601String(),
                   'statut': statut,
                   'notes': notesCtrl.text.trim(),

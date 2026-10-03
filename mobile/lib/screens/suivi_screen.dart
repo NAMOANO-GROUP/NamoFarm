@@ -9,7 +9,6 @@ import 'poids_screen.dart';
 import 'climat_screen.dart';
 import 'mortalite_screen.dart';
 import '../widgets/iso_calendar_picker.dart';
-import '../widgets/stat_tile.dart';
 import '../widgets/number_field.dart';
 import '../widgets/async_button.dart';
 import '../utils/number_input.dart';
@@ -125,7 +124,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.event_note),
-            tooltip: 'Planifier événement',
+            tooltip: 'Nouvelle tâche de suivi',
             onPressed: _showPlanifierEvenementDialog,
           ),
         ],
@@ -135,28 +134,8 @@ class _SuiviScreenState extends State<SuiviScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // RÉSUMÉ
-            Card(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.green.shade900.withValues(alpha: 0.30)
-                  : Colors.green.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Résumé', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    _statRow('Âge', '${bande.ageJours ?? _calcAge(bande)} jours'),
-                    _statRow('Effectif actuel', '${bande.nombreActuel}'),
-                    _statRow('Mortalité totale', '${bande.mortaliteTotale} (${bande.tauxMortalite ?? "0"}%)'),
-                    _statRow('Race', bande.race),
-                    _statRow('Type', _typeLabel(bande.typeVolaille)),
-                    _statRow('Bâtiment', bande.batiment.isEmpty ? '-' : bande.batiment),
-                  ],
-                ),
-              ),
-            ),
+            // RÉSUMÉ (premium)
+            _buildResume(bande),
             const SizedBox(height: 12),
             _buildEventsPrevisionnels(),
             const SizedBox(height: 16),
@@ -246,7 +225,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
           children: [
             Icon(Icons.event_available_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
-            const Text('Événements prévisionnels', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Tâches de suivi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 8),
@@ -261,7 +240,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: Text('Aucune tâche planifiée à venir'),
+              child: Text('Aucune tâche de suivi à venir'),
             ),
           )
         else
@@ -270,12 +249,12 @@ class _SuiviScreenState extends State<SuiviScreen> {
               initiallyExpanded: _showEvents,
               onExpansionChanged: (expanded) => setState(() => _showEvents = expanded),
               leading: const Icon(Icons.event, color: Colors.orange),
-              title: Text('Tâches planifiées (${pending.length})'),
+              title: Text('Tâches de suivi (${pending.length})'),
               children: pending.map((evt) {
                 return ListTile(
                   leading: const Icon(Icons.event, color: Colors.orange),
                   title: Text(evt.description),
-                  subtitle: Text('Prévu le ${df.format(evt.datePrevue)} • ${evt.priorite}'),
+                  subtitle: Text('Le ${df.format(evt.datePrevue)} • ${evt.priorite}'),
                   trailing: TextButton(
                     onPressed: () => _terminerEvenement(evt),
                     child: const Text('Terminer'),
@@ -294,14 +273,14 @@ class _SuiviScreenState extends State<SuiviScreen> {
     final prophylaxieQteCtrl = TextEditingController();
     String type = 'vaccination';
     String priorite = 'moyenne';
-    DateTime datePrevue = DateTime.now().add(const Duration(days: 1));
+    DateTime datePrevue = DateTime.now();
     String? prophylaxieStockId;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Planifier un événement'),
+          title: const Text('Nouvelle tâche de suivi'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -320,14 +299,14 @@ class _SuiviScreenState extends State<SuiviScreen> {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Date prévue'),
+                  title: const Text('Date'),
                   subtitle: Text(DateFormat('dd/MM/yyyy').format(datePrevue)),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final d = await showIsoDatePicker(
                       context: dialogContext,
                       initialDate: datePrevue,
-                      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                      firstDate: DateTime.now().subtract(const Duration(days: 3650)),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
                     if (d != null) setDialogState(() => datePrevue = d);
@@ -384,7 +363,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
                 }
                 if (descCtrl.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Description obligatoire pour planifier un événement')),
+                    const SnackBar(content: Text('Description obligatoire')),
                   );
                   return;
                 }
@@ -417,7 +396,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
                 });
                 navigator.pop();
                 messenger.showSnackBar(
-                  SnackBar(content: Text(ok ? 'Événement planifié' : 'Erreur planification: ${provider.lastError ?? 'cause inconnue'}')),
+                  SnackBar(content: Text(ok ? 'Tâche enregistrée' : 'Erreur: ${provider.lastError ?? 'cause inconnue'}')),
                 );
                 if (ok) {
                   _loadEvents();
@@ -439,7 +418,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
     }
     if (evt.id == null || evt.id!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Événement invalide, recharge les événements prévisionnels')),
+        const SnackBar(content: Text('Tâche invalide, recharge les tâches de suivi')),
       );
       return;
     }
@@ -730,8 +709,126 @@ class _SuiviScreenState extends State<SuiviScreen> {
     }
   }
 
-  Widget _statRow(String label, String value) {
-    return StatRow(label, value);
+  Widget _buildResume(Bande bande) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final age = bande.ageJours ?? _calcAge(bande);
+    final taux = (bande.tauxMortalite ?? '0').toString();
+    final accent = isDark ? Colors.green.shade300 : Colors.green.shade700;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF14361F), const Color(0xFF1B5E20)]
+              : [const Color(0xFFE8F5E9), const Color(0xFFF3FAF4)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.green.withValues(alpha: isDark ? 0.40 : 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.summarize_outlined, size: 20, color: accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(bande.nom, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GridView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              mainAxisExtent: 70,
+            ),
+            children: [
+              _resumeTile('Âge', '$age j', Icons.cake_outlined, Colors.indigo, isDark),
+              _resumeTile('Effectif actuel', '${bande.nombreActuel}', Icons.groups_outlined, Colors.teal, isDark),
+              _resumeTile('Mortalité', '${bande.mortaliteTotale} ($taux%)', Icons.warning_amber_outlined, Colors.red, isDark),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _infoChip(Icons.pets_outlined, 'Race', bande.race.isEmpty ? '-' : bande.race, isDark),
+              _infoChip(Icons.category_outlined, 'Type', _typeLabel(bande.typeVolaille), isDark),
+              _infoChip(Icons.home_work_outlined, 'Bâtiment', bande.batiment.isEmpty ? '-' : bande.batiment, isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _resumeTile(String label, String value, IconData icon, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: color.withValues(alpha: isDark ? 0.28 : 0.14), shape: BoxShape.circle),
+            child: Icon(icon, size: 17, color: isDark ? _lighten(color) : color),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label, String value, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.withValues(alpha: isDark ? 0.30 : 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey),
+          const SizedBox(width: 5),
+          Text('$label : ', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Color _lighten(Color c, [double amount = 0.25]) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
   }
 
   Widget _actionTile(String label, IconData icon, Color color, VoidCallback onTap) {

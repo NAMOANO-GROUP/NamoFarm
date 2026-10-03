@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/add_button.dart';
 import '../widgets/number_field.dart';
+import '../widgets/app_form.dart';
+import '../widgets/form_section.dart';
 import '../utils/number_input.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -343,74 +345,105 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Ouvrir une nouvelle bande'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nomController, decoration: const InputDecoration(labelText: 'Nom de la bande *')),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  items: const [
-                    DropdownMenuItem(value: 'poulet_chair', child: Text('Poulet de chair')),
-                    DropdownMenuItem(value: 'poulet_ameliore', child: Text('Poulet amélioré')),
-                    DropdownMenuItem(value: 'poule_pondeuse', child: Text('Poule pondeuse')),
-                    DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
-                    DropdownMenuItem(value: 'canard', child: Text('Canard')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
-                  ],
-                  onChanged: (v) => setDialogState(() {
-                    selectedType = v!;
-                    // Le protocole s'aligne automatiquement sur le type choisi.
-                    selectedProtocoleId = _protocolePourType(protocoles, selectedType);
-                  }),
-                  decoration: const InputDecoration(labelText: 'Type de volaille'),
-                ),
-                TextField(controller: raceController, decoration: const InputDecoration(labelText: 'Race *')),
-                NumberField(controller: nombreController, label: 'Nombre de poussins *', decimal: false),
-                NumberField(controller: poidsArriveeCtrl, label: 'Poids arrivée (g)'),
-                NumberField(controller: objectifPoidsCtrl, label: 'Objectif poids (g)'),
-                TextField(controller: batimentCtrl, decoration: const InputDecoration(labelText: 'Bâtiment')),
-                if (protocoles.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedProtocoleId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Protocole vaccinal (optionnel)',
-                      helperText: 'Pré-sélectionné selon le type • génère les tâches aux bonnes dates',
-                    ),
-                    items: [
-                      const DropdownMenuItem<String>(value: null, child: Text('Aucun')),
-                      ...protocoles.map((p) {
-                        final id = (p['_id'] ?? '').toString();
-                        final nom = (p['nom'] ?? 'Protocole').toString();
-                        final nb = (p['etapes'] is List) ? (p['etapes'] as List).length : 0;
-                        return DropdownMenuItem<String>(value: id, child: Text('$nom ($nb étapes)', overflow: TextOverflow.ellipsis));
-                      }),
-                    ],
-                    onChanged: (v) => setDialogState(() => selectedProtocoleId = v),
-                  ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date d\'ouverture'),
-                  subtitle: Text(DateFormat('dd/MM/yyyy').format(dateOuverture)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(
-                      context: dialogContext,
-                      initialDate: dateOuverture,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) {
-                      setDialogState(() {
-                        dateOuverture = picked;
-                      });
-                    }
-                  },
-                ),
-              ],
+          content: AppFormBody([
+            const FormSection('Identité', icon: Icons.pets),
+            TextField(
+              controller: nomController,
+              decoration: const InputDecoration(
+                labelText: 'Nom de la bande *',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
             ),
-          ),
+            DropdownButtonFormField<String>(
+              initialValue: selectedType,
+              decoration: const InputDecoration(
+                labelText: 'Type de volaille',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'poulet_chair', child: Text('Poulet de chair')),
+                DropdownMenuItem(value: 'poulet_ameliore', child: Text('Poulet amélioré')),
+                DropdownMenuItem(value: 'poule_pondeuse', child: Text('Poule pondeuse')),
+                DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
+                DropdownMenuItem(value: 'canard', child: Text('Canard')),
+                DropdownMenuItem(value: 'autre', child: Text('Autre')),
+              ],
+              onChanged: (v) => setDialogState(() {
+                selectedType = v!;
+                // Le protocole s'aligne automatiquement sur le type choisi.
+                selectedProtocoleId = _protocolePourType(protocoles, selectedType);
+              }),
+            ),
+            TextField(
+              controller: raceController,
+              decoration: const InputDecoration(
+                labelText: 'Race *',
+                prefixIcon: Icon(Icons.pedal_bike_outlined),
+              ),
+            ),
+            const FormSection('Effectif & objectifs', icon: Icons.numbers),
+            NumberField(
+              controller: nombreController,
+              label: 'Nombre de poussins *',
+              decimal: false,
+              prefixIcon: Icons.groups_outlined,
+            ),
+            NumberField(
+              controller: poidsArriveeCtrl,
+              label: 'Poids arrivée (g)',
+              prefixIcon: Icons.monitor_weight_outlined,
+            ),
+            NumberField(
+              controller: objectifPoidsCtrl,
+              label: 'Objectif poids (g)',
+              prefixIcon: Icons.flag_outlined,
+            ),
+            TextField(
+              controller: batimentCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Bâtiment',
+                prefixIcon: Icon(Icons.home_work_outlined),
+              ),
+            ),
+            const FormSection('Planification', icon: Icons.event_available),
+            if (protocoles.isNotEmpty)
+              DropdownButtonFormField<String>(
+                initialValue: selectedProtocoleId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Protocole vaccinal (optionnel)',
+                  prefixIcon: Icon(Icons.vaccines_outlined),
+                  helperText: 'Pré-sélectionné selon le type • génère les tâches aux bonnes dates',
+                ),
+                items: [
+                  const DropdownMenuItem<String>(value: null, child: Text('Aucun')),
+                  ...protocoles.map((p) {
+                    final id = (p['_id'] ?? '').toString();
+                    final nom = (p['nom'] ?? 'Protocole').toString();
+                    final nb = (p['etapes'] is List) ? (p['etapes'] as List).length : 0;
+                    return DropdownMenuItem<String>(value: id, child: Text('$nom ($nb étapes)', overflow: TextOverflow.ellipsis));
+                  }),
+                ],
+                onChanged: (v) => setDialogState(() => selectedProtocoleId = v),
+              ),
+            FormDateTile(
+              label: 'Date d\'ouverture',
+              value: DateFormat('dd/MM/yyyy').format(dateOuverture),
+              onTap: () async {
+                final picked = await showIsoDatePicker(
+                  context: dialogContext,
+                  initialDate: dateOuverture,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  setDialogState(() {
+                    dateOuverture = picked;
+                  });
+                }
+              },
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(

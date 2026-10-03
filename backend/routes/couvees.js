@@ -131,6 +131,8 @@ router.post('/', requirePermission('reproduction.create'), async (req, res) => {
       bande_id: req.body.bandeId || null,
       date_mise_incubation: req.body.dateMiseIncubation || new Date().toISOString(),
       nb_oeufs_incubes: nbOeufsIncubes,
+      // Tous les œufs mis en incubation sont considérés fertiles (phase mirage supprimée).
+      nb_oeufs_fertiles: nbOeufsIncubes,
       statut: 'en_incubation',
       notes: (req.body.notes || '').toString(),
       updated_at: new Date().toISOString(),
@@ -159,7 +161,12 @@ router.put('/:id', requirePermission('reproduction.update'), async (req, res) =>
     if (req.body.race !== undefined) updates.race = (req.body.race || '').toString().trim();
     if (req.body.bandeId !== undefined) updates.bande_id = req.body.bandeId || null;
     if (req.body.dateMiseIncubation !== undefined) updates.date_mise_incubation = req.body.dateMiseIncubation;
-    if (req.body.nbOeufsIncubes !== undefined) updates.nb_oeufs_incubes = num(req.body.nbOeufsIncubes) || 0;
+    if (req.body.nbOeufsIncubes !== undefined) {
+      const incubes = num(req.body.nbOeufsIncubes) || 0;
+      updates.nb_oeufs_incubes = incubes;
+      // Fertiles alignés sur les incubés (tous considérés fertiles).
+      updates.nb_oeufs_fertiles = incubes;
+    }
     if (req.body.dateMirage !== undefined) updates.date_mirage = req.body.dateMirage || null;
     if (req.body.nbOeufsFertiles !== undefined) updates.nb_oeufs_fertiles = num(req.body.nbOeufsFertiles);
     if (req.body.dateEclosion !== undefined) updates.date_eclosion = req.body.dateEclosion || null;

@@ -135,6 +135,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   Widget _navigationBar(DateTime firstVisible, int visibleDays) {
     final last = firstVisible.add(Duration(days: visibleDays - 1));
     final df = DateFormat('dd/MM');
+    final dfYear = DateFormat('dd/MM/yyyy');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
@@ -147,7 +148,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
           ),
           Expanded(
             child: Center(
-              child: Text('${df.format(firstVisible)} – ${df.format(last)}',
+              child: Text('${df.format(firstVisible)} – ${dfYear.format(last)}',
                   style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),

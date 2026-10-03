@@ -62,14 +62,38 @@ class NamoFarmApp extends StatelessWidget {
 }
 
 ThemeData _buildTheme(Brightness brightness, Color seed) {
+  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+  final isDark = brightness == Brightness.dark;
   return ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: brightness),
+    colorScheme: scheme,
     useMaterial3: true,
     // Smaller side inset so dialog forms get more usable width on small phones.
     dialogTheme: DialogThemeData(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
+    ),
+    // Champs de saisie premium (arrondis, remplis, focus coloré) appliqués à toute l'app.
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: isDark
+          ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.primary, width: 1.6),
+      ),
     ),
   );
 }

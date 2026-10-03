@@ -13,6 +13,7 @@ import '../widgets/stat_tile.dart';
 import '../widgets/add_button.dart';
 import '../widgets/number_field.dart';
 import '../widgets/async_button.dart';
+import '../widgets/app_form.dart';
 import '../utils/number_input.dart';
 
 class CheptelScreen extends StatefulWidget {
@@ -346,23 +347,34 @@ class _CheptelScreenState extends State<CheptelScreen> {
       builder: (_) => StatefulBuilder(
         builder: (dialogContext, setDialog) => AlertDialog(
           title: Text(isEdit ? 'Modifier le cheptel' : 'Nouveau cheptel'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom (ex: Chèvres, Poules locales) *')),
-                DropdownButtonFormField<String>(
-                  initialValue: _especes.contains(espece) ? espece : 'autre',
-                  decoration: const InputDecoration(labelText: 'Espèce'),
-                  items: _especes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                  onChanged: (v) => setDialog(() => espece = v ?? espece),
-                ),
-                if (!isEdit)
-                  NumberField(controller: effectifCtrl, label: 'Effectif initial (optionnel)', decimal: false),
-                TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
-              ],
+          content: AppFormBody([
+            TextField(
+              controller: nomCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Nom (ex: Chèvres, Poules locales) *',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
             ),
-          ),
+            DropdownButtonFormField<String>(
+              initialValue: _especes.contains(espece) ? espece : 'autre',
+              decoration: const InputDecoration(
+                labelText: 'Espèce',
+                prefixIcon: Icon(Icons.pets_outlined),
+              ),
+              items: _especes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: (v) => setDialog(() => espece = v ?? espece),
+            ),
+            if (!isEdit)
+              NumberField(controller: effectifCtrl, label: 'Effectif initial (optionnel)', decimal: false, prefixIcon: Icons.groups_outlined),
+            TextField(
+              controller: notesCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
             AsyncButton(
@@ -414,55 +426,55 @@ class _CheptelScreenState extends State<CheptelScreen> {
           final totalPreview = qtePreview * prixPreview;
           return AlertDialog(
           title: Text('Mouvement — ${c.nom}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Effectif actuel: ${c.effectifActuel}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: const InputDecoration(labelText: 'Type de mouvement'),
-                  items: _mvtLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-                  onChanged: (v) => setDialog(() => type = v ?? type),
-                ),
-                NumberField(
-                  controller: qteCtrl,
-                  label: type == 'ajustement' ? 'Nouvel effectif *' : 'Quantité *',
-                  decimal: false,
-                ),
-                if (type == 'vente' || type == 'entree') ...[
-                  NumberField(
-                    controller: prixUnitaireCtrl,
-                    label: 'Prix unitaire (FCFA)',
-                  ),
-                  if (qtePreview > 0 && prixPreview > 0) ...[
-                    const SizedBox(height: 6),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Total: ${formatAmountFcfa(totalPreview)}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ],
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date'),
-                  subtitle: Text(_fmtDate(date)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                    if (picked != null) setDialog(() => date = picked);
-                  },
-                ),
-                TextField(controller: motifCtrl, decoration: const InputDecoration(labelText: 'Motif / commentaire')),
-              ],
+          content: AppFormBody([
+            Text('Effectif actuel: ${c.effectifActuel}', style: const TextStyle(fontWeight: FontWeight.w600)),
+            DropdownButtonFormField<String>(
+              initialValue: type,
+              decoration: const InputDecoration(
+                labelText: 'Type de mouvement',
+                prefixIcon: Icon(Icons.swap_vert_outlined),
+              ),
+              items: _mvtLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+              onChanged: (v) => setDialog(() => type = v ?? type),
             ),
-          ),
+            NumberField(
+              controller: qteCtrl,
+              label: type == 'ajustement' ? 'Nouvel effectif *' : 'Quantité *',
+              decimal: false,
+              prefixIcon: Icons.numbers,
+            ),
+            if (type == 'vente' || type == 'entree') ...[
+              NumberField(
+                controller: prixUnitaireCtrl,
+                label: 'Prix unitaire (FCFA)',
+                prefixIcon: Icons.payments_outlined,
+              ),
+              if (qtePreview > 0 && prixPreview > 0)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Total: ${formatAmountFcfa(totalPreview)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+            ],
+            FormDateTile(
+              label: 'Date',
+              value: _fmtDate(date),
+              onTap: () async {
+                final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                if (picked != null) setDialog(() => date = picked);
+              },
+            ),
+            TextField(
+              controller: motifCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Motif / commentaire',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+            ),
+          ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
             AsyncButton(
               label: const Text('Enregistrer'),

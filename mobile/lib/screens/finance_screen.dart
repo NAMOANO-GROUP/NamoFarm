@@ -15,6 +15,8 @@ import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
 import '../widgets/status_pill.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/app_form.dart';
+import '../widgets/form_section.dart';
 import 'comptabilite_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
@@ -993,17 +995,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Nouvelle depense'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: quiPrenomCtrl, decoration: const InputDecoration(labelText: 'Prenom *')),
-                TextField(controller: quiNomCtrl, decoration: const InputDecoration(labelText: 'Nom *')),
-                TextField(controller: categorieCtrl, decoration: const InputDecoration(labelText: 'Categorie *')),
-                TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: 'Type *')),
-                DropdownButtonFormField<String>(
+          content: AppFormBody([
+            const FormSection('Dépense', icon: Icons.receipt_long_outlined),
+            TextField(
+              controller: quiPrenomCtrl,
+              decoration: const InputDecoration(labelText: 'Prenom *', prefixIcon: Icon(Icons.badge_outlined)),
+            ),
+            TextField(
+              controller: quiNomCtrl,
+              decoration: const InputDecoration(labelText: 'Nom *', prefixIcon: Icon(Icons.person_outline)),
+            ),
+            TextField(
+              controller: categorieCtrl,
+              decoration: const InputDecoration(labelText: 'Categorie *', prefixIcon: Icon(Icons.category_outlined)),
+            ),
+            TextField(
+              controller: typeCtrl,
+              decoration: const InputDecoration(labelText: 'Type *', prefixIcon: Icon(Icons.label_outline)),
+            ),
+            DropdownButtonFormField<String>(
                   initialValue: selectedBandeId,
-                  decoration: const InputDecoration(labelText: 'Bande (optionnelle)'),
+                  decoration: const InputDecoration(labelText: 'Bande (optionnelle)', prefixIcon: Icon(Icons.layers_outlined)),
                   items: [
                     const DropdownMenuItem<String>(
                       value: '',
@@ -1026,12 +1038,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     });
                   },
                 ),
-                NumberField(controller: montantCtrl, label: 'Montant *'),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date'),
-                  subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
-                  trailing: const Icon(Icons.calendar_today),
+                NumberField(controller: montantCtrl, label: 'Montant *', prefixIcon: Icons.payments_outlined),
+                FormDateTile(
+                  label: 'Date',
+                  value: DateFormat('dd/MM/yyyy').format(selectedDate),
                   onTap: () async {
                     final picked = await showIsoDatePicker(
                       context: dialogContext,
@@ -1044,10 +1054,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     }
                   },
                 ),
-                TextField(controller: commentaireCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Commentaire')),
-              ],
-            ),
-          ),
+                TextField(
+                  controller: commentaireCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Commentaire', prefixIcon: Icon(Icons.notes_outlined)),
+                ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
             AsyncButton(
@@ -1099,34 +1111,38 @@ class _FinanceScreenState extends State<FinanceScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Approvisionnement caisse'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: quiPrenomCtrl, decoration: const InputDecoration(labelText: 'Prenom *')),
-                TextField(controller: quiNomCtrl, decoration: const InputDecoration(labelText: 'Nom *')),
-                NumberField(controller: montantCtrl, label: 'Montant *'),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date'),
-                  subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(
-                      context: dialogContext,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) {
-                      setDialogState(() => selectedDate = picked);
-                    }
-                  },
-                ),
-                TextField(controller: commentaireCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Commentaire')),
-              ],
+          content: AppFormBody([
+            const FormSection('Approvisionnement', icon: Icons.account_balance_wallet_outlined),
+            TextField(
+              controller: quiPrenomCtrl,
+              decoration: const InputDecoration(labelText: 'Prenom *', prefixIcon: Icon(Icons.badge_outlined)),
             ),
-          ),
+            TextField(
+              controller: quiNomCtrl,
+              decoration: const InputDecoration(labelText: 'Nom *', prefixIcon: Icon(Icons.person_outline)),
+            ),
+            NumberField(controller: montantCtrl, label: 'Montant *', prefixIcon: Icons.payments_outlined),
+            FormDateTile(
+              label: 'Date',
+              value: DateFormat('dd/MM/yyyy').format(selectedDate),
+              onTap: () async {
+                final picked = await showIsoDatePicker(
+                  context: dialogContext,
+                  initialDate: selectedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  setDialogState(() => selectedDate = picked);
+                }
+              },
+            ),
+            TextField(
+              controller: commentaireCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Commentaire', prefixIcon: Icon(Icons.notes_outlined)),
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
             AsyncButton(

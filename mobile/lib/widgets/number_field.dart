@@ -9,6 +9,7 @@ class NumberField extends StatelessWidget {
   final bool decimal;
   final String? suffixText;
   final String? helperText;
+  final IconData? prefixIcon;
 
   const NumberField({
     super.key,
@@ -17,6 +18,7 @@ class NumberField extends StatelessWidget {
     this.decimal = true,
     this.suffixText,
     this.helperText,
+    this.prefixIcon,
   });
 
   @override
@@ -29,6 +31,7 @@ class NumberField extends StatelessWidget {
         labelText: label,
         suffixText: suffixText,
         helperText: helperText,
+        prefixIcon: prefixIcon == null ? null : Icon(prefixIcon),
       ),
     );
   }
