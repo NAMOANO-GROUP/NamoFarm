@@ -30,6 +30,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
   List<EvenementPrevisionnel> _eventsPrevisionnels = [];
   bool _loadingEvents = true;
   bool _showEvents = false;
+  bool _showSuivi = false;
 
   @override
   void initState() {
@@ -191,10 +192,12 @@ class _SuiviScreenState extends State<SuiviScreen> {
             const SizedBox(height: 16),
             const SizedBox(height: 8),
 
-            // SUIVI JOURNALIER (replié par défaut)
+            // SUIVI JOURNALIER (replié par défaut, état conservé entre les reconstructions)
             Card(
               child: ExpansionTile(
-                initiallyExpanded: false,
+                key: const PageStorageKey('suiviJournalier'),
+                initiallyExpanded: _showSuivi,
+                onExpansionChanged: (v) => setState(() => _showSuivi = v),
                 tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                 title: Text('Suivi journalier', style: Theme.of(context).textTheme.titleMedium),
                 subtitle: Text('${bande.suiviJournalier.length} entrée(s)', style: const TextStyle(color: Colors.grey)),
@@ -206,16 +209,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
                     )
                   else
                     ...bande.suiviJournalier.reversed.map((suivi) => ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.green.shade900.withValues(alpha: 0.45)
-                            : Colors.green.shade100,
-                        child: Text('J${_ageJour(suivi.date)}',
-                            style: TextStyle(
-                              color: Theme.of(context).brightness == Brightness.dark ? Colors.green.shade200 : Colors.green.shade800,
-                              fontWeight: FontWeight.bold,
-                            )),
-                      ),
+                      leading: _ageBadge(suivi.date),
                       title: Text(dateFormat.format(suivi.date)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,8 +689,34 @@ class _SuiviScreenState extends State<SuiviScreen> {
 
   // Âge (en jours) des sujets à la date d'une entrée de suivi = jours depuis l'ouverture.
   int _ageJour(DateTime d) {
-    final a = DateUtils.dateOnly(d).difference(DateUtils.dateOnly(widget.bande.dateOuverture)).inDays;
-    return a < 0 ? 0 : a;
+    try {
+      final a = DateUtils.dateOnly(d).difference(DateUtils.dateOnly(widget.bande.dateOuverture)).inDays;
+      return a < 0 ? 0 : a;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  // Pastille d'âge déterministe (Container plutôt que CircleAvatar).
+  Widget _ageBadge(DateTime d) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? Colors.green.shade900.withValues(alpha: 0.45) : Colors.green.shade100,
+      ),
+      child: Text(
+        'J${_ageJour(d)}',
+        style: TextStyle(
+          color: isDark ? Colors.green.shade200 : Colors.green.shade800,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
   }
 
   String _typeLabel(String type) {
