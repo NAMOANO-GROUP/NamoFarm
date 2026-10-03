@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../models/bande.dart';
@@ -266,6 +268,24 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     );
   }
 
+  // Arrondit à une valeur "ronde" supérieure (1, 2, 5, 10 × puissance de 10).
+  double _niceCeil(double v) {
+    if (v <= 0) return 1;
+    final mag = math.pow(10, (math.log(v) / math.ln10).floor()).toDouble();
+    final n = v / mag;
+    double nice;
+    if (n <= 1) {
+      nice = 1;
+    } else if (n <= 2) {
+      nice = 2;
+    } else if (n <= 5) {
+      nice = 5;
+    } else {
+      nice = 10;
+    }
+    return nice * mag;
+  }
+
   Widget _lineChart(
     List<dynamic> raw,
     String yKey,
@@ -308,9 +328,17 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     const nicePas = [1.0, 2.0, 5.0, 7.0, 10.0, 14.0, 20.0, 30.0, 60.0];
     xStep = nicePas.firstWhere((n) => n >= xStep, orElse: () => (xStep / 10).ceilToDouble() * 10);
 
+    // Axe Y borné à une valeur ronde avec un pas net, pour éviter le chevauchement
+    // du max réel (ex: 411) avec un tick rond (ex: 400).
+    final allY = <double>[...spots.map((s) => s.y), ...secondSpots.map((s) => s.y)];
+    final dataMaxY = allY.isEmpty ? 1.0 : allY.reduce((a, b) => a > b ? a : b);
+    final yStep = _niceCeil(dataMaxY / 5);
+    final yMax = ((dataMaxY / yStep).ceil() * yStep).clamp(yStep, double.infinity);
+
     return LineChart(
       LineChartData(
         minX: 1,
+        maxY: yMax,
         gridData: const FlGridData(show: true),
         borderData: FlBorderData(show: true),
         titlesData: FlTitlesData(
@@ -318,6 +346,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
             axisNameWidget: Text(yUnit, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
             sideTitles: SideTitles(
               showTitles: true,
+              interval: yStep,
               reservedSize: 48,
               getTitlesWidget: (value, meta) {
                 if (value == meta.min) return const SizedBox.shrink();

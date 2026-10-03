@@ -304,6 +304,17 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
     );
   }
 
+  // Protocole dont le type correspond au type de volaille, sinon un protocole "tous types".
+  String? _protocolePourType(List<Map<String, dynamic>> protocoles, String type) {
+    for (final p in protocoles) {
+      if ((p['typeVolaille'] ?? '').toString() == type) return (p['_id'] ?? '').toString();
+    }
+    for (final p in protocoles) {
+      if ((p['typeVolaille'] ?? '').toString().isEmpty) return (p['_id'] ?? '').toString();
+    }
+    return null;
+  }
+
   void _showAjouterBandeDialog() async {
     final nomController = TextEditingController();
     final raceController = TextEditingController();
@@ -324,6 +335,8 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
       protocoles = const [];
     }
     if (!mounted) return;
+    // Pré-sélectionne le protocole correspondant au type par défaut.
+    selectedProtocoleId = _protocolePourType(protocoles, selectedType);
 
     showDialog(
       context: context,
@@ -345,7 +358,11 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                     DropdownMenuItem(value: 'canard', child: Text('Canard')),
                     DropdownMenuItem(value: 'autre', child: Text('Autre')),
                   ],
-                  onChanged: (v) => setDialogState(() => selectedType = v!),
+                  onChanged: (v) => setDialogState(() {
+                    selectedType = v!;
+                    // Le protocole s'aligne automatiquement sur le type choisi.
+                    selectedProtocoleId = _protocolePourType(protocoles, selectedType);
+                  }),
                   decoration: const InputDecoration(labelText: 'Type de volaille'),
                 ),
                 TextField(controller: raceController, decoration: const InputDecoration(labelText: 'Race *')),
@@ -359,7 +376,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Protocole vaccinal (optionnel)',
-                      helperText: 'Génère les tâches de suivi aux bonnes dates',
+                      helperText: 'Pré-sélectionné selon le type • génère les tâches aux bonnes dates',
                     ),
                     items: [
                       const DropdownMenuItem<String>(value: null, child: Text('Aucun')),
