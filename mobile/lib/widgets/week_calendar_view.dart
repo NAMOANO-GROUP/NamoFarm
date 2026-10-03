@@ -54,13 +54,23 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
   bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
+  // Fond grisé pour les créneaux hors horaires de travail.
+  Color get _horsTravail {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.withValues(alpha: 0.12);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final visibleDays = constraints.maxWidth > 700 ? 7 : 3;
         final colWidth = (constraints.maxWidth - _gutter) / visibleDays;
-        final days = [for (var i = 0; i < visibleDays; i++) _firstDay.add(Duration(days: i))];
+        // En vue 7 jours, on cale le début sur le lundi (lundi à gauche, dimanche à droite).
+        final firstVisible = visibleDays == 7
+            ? _firstDay.subtract(Duration(days: _firstDay.weekday - 1))
+            : _firstDay;
+        final days = [for (var i = 0; i < visibleDays; i++) firstVisible.add(Duration(days: i))];
 
         int startHour = 6, endHour = 21;
         if (_fullDay) {
@@ -93,7 +103,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
         return Column(
           children: [
-            _navigationBar(visibleDays),
+            _navigationBar(firstVisible, visibleDays),
             _dayHeaders(days, colWidth),
             _allDayRow(days, colWidth),
             const Divider(height: 1),
@@ -122,8 +132,8 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     );
   }
 
-  Widget _navigationBar(int visibleDays) {
-    final last = _firstDay.add(Duration(days: visibleDays - 1));
+  Widget _navigationBar(DateTime firstVisible, int visibleDays) {
+    final last = firstVisible.add(Duration(days: visibleDays - 1));
     final df = DateFormat('dd/MM');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -137,7 +147,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
           ),
           Expanded(
             child: Center(
-              child: Text('${df.format(_firstDay)} – ${df.format(last)}',
+              child: Text('${df.format(firstVisible)} – ${df.format(last)}',
                   style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
@@ -295,6 +305,27 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
           ),
           child: Stack(
             children: [
+              // Mise en évidence des horaires de travail : grisé hors 8h–18h et tout le dimanche.
+              if (day.weekday == DateTime.sunday)
+                Positioned.fill(child: Container(color: _horsTravail))
+              else ...[
+                if (startHour < 8)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: ((8 * 60 - gridMinutes) * pxPerMin).clamp(0, double.infinity),
+                    child: Container(color: _horsTravail),
+                  ),
+                if (endHour > 18)
+                  Positioned(
+                    top: ((18 * 60 - gridMinutes) * pxPerMin).clamp(0, double.infinity),
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(color: _horsTravail),
+                  ),
+              ],
               for (var h = startHour; h <= endHour; h++)
                 Positioned(
                   top: (h - startHour) * _hourHeight,
