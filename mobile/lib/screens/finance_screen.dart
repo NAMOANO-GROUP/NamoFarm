@@ -30,6 +30,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
   final TextEditingController _yearCtrl = TextEditingController();
   bool _showMouvements = false;
 
+  // Bandes (actives + historique) pour afficher/affecter une bande sur un mouvement.
+  List<Map<String, dynamic>> _bandes = const [];
+  final Map<String, String> _bandesById = {};
+
   double? _parseDecimal(String value) {
     final normalized = value.replaceAll('\u00A0', '').replaceAll(' ', '').trim().replaceAll(',', '.');
     if (normalized.isEmpty) return null;
@@ -110,7 +114,25 @@ class _FinanceScreenState extends State<FinanceScreen> {
       final provider = context.read<FinanceProvider>();
       provider.chargerTresorerie();
       provider.chargerAnalysesAvancees();
+      _loadBandes();
     });
+  }
+
+  Future<void> _loadBandes() async {
+    try {
+      final actives = await ApiService.getBandesActives();
+      final historiques = await ApiService.getBandesHistorique();
+      if (!mounted) return;
+      final list = [...actives, ...historiques].whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      setState(() {
+        _bandes = list;
+        _bandesById
+          ..clear()
+          ..addEntries(list.map((b) => MapEntry((b['_id'] ?? b['id'] ?? '').toString(), (b['nom'] ?? 'Bande').toString())));
+      });
+    } catch (_) {
+      // Affectation/affichage bande indisponible si le chargement échoue.
+    }
   }
 
   @override
@@ -603,8 +625,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 28,
+                    interval: 1,
                     getTitlesWidget: (value, meta) {
-                      final i = value.toInt();
+                      // Un seul label par point (valeurs entières), sinon doublons superposés.
+                      if ((value - value.roundToDouble()).abs() > 0.01) return const SizedBox.shrink();
+                      final i = value.round();
                       if (i < 0 || i >= parsed.length) return const SizedBox.shrink();
                       final month = (parsed[i]['mois'] ?? '').toString();
                       final compact = month.length >= 7 ? month.substring(2) : month;
@@ -914,6 +939,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final type = (m['type'] ?? '').toString();
     final commentaire = (m['commentaire'] ?? '').toString();
     final id = (m['_id'] ?? '').toString();
+    final bandeId = (m['bandeId'] ?? '').toString();
+    final bandeNom = _bandesById[bandeId] ?? '';
     final auth = context.watch<AuthProvider>();
     final canDelete = auth.isAdmin || auth.isSuperadmin;
 
@@ -927,14 +954,37 @@ class _FinanceScreenState extends State<FinanceScreen> {
           children: [
             Text('$formattedDate • $quiPrenom $quiNom'),
             Text('Source: $source • Categorie: $categorie • Type: $type'),
+            if (bandeNom.isNotEmpty)
+              Text('Bande: $bandeNom', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
             if (commentaire.isNotEmpty) Text(commentaire, style: const TextStyle(fontStyle: FontStyle.italic)),
           ],
         ),
         trailing: canDelete && id.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                tooltip: 'Supprimer cette transaction',
-                onPressed: () => _confirmerSuppressionMouvement(id),
+            ? PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                tooltip: 'Options',
+                onSelected: (v) {
+                  if (v == 'edit') _showModifierMouvementDialog(m);
+                  if (v == 'delete') _confirmerSuppressionMouvement(id);
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.edit_outlined),
+                      title: Text('Modifier'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+                      title: Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
+                    ),
+                  ),
+                ],
               )
             : null,
         isThreeLine: true,
@@ -964,6 +1014,136 @@ class _FinanceScreenState extends State<FinanceScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(ok ? 'Transaction supprimee' : 'Erreur: ${provider.lastError ?? ''}')),
+    );
+  }
+
+  // Retire les préfixes techniques ([Bande: ...], [Categorie: ...]) du commentaire à l'édition.
+  String _nettoyerCommentaire(String c) {
+    return c
+        .replaceFirst(RegExp(r'^\s*\[Bande:[^\]]*\]\s*'), '')
+        .replaceFirst(RegExp(r'^\s*\[Categorie:[^\]]*\]\s*'), '')
+        .trim();
+  }
+
+  Future<void> _showModifierMouvementDialog(Map<String, dynamic> m) async {
+    final id = (m['_id'] ?? '').toString();
+    if (id.isEmpty) return;
+
+    final quiPrenomCtrl = TextEditingController(text: (m['quiPrenom'] ?? '').toString());
+    final quiNomCtrl = TextEditingController(text: (m['quiNom'] ?? '').toString());
+    final categorieCtrl = TextEditingController(text: (m['categorie'] ?? '').toString());
+    final typeCtrl = TextEditingController(text: (m['type'] ?? '').toString());
+    final montantCtrl = TextEditingController(
+      text: ((m['montant'] ?? 0) as num) == 0 ? '' : ((m['montant'] ?? 0) as num).toStringAsFixed(0),
+    );
+    final commentaireCtrl = TextEditingController(text: _nettoyerCommentaire((m['commentaire'] ?? '').toString()));
+    String nature = (m['nature'] ?? 'sortie').toString() == 'entree' ? 'entree' : 'sortie';
+    String selectedBandeId = (m['bandeId'] ?? '').toString();
+    DateTime selectedDate = m['date'] != null ? (DateTime.tryParse(m['date'].toString()) ?? DateTime.now()) : DateTime.now();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Modifier le mouvement'),
+          content: AppFormBody([
+            const FormSection('Mouvement', icon: Icons.sync_alt),
+            DropdownButtonFormField<String>(
+              initialValue: nature,
+              decoration: const InputDecoration(labelText: 'Nature', prefixIcon: Icon(Icons.swap_vert_outlined)),
+              items: const [
+                DropdownMenuItem(value: 'entree', child: Text('Entrée (recette)')),
+                DropdownMenuItem(value: 'sortie', child: Text('Sortie (dépense)')),
+              ],
+              onChanged: (v) => setDialogState(() => nature = v ?? nature),
+            ),
+            NumberField(controller: montantCtrl, label: 'Montant *', prefixIcon: Icons.payments_outlined),
+            TextField(
+              controller: categorieCtrl,
+              decoration: const InputDecoration(labelText: 'Catégorie', prefixIcon: Icon(Icons.category_outlined)),
+            ),
+            TextField(
+              controller: typeCtrl,
+              decoration: const InputDecoration(labelText: 'Type', prefixIcon: Icon(Icons.label_outline)),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: _bandesById.containsKey(selectedBandeId) ? selectedBandeId : '',
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Bande affectée', prefixIcon: Icon(Icons.layers_outlined)),
+              items: [
+                const DropdownMenuItem<String>(value: '', child: Text('Sans bande')),
+                ..._bandes.map((b) {
+                  final bid = (b['_id'] ?? b['id'] ?? '').toString();
+                  final nom = (b['nom'] ?? 'Bande').toString();
+                  final batiment = (b['batiment'] ?? '').toString();
+                  final label = batiment.isNotEmpty ? '$nom - $batiment' : nom;
+                  return DropdownMenuItem<String>(value: bid, child: Text(label, overflow: TextOverflow.ellipsis));
+                }),
+              ],
+              onChanged: (v) => setDialogState(() => selectedBandeId = v ?? ''),
+            ),
+            const FormSection('Auteur & date', icon: Icons.person_outline),
+            TextField(
+              controller: quiPrenomCtrl,
+              decoration: const InputDecoration(labelText: 'Prénom', prefixIcon: Icon(Icons.badge_outlined)),
+            ),
+            TextField(
+              controller: quiNomCtrl,
+              decoration: const InputDecoration(labelText: 'Nom', prefixIcon: Icon(Icons.person_outline)),
+            ),
+            FormDateTile(
+              label: 'Date',
+              value: DateFormat('dd/MM/yyyy').format(selectedDate),
+              onTap: () async {
+                final picked = await showIsoDatePicker(
+                  context: dialogContext,
+                  initialDate: selectedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) setDialogState(() => selectedDate = picked);
+              },
+            ),
+            TextField(
+              controller: commentaireCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Commentaire', prefixIcon: Icon(Icons.notes_outlined)),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            AsyncButton(
+              label: const Text('Enregistrer'),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(dialogContext);
+                final provider = context.read<FinanceProvider>();
+                final montant = _parseDecimal(montantCtrl.text) ?? 0;
+                if (montant <= 0) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Montant invalide')));
+                  return;
+                }
+                final ok = await provider.modifierMouvement(id, {
+                  'nature': nature,
+                  'montant': montant,
+                  'categorie': categorieCtrl.text.trim(),
+                  'type': typeCtrl.text.trim(),
+                  'quiPrenom': quiPrenomCtrl.text.trim(),
+                  'quiNom': quiNomCtrl.text.trim(),
+                  'date': selectedDate.toIso8601String(),
+                  'commentaire': commentaireCtrl.text.trim(),
+                  'bandeId': selectedBandeId,
+                });
+                if (!mounted) return;
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text(ok ? 'Mouvement modifié' : 'Erreur: ${provider.lastError ?? ''}')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

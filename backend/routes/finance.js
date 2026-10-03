@@ -115,6 +115,46 @@ async function insertTresorerieCompat(api, payload) {
   };
 }
 
+// Même logique de repli que l'insertion, pour les mises à jour (noms de colonnes variables).
+async function updateTresorerieCompat(api, companyId, id, payload) {
+  let candidate = { ...payload };
+  let legacyAttempted = false;
+
+  for (let i = 0; i < 6; i += 1) {
+    const result = await api
+      .from('tresorerie_mouvements')
+      .update(candidate)
+      .eq('company_id', companyId)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+
+    if (!result.error) return result;
+
+    const missingColumn = extractMissingColumn(result.error);
+    if (!missingColumn) return result;
+
+    if (!legacyAttempted && missingColumn.includes('_')) {
+      candidate = toLegacyTresoreriePayload(candidate);
+      legacyAttempted = true;
+      continue;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(candidate, missingColumn)) return result;
+
+    if (missingColumn === 'categorie') {
+      candidate = withCategoryHint(candidate);
+    }
+
+    delete candidate[missingColumn];
+  }
+
+  return {
+    data: null,
+    error: { message: 'Mise a jour tresorerie impossible: schema incompatible apres tentatives de fallback' },
+  };
+}
+
 function mapMouvement(row) {
   return {
     _id: row.id,
@@ -130,6 +170,10 @@ function mapMouvement(row) {
     referenceType: row.reference_type || row.referenceType || null,
     referenceId: row.reference_id || row.referenceId || null,
     externeCle: row.externe_cle || row.externeCle || null,
+    // Bande affectée : via reference (dépenses) ou colonne dédiée si présente.
+    bandeId: (row.reference_type && row.reference_type.toString().toLowerCase() === 'bande')
+      ? (row.reference_id ? String(row.reference_id) : null)
+      : (row.bande_id || row.bandeId || null),
     createdAt: row.created_at,
   };
 }
@@ -931,6 +975,74 @@ router.post('/approvisionnements', requirePermission('finance.write'), async (re
 
     if (error) return res.status(400).json({ message: error.message });
     return res.status(201).json(mapMouvement(data));
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+});
+
+router.put('/mouvements/:id', requirePermission('finance.write'), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+
+    const existing = await api
+      .from('tresorerie_mouvements')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (existing.error) return res.status(500).json({ message: existing.error.message });
+    if (!existing.data) return res.status(404).json({ message: 'Transaction non trouvée' });
+
+    const updates = {};
+
+    if (req.body.montant !== undefined) {
+      const montant = Number(req.body.montant);
+      if (Number.isNaN(montant) || montant <= 0) return res.status(400).json({ message: 'Montant invalide' });
+      updates.montant = montant;
+    }
+    if (req.body.nature !== undefined) {
+      const nature = (req.body.nature || '').toString().trim();
+      if (!['entree', 'sortie'].includes(nature)) return res.status(400).json({ message: 'Nature invalide' });
+      updates.nature = nature;
+    }
+    if (req.body.categorie !== undefined) updates.categorie = (req.body.categorie || '').toString().trim();
+    if (req.body.type !== undefined) updates.type = (req.body.type || '').toString().trim();
+    if (req.body.commentaire !== undefined) updates.commentaire = (req.body.commentaire || '').toString().trim();
+    if (req.body.quiNom !== undefined) updates.qui_nom = (req.body.quiNom || '').toString().trim();
+    if (req.body.quiPrenom !== undefined) updates.qui_prenom = (req.body.quiPrenom || '').toString().trim();
+    if (req.body.date !== undefined) {
+      const d = new Date(req.body.date);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'Date invalide' });
+      updates.date_mouvement = d.toISOString();
+    }
+
+    // Affectation à une bande : stockée via reference_type/reference_id (utilisée par l'analytique).
+    if (req.body.bandeId !== undefined) {
+      const bandeId = (req.body.bandeId || '').toString().trim();
+      if (bandeId) {
+        const bandeRes = await api
+          .from('bandes')
+          .select('id,nom')
+          .eq('company_id', companyId)
+          .eq('id', bandeId)
+          .maybeSingle();
+        if (bandeRes.error) return res.status(400).json({ message: bandeRes.error.message });
+        if (!bandeRes.data) return res.status(400).json({ message: 'Bande non trouvée' });
+        updates.reference_type = 'Bande';
+        updates.reference_id = bandeId;
+      } else {
+        updates.reference_type = 'manuel';
+        updates.reference_id = null;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) return res.json(mapMouvement(existing.data));
+
+    const updated = await updateTresorerieCompat(api, companyId, req.params.id, updates);
+    if (updated.error) return res.status(400).json({ message: updated.error.message });
+    if (!updated.data) return res.status(404).json({ message: 'Transaction non trouvée' });
+    return res.json(mapMouvement(updated.data));
   } catch (err) {
     return res.status(400).json({ message: err.message });
   }

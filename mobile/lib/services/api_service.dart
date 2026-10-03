@@ -365,6 +365,9 @@ class ApiService {
         _ensureSuccess(await _delete('/finance/mouvements/$id'));
     }
 
+    static Future<Map<String, dynamic>> modifierMouvementTresorerie(String id, Map<String, dynamic> data) async =>
+        Map<String, dynamic>.from(_ensureSuccess(await _put('/finance/mouvements/$id', body: data)) ?? {});
+
     static Future<String> exportHistoriqueMouvementsTresorerieCsv({
         String? period,
         String? source,

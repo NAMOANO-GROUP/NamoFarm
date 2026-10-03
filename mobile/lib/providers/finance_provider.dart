@@ -205,4 +205,17 @@ class FinanceProvider with ChangeNotifier {
       return false;
     }
   }
+
+  Future<bool> modifierMouvement(String id, Map<String, dynamic> payload) async {
+    try {
+      _lastError = null;
+      await ApiService.modifierMouvementTresorerie(id, payload);
+      await chargerTresorerie();
+      return true;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
 }
