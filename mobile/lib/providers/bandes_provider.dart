@@ -64,6 +64,20 @@ class BandesProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> modifierBande(String id, Map<String, dynamic> data) async {
+    _lastError = null;
+    try {
+      await ApiService.mettreAJourBande(id, data);
+      await chargerBandesActives();
+      await chargerHistorique();
+      return true;
+    } catch (e) {
+      debugPrint('Erreur: $e');
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    }
+  }
+
   Future<bool> supprimerBande(String id) async {
     _lastError = null;
     if (id.isEmpty) {

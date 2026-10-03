@@ -15,7 +15,6 @@ import 'suivi_screen.dart';
 import 'bande_dashboard_screen.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
-import '../widgets/status_pill.dart';
 
 class BandesScreen extends StatefulWidget {
   const BandesScreen({super.key});
@@ -144,112 +143,279 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   Widget _buildBandeCard(Bande bande, {required bool active}) {
     final isAdmin = context.watch<AuthProvider>().isAdmin;
     final dateFormat = DateFormat('dd/MM/yyyy');
+    final scheme = Theme.of(context).colorScheme;
+    final headerColors = active
+        ? [Colors.green.shade600, Colors.green.shade400]
+        : [Colors.blueGrey.shade600, Colors.blueGrey.shade400];
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // En-tête premium (dégradé) : nom + race/type + menu actions.
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: headerColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+            ),
+            child: Row(
               children: [
+                CircleAvatar(
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
+                  child: const Icon(Icons.egg_alt, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    bande.nom,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bande.nom,
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${bande.race} • ${bande.typeVolaille}',
+                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.92)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                StatusPill(
-                  label: active ? 'Ouverte' : 'Fermée',
-                  color: active ? Colors.green : Colors.red,
-                  icon: active ? Icons.lock_open : Icons.lock_outline,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(active ? Icons.lock_open : Icons.lock_outline, size: 12, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(active ? 'Ouverte' : 'Fermée',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  tooltip: 'Options',
+                  onSelected: (v) {
+                    if (v == 'edit') _showModifierBandeDialog(bande);
+                    if (v == 'delete') _confirmerSuppression(bande);
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Modifier')),
+                    ),
+                    if (!active && isAdmin)
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+                          title: Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Race: ${bande.race}'),
-            Text('Type: ${bande.typeVolaille}'),
-            Row(
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.groups_outlined, size: 15, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Text('Effectif: ${bande.nombreActuel}/${bande.nombreInitial}'),
-              ],
-            ),
-            Row(
-              children: [
-                Icon(Icons.warning_amber_outlined, size: 15, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Text('Mortalité: ${bande.mortaliteTotale} (${bande.tauxMortalite ?? "0"}%)'),
-              ],
-            ),
-            Text('Ouverture: ${dateFormat.format(bande.dateOuverture)}'),
-            if (!active && bande.dateFermeture != null)
-              Text('Fermeture: ${dateFormat.format(bande.dateFermeture!)}'),
-            if (active) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.start,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => SuiviScreen(bande: bande),
-                      ));
-                    },
-                    style: ElevatedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    icon: const Icon(Icons.trending_up),
-                    label: const Text('Suivi'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => BandeDashboardScreen(bande: bande),
-                      ));
-                    },
-                    style: ElevatedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    icon: const Icon(Icons.insights),
-                    label: const Text('Dashboard'),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _confirmerFermeture(bande),
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    ),
-                    icon: const Icon(Icons.stop_circle, color: Colors.red),
-                    label: const Text('Fermer', style: TextStyle(color: Colors.red)),
+                Row(
+                  children: [
+                    _bandeMetric(Icons.groups_outlined, 'Effectif actuel',
+                        '${bande.nombreActuel}/${bande.nombreInitial}', scheme.primary),
+                    const SizedBox(width: 10),
+                    _bandeMetric(Icons.warning_amber_outlined, 'Mortalité',
+                        '${bande.mortaliteTotale} (${bande.tauxMortalite ?? "0"}%)', Colors.orange),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (bande.batiment.isNotEmpty) _bandeInfoChip(Icons.home_work_outlined, bande.batiment),
+                    _bandeInfoChip(Icons.event_available_outlined, 'Ouverte le ${dateFormat.format(bande.dateOuverture)}'),
+                    if (!active && bande.dateFermeture != null)
+                      _bandeInfoChip(Icons.event_busy_outlined, 'Fermée le ${dateFormat.format(bande.dateFermeture!)}'),
+                  ],
+                ),
+                if (active) ...[
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => SuiviScreen(bande: bande)));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.trending_up),
+                        label: const Text('Suivi'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => BandeDashboardScreen(bande: bande)));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.insights),
+                        label: const Text('Dashboard'),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _confirmerFermeture(bande),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.stop_circle, color: Colors.red),
+                        label: const Text('Fermer', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
                   ),
                 ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bandeMetric(IconData icon, String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                  Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
               ),
-            ],
-            if (!active && isAdmin) ...[
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: bande.id == null ? null : () => _confirmerSuppression(bande),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  ),
-                  icon: const Icon(Icons.delete_forever, color: Colors.red),
-                  label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                ),
-              ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bandeInfoChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 5),
+          Text(text, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  void _showModifierBandeDialog(Bande bande) {
+    final nomCtrl = TextEditingController(text: bande.nom);
+    final raceCtrl = TextEditingController(text: bande.race);
+    final batimentCtrl = TextEditingController(text: bande.batiment);
+    final objectifCtrl = TextEditingController(
+      text: bande.objectifPoidsG > 0 ? bande.objectifPoidsG.toStringAsFixed(0) : '',
+    );
+    String selectedType = bande.typeVolaille.isNotEmpty ? bande.typeVolaille : 'poulet_chair';
+    const types = ['poulet_chair', 'poulet_ameliore', 'poule_pondeuse', 'dinde', 'canard', 'autre'];
+    if (!types.contains(selectedType)) selectedType = 'autre';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Modifier la bande'),
+          content: AppFormBody([
+            const FormSection('Identité', icon: Icons.pets),
+            TextField(
+              controller: nomCtrl,
+              decoration: const InputDecoration(labelText: 'Nom de la bande *', prefixIcon: Icon(Icons.badge_outlined)),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: selectedType,
+              decoration: const InputDecoration(labelText: 'Type de volaille', prefixIcon: Icon(Icons.category_outlined)),
+              items: const [
+                DropdownMenuItem(value: 'poulet_chair', child: Text('Poulet de chair')),
+                DropdownMenuItem(value: 'poulet_ameliore', child: Text('Poulet amélioré')),
+                DropdownMenuItem(value: 'poule_pondeuse', child: Text('Poule pondeuse')),
+                DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
+                DropdownMenuItem(value: 'canard', child: Text('Canard')),
+                DropdownMenuItem(value: 'autre', child: Text('Autre')),
+              ],
+              onChanged: (v) => setDialogState(() => selectedType = v ?? selectedType),
+            ),
+            TextField(
+              controller: raceCtrl,
+              decoration: const InputDecoration(labelText: 'Race *', prefixIcon: Icon(Icons.pedal_bike_outlined)),
+            ),
+            const FormSection('Détails', icon: Icons.tune),
+            TextField(
+              controller: batimentCtrl,
+              decoration: const InputDecoration(labelText: 'Bâtiment', prefixIcon: Icon(Icons.home_work_outlined)),
+            ),
+            NumberField(controller: objectifCtrl, label: 'Objectif poids (g)', prefixIcon: Icons.flag_outlined),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(dialogContext);
+                final provider = context.read<BandesProvider>();
+                if (nomCtrl.text.trim().isEmpty || raceCtrl.text.trim().isEmpty) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Nom et race obligatoires')));
+                  return;
+                }
+                if (bande.id == null) return;
+                final ok = await provider.modifierBande(bande.id!, {
+                  'nom': nomCtrl.text.trim(),
+                  'typeVolaille': selectedType,
+                  'race': raceCtrl.text.trim(),
+                  'batiment': batimentCtrl.text.trim(),
+                  'objectifPoidsG': parseAmount(objectifCtrl.text) ?? 0,
+                });
+                if (!mounted) return;
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text(ok ? 'Bande modifiée' : 'Erreur: ${provider.lastError ?? ''}')),
+                );
+              },
+              child: const Text('Enregistrer'),
+            ),
           ],
         ),
       ),
