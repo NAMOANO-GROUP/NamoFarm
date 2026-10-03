@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/brand_logo.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/sante.dart';
 import '../providers/sante_provider.dart';
-import '../services/api_service.dart';
-import '../widgets/iso_calendar_picker.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/form_section.dart';
 import '../widgets/add_button.dart';
@@ -18,58 +15,18 @@ class SanteScreen extends StatefulWidget {
   State<SanteScreen> createState() => _SanteScreenState();
 }
 
-class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  // Bandes chargées pour filtrer le registre et afficher les noms.
-  List<Map<String, dynamic>> _bandes = const [];
-  String _registreBandeFilter = '';
-
+class _SanteScreenState extends State<SanteScreen> {
   static const List<String> _typesVolaille = [
     'poulet_chair', 'poulet_ameliore', 'poule_pondeuse', 'dinde', 'canard', 'autre',
-  ];
-  static const List<String> _typesTraitement = [
-    'vaccination', 'traitement', 'prophylaxie', 'vitamines', 'autre',
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SanteProvider>().charger();
-      _loadBandes();
     });
   }
-
-  Future<void> _loadBandes() async {
-    try {
-      final actives = await ApiService.getBandesActives();
-      final historiques = await ApiService.getBandesHistorique();
-      if (!mounted) return;
-      setState(() {
-        _bandes = [...actives, ...historiques].whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-      });
-    } catch (_) {
-      // Filtre par bande simplement indisponible si le chargement échoue.
-    }
-  }
-
-  String _bandeNom(String? id) {
-    if (id == null || id.isEmpty) return '';
-    for (final b in _bandes) {
-      if ((b['_id'] ?? b['id']).toString() == id) return (b['nom'] ?? '').toString();
-    }
-    return '';
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  String _fmtDate(DateTime? d) => d == null ? '-' : DateFormat('dd/MM/yyyy').format(d);
 
   @override
   Widget build(BuildContext context) {
@@ -80,34 +37,18 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: AnimatedBuilder(
-              animation: _tabController,
-              builder: (context, _) => AddButton(
-                tooltip: _tabController.index == 0 ? 'Nouveau protocole' : 'Nouveau traitement',
-                icon: _tabController.index == 0 ? Icons.vaccines : Icons.medication,
-                onPressed: () => _tabController.index == 0 ? _showProtocoleForm() : _showTraitementForm(),
-              ),
+            child: AddButton(
+              tooltip: 'Nouveau protocole',
+              icon: Icons.vaccines,
+              onPressed: _showProtocoleForm,
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.vaccines_outlined), text: 'Protocoles'),
-            Tab(icon: Icon(Icons.medical_services_outlined), text: 'Registre'),
-          ],
-        ),
       ),
       body: Consumer<SanteProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) return const Center(child: CircularProgressIndicator());
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _protocolesTab(provider),
-              _registreTab(provider),
-            ],
-          );
+          return _protocolesTab(provider);
         },
       ),
     );
@@ -310,183 +251,6 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
             child: const Text('Ajouter'),
           ),
         ],
-      ),
-    );
-  }
-
-  // -------------------- Registre traitements --------------------
-
-  Widget _registreTab(SanteProvider provider) {
-    // Filtre client-side par bande (couvre traitements ET vaccinations enregistrés).
-    final traitements = _registreBandeFilter.isEmpty
-        ? provider.traitements
-        : provider.traitements.where((t) => (t.bandeId ?? '') == _registreBandeFilter).toList();
-
-    return RefreshIndicator(
-      onRefresh: provider.charger,
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          if (_bandes.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: DropdownButtonFormField<String>(
-                initialValue: _registreBandeFilter.isEmpty ? '' : _registreBandeFilter,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Filtrer par bande',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.filter_list),
-                ),
-                items: [
-                  const DropdownMenuItem(value: '', child: Text('Toutes les bandes')),
-                  ..._bandes.map((b) {
-                    final id = (b['_id'] ?? b['id']).toString();
-                    final nom = (b['nom'] ?? 'Bande').toString();
-                    return DropdownMenuItem(value: id, child: Text(nom, overflow: TextOverflow.ellipsis));
-                  }),
-                ],
-                onChanged: (v) => setState(() => _registreBandeFilter = v ?? ''),
-              ),
-            ),
-          if (traitements.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: EmptyState(
-                icon: Icons.medical_services_outlined,
-                title: _registreBandeFilter.isEmpty ? 'Aucun traitement enregistré' : 'Aucun traitement pour cette bande',
-                subtitle: 'Enregistrez vaccinations et traitements pour suivre les délais d’attente.',
-              ),
-            )
-          else
-            ...traitements.map(_traitementCard),
-        ],
-      ),
-    );
-  }
-
-  Widget _traitementCard(TraitementSanitaire t) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    Color? color;
-    String badge = '';
-    if (t.statutDelai == 'en_cours') {
-      color = isDark ? Colors.orange.shade900.withValues(alpha: 0.30) : Colors.orange.shade50;
-      badge = 'Délai en cours → ${_fmtDate(t.dateFinDelaiAttente)}';
-    } else if (t.statutDelai == 'termine' && t.delaiAttenteJours > 0) {
-      color = isDark ? Colors.green.shade900.withValues(alpha: 0.30) : Colors.green.shade50;
-      badge = 'Délai respecté';
-    }
-    return Card(
-      color: color,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: t.statutDelai == 'en_cours' ? Colors.orange.shade100 : Colors.green.shade100,
-          child: Icon(Icons.medical_services_outlined, color: t.statutDelai == 'en_cours' ? Colors.orange : Colors.green.shade700),
-        ),
-        title: Text('${t.type} • ${t.produit}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-          '${_bandeNom(t.bandeId).isNotEmpty ? '${_bandeNom(t.bandeId)} • ' : ''}${_fmtDate(t.dateTraitement)}${t.dose.isNotEmpty ? ' • ${t.dose}' : ''}${t.motif.isNotEmpty ? ' • ${t.motif}' : ''}${badge.isNotEmpty ? '\n$badge' : ''}',
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        isThreeLine: badge.isNotEmpty,
-        trailing: PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'edit') _showTraitementForm(traitement: t);
-            if (v == 'delete') _confirmDelete('Supprimer ce traitement ?', () => context.read<SanteProvider>().supprimerTraitement(t.id!));
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'edit', child: Text('Modifier')),
-            PopupMenuItem(value: 'delete', child: Text('Supprimer')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showTraitementForm({TraitementSanitaire? traitement}) {
-    final isEdit = traitement != null;
-    final produitCtrl = TextEditingController(text: traitement?.produit ?? '');
-    final doseCtrl = TextEditingController(text: traitement?.dose ?? '');
-    final voieCtrl = TextEditingController(text: traitement?.voie ?? '');
-    final motifCtrl = TextEditingController(text: traitement?.motif ?? '');
-    final delaiCtrl = TextEditingController(text: isEdit ? traitement.delaiAttenteJours.toString() : '');
-    final notesCtrl = TextEditingController(text: traitement?.notes ?? '');
-    DateTime date = traitement?.dateTraitement ?? DateTime.now();
-    String type = traitement?.type ?? 'vaccination';
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: Text(isEdit ? 'Modifier le traitement' : 'Nouveau traitement'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _typesTraitement.contains(type) ? type : 'traitement',
-                  decoration: const InputDecoration(labelText: 'Type'),
-                  items: _typesTraitement.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                  onChanged: (v) => setDialog(() => type = v ?? type),
-                ),
-                TextField(controller: produitCtrl, decoration: const InputDecoration(labelText: 'Produit / vaccin *')),
-                TextField(controller: doseCtrl, decoration: const InputDecoration(labelText: 'Dose')),
-                TextField(controller: voieCtrl, decoration: const InputDecoration(labelText: 'Voie')),
-                TextField(controller: motifCtrl, decoration: const InputDecoration(labelText: 'Motif')),
-                TextField(
-                  controller: delaiCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Délai d\'attente (jours)', helperText: 'Avant abattage / consommation'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date du traitement'),
-                  subtitle: Text(_fmtDate(date)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                    if (picked != null) setDialog(() => date = picked);
-                  },
-                ),
-                TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final provider = context.read<SanteProvider>();
-                if (produitCtrl.text.trim().isEmpty) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Le produit est obligatoire')));
-                  return;
-                }
-                final payload = {
-                  'type': type,
-                  'produit': produitCtrl.text.trim(),
-                  'dose': doseCtrl.text.trim(),
-                  'voie': voieCtrl.text.trim(),
-                  'motif': motifCtrl.text.trim(),
-                  'delaiAttenteJours': int.tryParse(delaiCtrl.text.trim()) ?? 0,
-                  'dateTraitement': date.toIso8601String(),
-                  'notes': notesCtrl.text.trim(),
-                };
-                final ok = isEdit
-                    ? await provider.mettreAJourTraitement(traitement.id!, payload)
-                    : await provider.creerTraitement(payload);
-                if (!mounted) return;
-                navigator.pop();
-                messenger.showSnackBar(SnackBar(content: Text(ok ? 'Traitement enregistré' : 'Erreur: ${provider.lastError ?? ''}')));
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
       ),
     );
   }
