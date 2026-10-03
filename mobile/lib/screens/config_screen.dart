@@ -273,6 +273,7 @@ class _ConfigScreenState extends State<ConfigScreen>
         }
 
         final refPoulet = refFor('poulet_chair', d: 42, p: 2500, c: 4.2);
+        final refAmeliore = refFor('poulet_ameliore', d: 60, p: 2200, c: 5.5);
         final refPondeuse = refFor('poule_pondeuse', d: 140, p: 1800, c: 14.0);
         final refDinde = refFor('dinde', d: 90, p: 7000, c: 18.0);
         final refCanard = refFor('canard', d: 50, p: 3200, c: 6.0);
@@ -284,6 +285,13 @@ class _ConfigScreenState extends State<ConfigScreen>
             TextEditingController(text: '${refPoulet['poidsFinalG']}');
         final pouletConsoCtrl =
             TextEditingController(text: '${refPoulet['consoTotaleKgParTete']}');
+
+        final amelioreDureeCtrl =
+            TextEditingController(text: '${refAmeliore['dureeJours']}');
+        final ameliorePoidsCtrl =
+            TextEditingController(text: '${refAmeliore['poidsFinalG']}');
+        final amelioreConsoCtrl =
+            TextEditingController(text: '${refAmeliore['consoTotaleKgParTete']}');
 
         final pondeuseDureeCtrl =
             TextEditingController(text: '${refPondeuse['dureeJours']}');
@@ -343,6 +351,20 @@ class _ConfigScreenState extends State<ConfigScreen>
                     refPoulet['courbeTheorique'] as List<dynamic>);
                 if (updated != null) {
                   refPoulet['courbeTheorique'] = updated;
+                }
+              },
+            ),
+            _refSection(
+              title: 'Poulet amélioré',
+              duree: amelioreDureeCtrl,
+              poids: ameliorePoidsCtrl,
+              conso: amelioreConsoCtrl,
+              courbeCount: (refAmeliore['courbeTheorique'] as List).length,
+              onEditCurve: () async {
+                final updated = await _showCourbeDialog('Poulet amélioré',
+                    refAmeliore['courbeTheorique'] as List<dynamic>);
+                if (updated != null) {
+                  refAmeliore['courbeTheorique'] = updated;
                 }
               },
             ),
@@ -418,6 +440,15 @@ class _ConfigScreenState extends State<ConfigScreen>
                           double.tryParse(pouletConsoCtrl.text) ?? 4.2,
                       'courbeTheorique':
                           _normalizeCourbe(refPoulet['courbeTheorique']),
+                    },
+                    'poulet_ameliore': {
+                      'dureeJours': int.tryParse(amelioreDureeCtrl.text) ?? 60,
+                      'poidsFinalG':
+                          parseAmount(ameliorePoidsCtrl.text) ?? 2200,
+                      'consoTotaleKgParTete':
+                          double.tryParse(amelioreConsoCtrl.text) ?? 5.5,
+                      'courbeTheorique':
+                          _normalizeCourbe(refAmeliore['courbeTheorique']),
                     },
                     'poule_pondeuse': {
                       'dureeJours': int.tryParse(pondeuseDureeCtrl.text) ?? 140,

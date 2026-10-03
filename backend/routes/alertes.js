@@ -22,6 +22,59 @@ function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+// Calcule la prochaine échéance d'une tâche périodique selon sa récurrence et sa config.
+// config: { joursSemaine:[1..7] } (hebdo), { jourMois:1..31 } (mensuel), { mois:1..12, jourMois:1..31 } (annuel).
+function clampDay(year, monthIndex, day) {
+  const last = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.min(day, last);
+}
+
+function nextEcheance(dateIso, recurrence, config = {}) {
+  const d = new Date(dateIso);
+  if (Number.isNaN(d.getTime())) return null;
+  const cfg = config && typeof config === 'object' ? config : {};
+  switch ((recurrence || '').toString().toLowerCase()) {
+    case 'quotidien':
+      d.setDate(d.getDate() + 1);
+      return d;
+    case 'hebdomadaire': {
+      const jours = Array.isArray(cfg.joursSemaine)
+        ? cfg.joursSemaine.map(Number).filter((n) => n >= 1 && n <= 7)
+        : [];
+      if (jours.length === 0) {
+        d.setDate(d.getDate() + 7);
+        return d;
+      }
+      // Cherche le prochain jour de la semaine coché (ISO: 1=lundi..7=dimanche).
+      for (let i = 1; i <= 7; i += 1) {
+        const cand = new Date(d);
+        cand.setDate(d.getDate() + i);
+        const iso = ((cand.getDay() + 6) % 7) + 1;
+        if (jours.includes(iso)) return cand;
+      }
+      d.setDate(d.getDate() + 7);
+      return d;
+    }
+    case 'bihebdomadaire':
+      d.setDate(d.getDate() + 14);
+      return d;
+    case 'mensuel': {
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const jour = Number(cfg.jourMois) >= 1 && Number(cfg.jourMois) <= 31 ? Number(cfg.jourMois) : d.getDate();
+      return new Date(year, month, clampDay(year, month, jour), d.getHours(), d.getMinutes());
+    }
+    case 'annuel': {
+      const year = d.getFullYear() + 1;
+      const monthIndex = Number(cfg.mois) >= 1 && Number(cfg.mois) <= 12 ? Number(cfg.mois) - 1 : d.getMonth();
+      const jour = Number(cfg.jourMois) >= 1 && Number(cfg.jourMois) <= 31 ? Number(cfg.jourMois) : d.getDate();
+      return new Date(year, monthIndex, clampDay(year, monthIndex, jour), d.getHours(), d.getMinutes());
+    }
+    default:
+      return null;
+  }
+}
+
 function mapAlerteRow(row, bandeMap = new Map()) {
   const bandeId = row.bande_id || null;
   return {
@@ -30,11 +83,14 @@ function mapAlerteRow(row, bandeMap = new Map()) {
     message: row.message,
     type: row.type,
     dateEcheance: row.date_echeance,
+    dateFin: row.date_fin || null,
+    touteJournee: row.toute_journee === true,
     bandeId: bandeId && bandeMap.has(bandeId)
       ? { _id: bandeId, nom: bandeMap.get(bandeId) }
       : bandeId,
     statut: row.statut || 'active',
     recurrence: row.recurrence || 'aucune',
+    recurrenceConfig: row.recurrence_config && typeof row.recurrence_config === 'object' ? row.recurrence_config : {},
     priorite: row.priorite || 'moyenne',
     source: row.source || 'todo',
     automatique: row.automatique === true,
@@ -448,8 +504,11 @@ router.post('/', requirePermission('alertes.create'), async (req, res) => {
       message: req.body.message,
       type: req.body.type,
       date_echeance: req.body.dateEcheance,
+      date_fin: req.body.dateFin || null,
+      toute_journee: req.body.touteJournee === true,
       bande_id: req.body.bandeId || null,
       recurrence: req.body.recurrence || 'aucune',
+      recurrence_config: req.body.recurrenceConfig && typeof req.body.recurrenceConfig === 'object' ? req.body.recurrenceConfig : {},
       priorite: req.body.priorite || 'moyenne',
       source: req.body.source || 'todo',
       automatique: req.body.automatique === true,
@@ -490,8 +549,11 @@ router.put('/:id', requirePermission('alertes.update'), async (req, res) => {
       message: 'message',
       type: 'type',
       dateEcheance: 'date_echeance',
+      dateFin: 'date_fin',
+      touteJournee: 'toute_journee',
       bandeId: 'bande_id',
       recurrence: 'recurrence',
+      recurrenceConfig: 'recurrence_config',
       priorite: 'priorite',
       source: 'source',
       statut: 'statut',
@@ -604,6 +666,40 @@ router.put('/:id/fait', requirePermission('alertes.mark_done'), async (req, res)
 
     if (updated.error) return res.status(400).json({ message: updated.error.message });
     if (!updated.data) return res.status(404).json({ message: 'Alerte non trouvée' });
+
+    // Tâche périodique : on recrée automatiquement la prochaine occurrence (comme Outlook/Teams).
+    const recurrence = (updated.data.recurrence || 'aucune').toString();
+    if (recurrence !== 'aucune') {
+      const prochaine = nextEcheance(updated.data.date_echeance, recurrence, updated.data.recurrence_config || {});
+      if (prochaine) {
+        // On conserve la durée (fin - début) pour la prochaine occurrence.
+        let prochaineFin = null;
+        if (updated.data.date_fin) {
+          const duree = new Date(updated.data.date_fin).getTime() - new Date(updated.data.date_echeance).getTime();
+          if (!Number.isNaN(duree) && duree > 0) {
+            prochaineFin = new Date(prochaine.getTime() + duree).toISOString();
+          }
+        }
+        await api.from('alertes').insert({
+          company_id: companyId,
+          titre: updated.data.titre,
+          message: updated.data.message,
+          type: updated.data.type,
+          date_echeance: prochaine.toISOString(),
+          date_fin: prochaineFin,
+          toute_journee: updated.data.toute_journee === true,
+          bande_id: updated.data.bande_id || null,
+          statut: 'active',
+          recurrence,
+          recurrence_config: updated.data.recurrence_config || {},
+          priorite: updated.data.priorite || 'moyenne',
+          source: updated.data.source || 'todo',
+          automatique: false,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
     return res.json(mapAlerteRow(updated.data));
   } catch (err) {
     return res.status(400).json({ message: err.message });

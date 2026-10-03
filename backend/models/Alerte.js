@@ -13,7 +13,7 @@ const alerteSchema = new mongoose.Schema({
   statut: { type: String, enum: ['active', 'faite', 'ignoree'], default: 'active' },
   recurrence: { 
     type: String, 
-    enum: ['aucune', 'quotidien', 'hebdomadaire', 'mensuel'], 
+    enum: ['aucune', 'quotidien', 'hebdomadaire', 'bihebdomadaire', 'mensuel', 'annuel'], 
     default: 'aucune' 
   },
   priorite: { type: String, enum: ['basse', 'moyenne', 'haute', 'urgente'], default: 'moyenne' }

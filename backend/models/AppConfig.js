@@ -12,6 +12,7 @@ const appConfigSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {
       poulet_chair: { dureeJours: 42, poidsFinalG: 2500, consoTotaleKgParTete: 4.2, courbeTheorique: [] },
+      poulet_ameliore: { dureeJours: 60, poidsFinalG: 2200, consoTotaleKgParTete: 5.5, courbeTheorique: [] },
       poule_pondeuse: { dureeJours: 140, poidsFinalG: 1800, consoTotaleKgParTete: 14.0, courbeTheorique: [] },
       dinde: { dureeJours: 90, poidsFinalG: 7000, consoTotaleKgParTete: 18.0, courbeTheorique: [] },
       canard: { dureeJours: 50, poidsFinalG: 3200, consoTotaleKgParTete: 6.0, courbeTheorique: [] },

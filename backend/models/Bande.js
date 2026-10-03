@@ -46,7 +46,7 @@ const bandeSchema = new mongoose.Schema({
   dateOuverture: { type: Date, default: Date.now },
   dateFermeture: { type: Date, default: null },
   statut: { type: String, enum: ['ouverte', 'fermee'], default: 'ouverte' },
-  typeVolaille: { type: String, enum: ['poulet_chair', 'poule_pondeuse', 'dinde', 'canard', 'autre'], required: true },
+  typeVolaille: { type: String, enum: ['poulet_chair', 'poulet_ameliore', 'poule_pondeuse', 'dinde', 'canard', 'autre'], required: true },
   race: { type: String, required: true },
   fournisseurPoussins: { type: String, default: '' },
   nombreInitial: { type: Number, required: true },

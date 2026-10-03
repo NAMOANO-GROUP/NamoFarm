@@ -702,6 +702,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
   String _typeLabel(String type) {
     switch (type) {
       case 'poulet_chair': return 'Poulet de chair';
+      case 'poulet_ameliore': return 'Poulet amélioré';
       case 'poule_pondeuse': return 'Poule pondeuse';
       case 'dinde': return 'Dinde';
       case 'canard': return 'Canard';

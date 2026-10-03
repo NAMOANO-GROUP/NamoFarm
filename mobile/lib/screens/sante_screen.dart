@@ -26,7 +26,7 @@ class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStat
   String _registreBandeFilter = '';
 
   static const List<String> _typesVolaille = [
-    'poulet_chair', 'poule_pondeuse', 'dinde', 'canard', 'autre',
+    'poulet_chair', 'poulet_ameliore', 'poule_pondeuse', 'dinde', 'canard', 'autre',
   ];
   static const List<String> _typesTraitement = [
     'vaccination', 'traitement', 'prophylaxie', 'vitamines', 'autre',

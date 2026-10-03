@@ -339,6 +339,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                   initialValue: selectedType,
                   items: const [
                     DropdownMenuItem(value: 'poulet_chair', child: Text('Poulet de chair')),
+                    DropdownMenuItem(value: 'poulet_ameliore', child: Text('Poulet amélioré')),
                     DropdownMenuItem(value: 'poule_pondeuse', child: Text('Poule pondeuse')),
                     DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
                     DropdownMenuItem(value: 'canard', child: Text('Canard')),
