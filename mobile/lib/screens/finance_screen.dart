@@ -1176,8 +1176,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
   }
 
   Future<void> _showAjouterDepenseDialog() async {
-    final quiNomCtrl = TextEditingController();
-    final quiPrenomCtrl = TextEditingController();
+    final auth = context.read<AuthProvider>();
+    final quiNomCtrl = TextEditingController(text: auth.userNom);
+    final quiPrenomCtrl = TextEditingController(text: auth.userPrenom);
     final montantCtrl = TextEditingController();
     final commentaireCtrl = TextEditingController();
     DateTime selectedDate = DateTime.now();
@@ -1314,8 +1315,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
   }
 
   void _showApprovisionnementDialog() {
-    final quiNomCtrl = TextEditingController();
-    final quiPrenomCtrl = TextEditingController();
+    final auth = context.read<AuthProvider>();
+    final quiNomCtrl = TextEditingController(text: auth.userNom);
+    final quiPrenomCtrl = TextEditingController(text: auth.userPrenom);
     final montantCtrl = TextEditingController();
     final commentaireCtrl = TextEditingController();
     DateTime selectedDate = DateTime.now();

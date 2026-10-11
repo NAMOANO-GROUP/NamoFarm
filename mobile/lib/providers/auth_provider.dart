@@ -22,6 +22,10 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _token != null && _user != null;
   String get appName => _appName;
 
+  // Nom/prénom de l'utilisateur connecté (pour pré-remplir les formulaires).
+  String get userNom => (_user?['nom'] ?? '').toString();
+  String get userPrenom => (_user?['prenom'] ?? '').toString();
+
   bool get isAdmin => (_user?['role'] ?? '') == 'admin';
 
   bool get isSuperadmin => _user?['isSuperadmin'] == true;
