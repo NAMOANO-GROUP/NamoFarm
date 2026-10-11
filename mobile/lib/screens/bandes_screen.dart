@@ -302,6 +302,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   }
 
   Widget _bandeMetric(IconData icon, String label, String value, Color color) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -314,7 +315,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                  Text(label, style: TextStyle(fontSize: 10, color: muted)),
                   Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
@@ -335,7 +336,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade600),
+          Icon(icon, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(width: 5),
           Text(text, style: const TextStyle(fontSize: 12)),
         ],

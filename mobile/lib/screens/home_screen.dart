@@ -6,7 +6,6 @@ import 'stocks_screen.dart';
 import 'reproduction_screen.dart';
 import 'sante_screen.dart';
 import 'cheptel_screen.dart';
-import 'previsions_screen.dart';
 import 'alertes_screen.dart';
 import 'crm_screen.dart';
 import 'finance_screen.dart';
@@ -91,12 +90,6 @@ class _HomeScreenState extends State<HomeScreen> {
       desktopDestination: NavigationDestination(icon: Icon(Icons.pets_outlined), selectedIcon: Icon(Icons.pets), label: 'Cheptel'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.pets_outlined), selectedIcon: Icon(Icons.pets), label: 'Cheptel'),
       permission: 'cheptel:view',
-    ),
-    _ModuleItem(
-      page: PrevisionsScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights), label: 'Prévisions'),
-      mobileDestination: NavigationDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights), label: 'Prévisions'),
-      permission: 'bandes:view',
     ),
     _ModuleItem(
       page: StocksScreen(),

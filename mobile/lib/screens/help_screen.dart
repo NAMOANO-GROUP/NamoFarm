@@ -176,13 +176,6 @@ class _HelpScreenState extends State<HelpScreen> {
             'coûts (poussins, dépenses, aliment consommé).',
       ),
     ]),
-    _HelpChapter('Prévisions', Icons.insights_outlined, Color(0xFF558B2F), [
-      _HelpArticle(
-        'Projections',
-        'Le module Prévisions estime le poids, la consommation et la mortalité à venir '
-            'à partir des références théoriques et de vos relevés réels.',
-      ),
-    ]),
     _HelpChapter('Configuration (Admin)', Icons.settings_outlined, Color(0xFF37474F), [
       _HelpArticle(
         'Gérer les utilisateurs',
@@ -214,7 +207,7 @@ class _HelpScreenState extends State<HelpScreen> {
         'Version de l\'application',
         'NamoFarm version $kAppVersion (V1.0).\n\n'
             'Première version stable : gestion des bandes, reproduction, santé, cheptel, '
-            'stocks, tâches, CRM, commandes, finance et prévisions.',
+            'stocks, tâches, CRM, commandes et finance.',
       ),
       _HelpArticle(
         'Crédits',

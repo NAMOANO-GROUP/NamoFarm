@@ -8,7 +8,6 @@ import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
 import '../widgets/filter_styles.dart';
-import '../widgets/status_pill.dart';
 import '../widgets/recurrence_picker.dart';
 import '../widgets/week_calendar_view.dart';
 
@@ -322,77 +321,136 @@ class _AlertesScreenState extends State<AlertesScreen> {
 
   Widget _buildAlerteCard(Alerte alerte, {required bool enRetard, bool allowComplete = true}) {
     final dateFormat = DateFormat('dd/MM/yyyy');
-    MaterialColor prioriteColor;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Color prioriteColor;
     switch (alerte.priorite) {
-      case 'urgente': prioriteColor = Colors.red; break;
-      case 'haute': prioriteColor = Colors.orange; break;
-      case 'moyenne': prioriteColor = Colors.blue; break;
-      default: prioriteColor = Colors.grey;
+      case 'urgente':
+        prioriteColor = Colors.red;
+        break;
+      case 'haute':
+        prioriteColor = Colors.orange;
+        break;
+      case 'moyenne':
+        prioriteColor = Colors.blue;
+        break;
+      default:
+        prioriteColor = Colors.grey;
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: enRetard
-          ? (Theme.of(context).brightness == Brightness.dark
-              ? Colors.red.shade900.withValues(alpha: 0.30)
-              : Colors.red.shade50)
-          : null,
-      child: ListTile(
-        leading: Icon(
-          _typeIcon(alerte.type),
-          color: enRetard ? Colors.red : Colors.green,
-        ),
-        title: Text(alerte.titre, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(alerte.message),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
+    final done = !allowComplete; // historique = déjà faite
+    final canEdit = !alerte.automatique && alerte.id != null;
+    final dateColor = enRetard ? Colors.red.shade400 : scheme.onSurfaceVariant;
+    final hasRecurrence = alerte.recurrence != 'aucune' && alerte.recurrence.isNotEmpty;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: canEdit ? () => _showModifierAlerteDialog(alerte) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.22 : 0.45),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Chip(
-                  label: Text(dateFormat.format(alerte.dateEcheance), style: const TextStyle(fontSize: 11)),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
+                // Barre d'accent = priorité.
+                Container(width: 4, color: prioriteColor),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: (allowComplete && alerte.id != null)
+                        ? () => context.read<AlertesProvider>().marquerFaite(alerte)
+                        : null,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: done ? Colors.green : Colors.transparent,
+                        border: Border.all(color: done ? Colors.green : prioriteColor, width: 2),
+                      ),
+                      child: done ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
+                    ),
+                  ),
                 ),
-                StatusPill(label: alerte.priorite, color: prioriteColor),
-                if (alerte.recurrence != 'aucune' && alerte.recurrence.isNotEmpty)
-                  Chip(
-                    avatar: Icon(Icons.repeat, size: 14, color: Colors.indigo.shade400),
-                    label: Text(recurrenceSummary(alerte.recurrence, alerte.recurrenceConfig), style: const TextStyle(fontSize: 11)),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(_typeIcon(alerte.type), size: 16, color: prioriteColor),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                alerte.titre,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14.5,
+                                  decoration: done ? TextDecoration.lineThrough : null,
+                                  color: done ? scheme.onSurfaceVariant : null,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(enRetard ? Icons.event_busy_outlined : Icons.event_outlined, size: 13, color: dateColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              dateFormat.format(alerte.dateEcheance),
+                              style: TextStyle(fontSize: 12, color: dateColor, fontWeight: enRetard ? FontWeight.w700 : FontWeight.w500),
+                            ),
+                            if (hasRecurrence) ...[
+                              Text('  •  ', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                              Icon(Icons.repeat, size: 12, color: Colors.indigo.shade300),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  recurrenceSummary(alerte.recurrence, alerte.recurrenceConfig),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (alerte.message.trim().isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            alerte.message.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                if (canEdit)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8, left: 2),
+                    child: Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
                   ),
               ],
             ),
-            if (allowComplete && alerte.id != null) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _showModifierAlerteDialog(alerte),
-                    icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey),
-                    label: const Text('Modifier'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: () {
-                      context.read<AlertesProvider>().marquerFaite(alerte);
-                    },
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Tâche faite'),
-                  ),
-                ],
-              ),
-            ],
-          ],
+          ),
         ),
-        trailing: null,
-        isThreeLine: true,
       ),
     );
   }

@@ -107,6 +107,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
     {'value': 7, 'label': 'Dim'},
   ];
 
+  // Listes officielles pour les dépenses (catégorie = secteur, type = nature).
+  static const List<String> _depenseCategories = [
+    'AGRICOLE', 'AVICOLE', 'DIVERS', 'PISICOLE', 'TRANSVERSE', 'HORS BUSINESS',
+  ];
+  static const List<String> _depenseTypes = [
+    'Achat de sujet', 'Alimentation', 'Communication', 'Divers', 'Formation', 'Fourniture',
+    'Immobilier', 'Materiel', 'Prestation', 'Salaire Prime etc', 'Prophylaxie', 'Transport',
+    'Travaux', 'Consomable', 'Vétérinaire',
+  ];
+
+  // Construit les items du menu en conservant une valeur existante hors-liste (historique).
+  List<DropdownMenuItem<String>> _optionItems(List<String> options, String? current) {
+    final values = [...options];
+    if (current != null && current.isNotEmpty && !values.contains(current)) {
+      values.insert(0, current);
+    }
+    return values
+        .map((o) => DropdownMenuItem<String>(value: o, child: Text(o, overflow: TextOverflow.ellipsis)))
+        .toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -355,19 +376,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ComptabiliteScreen()),
-                ),
-                style: OutlinedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                icon: const Icon(Icons.calculate_outlined, size: 18),
-                label: const Text('Comptabilité par bande'),
+            _financeActionTile(
+              'Comptabilité par bande',
+              Icons.calculate_outlined,
+              [Colors.teal.shade600, Colors.teal.shade400],
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ComptabiliteScreen()),
               ),
             ),
             const SizedBox(height: 14),
@@ -1031,14 +1046,14 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     final quiPrenomCtrl = TextEditingController(text: (m['quiPrenom'] ?? '').toString());
     final quiNomCtrl = TextEditingController(text: (m['quiNom'] ?? '').toString());
-    final categorieCtrl = TextEditingController(text: (m['categorie'] ?? '').toString());
-    final typeCtrl = TextEditingController(text: (m['type'] ?? '').toString());
     final montantCtrl = TextEditingController(
       text: ((m['montant'] ?? 0) as num) == 0 ? '' : ((m['montant'] ?? 0) as num).toStringAsFixed(0),
     );
     final commentaireCtrl = TextEditingController(text: _nettoyerCommentaire((m['commentaire'] ?? '').toString()));
     String nature = (m['nature'] ?? 'sortie').toString() == 'entree' ? 'entree' : 'sortie';
     String selectedBandeId = (m['bandeId'] ?? '').toString();
+    String? selectedCategorie = (m['categorie'] ?? '').toString().isEmpty ? null : (m['categorie'] ?? '').toString();
+    String? selectedType = (m['type'] ?? '').toString().isEmpty ? null : (m['type'] ?? '').toString();
     DateTime selectedDate = m['date'] != null ? (DateTime.tryParse(m['date'].toString()) ?? DateTime.now()) : DateTime.now();
 
     await showDialog(
@@ -1058,13 +1073,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
               onChanged: (v) => setDialogState(() => nature = v ?? nature),
             ),
             NumberField(controller: montantCtrl, label: 'Montant *', prefixIcon: Icons.payments_outlined),
-            TextField(
-              controller: categorieCtrl,
+            DropdownButtonFormField<String>(
+              initialValue: selectedCategorie,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Catégorie', prefixIcon: Icon(Icons.category_outlined)),
+              items: _optionItems(_depenseCategories, selectedCategorie),
+              onChanged: (v) => setDialogState(() => selectedCategorie = v),
             ),
-            TextField(
-              controller: typeCtrl,
+            DropdownButtonFormField<String>(
+              initialValue: selectedType,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type', prefixIcon: Icon(Icons.label_outline)),
+              items: _optionItems(_depenseTypes, selectedType),
+              onChanged: (v) => setDialogState(() => selectedType = v),
             ),
             DropdownButtonFormField<String>(
               initialValue: _bandesById.containsKey(selectedBandeId) ? selectedBandeId : '',
@@ -1126,8 +1147,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 final ok = await provider.modifierMouvement(id, {
                   'nature': nature,
                   'montant': montant,
-                  'categorie': categorieCtrl.text.trim(),
-                  'type': typeCtrl.text.trim(),
+                  'categorie': selectedCategorie ?? '',
+                  'type': selectedType ?? '',
                   'quiPrenom': quiPrenomCtrl.text.trim(),
                   'quiNom': quiNomCtrl.text.trim(),
                   'date': selectedDate.toIso8601String(),
@@ -1150,12 +1171,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
   Future<void> _showAjouterDepenseDialog() async {
     final quiNomCtrl = TextEditingController();
     final quiPrenomCtrl = TextEditingController();
-    final categorieCtrl = TextEditingController();
-    final typeCtrl = TextEditingController();
     final montantCtrl = TextEditingController();
     final commentaireCtrl = TextEditingController();
     DateTime selectedDate = DateTime.now();
     String selectedBandeId = '';
+    String? selectedCategorie;
+    String? selectedType;
 
     List<Map<String, dynamic>> bandesActives = const [];
     try {
@@ -1185,13 +1206,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
               controller: quiNomCtrl,
               decoration: const InputDecoration(labelText: 'Nom *', prefixIcon: Icon(Icons.person_outline)),
             ),
-            TextField(
-              controller: categorieCtrl,
+            DropdownButtonFormField<String>(
+              initialValue: selectedCategorie,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Categorie *', prefixIcon: Icon(Icons.category_outlined)),
+              items: _optionItems(_depenseCategories, selectedCategorie),
+              onChanged: (v) => setDialogState(() => selectedCategorie = v),
             ),
-            TextField(
-              controller: typeCtrl,
+            DropdownButtonFormField<String>(
+              initialValue: selectedType,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type *', prefixIcon: Icon(Icons.label_outline)),
+              items: _optionItems(_depenseTypes, selectedType),
+              onChanged: (v) => setDialogState(() => selectedType = v),
             ),
             DropdownButtonFormField<String>(
                   initialValue: selectedBandeId,
@@ -1250,8 +1277,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 final montant = _parseDecimal(montantCtrl.text) ?? 0;
                 if (quiNomCtrl.text.trim().isEmpty ||
                     quiPrenomCtrl.text.trim().isEmpty ||
-                    categorieCtrl.text.trim().isEmpty ||
-                    typeCtrl.text.trim().isEmpty ||
+                    (selectedCategorie ?? '').isEmpty ||
+                    (selectedType ?? '').isEmpty ||
                     montant <= 0) {
                   messenger.showSnackBar(const SnackBar(content: Text('Renseigne tous les champs obligatoires (*)')));
                   return;
@@ -1259,8 +1286,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 final ok = await context.read<FinanceProvider>().ajouterDepense({
                   'quiNom': quiNomCtrl.text.trim(),
                   'quiPrenom': quiPrenomCtrl.text.trim(),
-                  'categorie': categorieCtrl.text.trim(),
-                  'type': typeCtrl.text.trim(),
+                  'categorie': selectedCategorie,
+                  'type': selectedType,
                   'montant': montant,
                   'date': selectedDate.toIso8601String(),
                   'commentaire': commentaireCtrl.text.trim(),

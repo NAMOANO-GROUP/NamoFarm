@@ -31,7 +31,7 @@ async function computeReportData(api, companyId) {
   const [commandes, treso, bandes, couvees, traitements] = await Promise.all([
     safeSelect(api, 'commandes', 'id,bande_id,statut,status,montant_total', companyId),
     safeSelect(api, 'tresorerie_mouvements', 'nature,montant,reference_type,reference_id', companyId),
-    safeSelect(api, 'bandes', 'id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_poussin', companyId),
+    safeSelect(api, 'bandes', 'id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale', companyId),
     safeSelect(api, 'couvees', 'nb_oeufs_incubes,nb_oeufs_fertiles,nb_eclos', companyId),
     safeSelect(api, 'traitements_sanitaires', 'date_traitement,delai_attente_jours', companyId),
   ]);
@@ -87,9 +87,9 @@ async function computeReportData(api, companyId) {
   }
   const perBande = bandes.map((b) => {
     const id = String(b.id);
-    const coutPoussins = Number(b.cout_poussin || 0) * Number(b.nombre_initial || 0);
+    // Le coût des poussins est inclus dans les dépenses (type "Achat de sujet" affecté à la bande).
     const depenses = Number(depByBande.get(id) || 0);
-    const coutTotal = coutPoussins + depenses;
+    const coutTotal = depenses;
     const revenus = Number(revenusByBande.get(id) || 0);
     return {
       nom: b.nom || '',

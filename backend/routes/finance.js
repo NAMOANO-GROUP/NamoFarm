@@ -462,7 +462,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
 
     const bandesRes = await api
       .from('bandes')
-      .select('id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_poussin,cout_fixe_par_sujet,amortissement_par_sujet,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture')
+      .select('id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_fixe_par_sujet,amortissement_par_sujet,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture')
       .eq('company_id', companyId)
       .order('date_ouverture', { ascending: false })
       .limit(300);
@@ -473,7 +473,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
 
     const mouvRes = await api
       .from('tresorerie_mouvements')
-      .select('nature,montant,reference_type,reference_id')
+      .select('nature,montant,reference_type,reference_id,type,source')
       .eq('company_id', companyId)
       .limit(12000);
     if (mouvRes.error) return res.status(500).json({ message: mouvRes.error.message });
@@ -488,12 +488,21 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
     }
 
     const depensesByBande = new Map();
+    const prophylaxieByBande = new Map();
+    const achatSujetByBande = new Map();
     for (const row of mouvRes.data || []) {
       if (row.nature !== 'sortie') continue;
       const refType = (row.reference_type || '').toString().toLowerCase();
       const refId = row.reference_id ? String(row.reference_id) : null;
       if (refType === 'bande' && refId) {
-        depensesByBande.set(refId, (depensesByBande.get(refId) || 0) + Number(row.montant || 0));
+        const montant = Number(row.montant || 0);
+        const type = (row.type || '').toString().toLowerCase();
+        depensesByBande.set(refId, (depensesByBande.get(refId) || 0) + montant);
+        if (type === 'prophylaxie') {
+          prophylaxieByBande.set(refId, (prophylaxieByBande.get(refId) || 0) + montant);
+        } else if (type === 'achat de sujet') {
+          achatSujetByBande.set(refId, (achatSujetByBande.get(refId) || 0) + montant);
+        }
       }
     }
 
@@ -515,9 +524,11 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const nombreInitial = Number(b.nombre_initial || 0);
       const nombreActuel = Number(b.nombre_actuel || 0);
       const mortalite = Number(b.mortalite_totale || 0);
-      const coutPoussin = Number(b.cout_poussin || 0);
-      const coutPoussins = coutPoussin * nombreInitial;
       const depensesManuelles = Number(depensesByBande.get(id) || 0);
+      const prophylaxie = Number(prophylaxieByBande.get(id) || 0);
+      // Coût des poussins = dépenses de type "Achat de sujet" affectées à la bande.
+      const coutPoussins = Number(achatSujetByBande.get(id) || 0);
+      const autresDepenses = depensesManuelles - prophylaxie - coutPoussins;
       const coutAliment = Number(consoByBande.get(id) || 0);
       const effectifVivant = nombreActuel > 0 ? nombreActuel : nombreInitial;
       const coutFixeParSujet = Number(b.cout_fixe_par_sujet || 0);
@@ -525,7 +536,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const coutFixe = coutFixeParSujet * effectifVivant;
       const coutAmortissement = amortissementParSujet * effectifVivant;
       const depenses = depensesManuelles + coutAliment;
-      const coutTotal = coutPoussins + depenses + coutFixe + coutAmortissement;
+      const coutTotal = depenses + coutFixe + coutAmortissement;
       const revenus = Number(revenusByBande.get(id) || 0);
       const margeNette = revenus - coutTotal;
       const tauxMarge = revenus > 0 ? (margeNette / revenus) * 100 : 0;
@@ -550,6 +561,8 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
         tauxMortalite: Number(tauxMortalite.toFixed(2)),
         coutPoussins: Number(coutPoussins.toFixed(2)),
         depenses: Number(depensesManuelles.toFixed(2)),
+        prophylaxie: Number(prophylaxie.toFixed(2)),
+        autresDepenses: Number(autresDepenses.toFixed(2)),
         coutAliment: Number(coutAliment.toFixed(2)),
         consoAlimentKg: Number(consoAlimentKg.toFixed(2)),
         coutFixe: Number(coutFixe.toFixed(2)),
