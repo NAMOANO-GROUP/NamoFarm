@@ -441,7 +441,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 _buildTopMargeChart(top3),
               ],
               const SizedBox(height: 12),
-              _buildProjectionChart((projection['projection'] as List? ?? const [])),
+              _buildCategoriesChart(provider.depensesParCategorie),
             ],
           ],
         ),
@@ -570,53 +570,86 @@ class _FinanceScreenState extends State<FinanceScreen> {
     );
   }
 
-  Widget _buildProjectionChart(List projectionRows) {
-    final parsed = projectionRows
+  Widget _buildCategoriesChart(Map<String, dynamic> data) {
+    final cats = (data['categories'] as List? ?? const [])
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
-    if (parsed.isEmpty) return const SizedBox.shrink();
 
-    final spots = <FlSpot>[];
-    for (var i = 0; i < parsed.length; i += 1) {
-      final y = ((parsed[i]['soldeProjete'] ?? 0) as num).toDouble();
-      spots.add(FlSpot(i.toDouble(), y));
+    final header = Row(
+      children: [
+        Icon(Icons.bar_chart_rounded, size: 16, color: Colors.grey.shade600),
+        const SizedBox(width: 6),
+        const Expanded(child: Text('Coûts par catégorie', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+        if (cats.isNotEmpty)
+          Text(formatCompactFcfa((data['totalDepenses'] ?? 0) as num),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+      ],
+    );
+
+    if (cats.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('Aucune dépense à afficher', style: TextStyle(color: Colors.grey))),
+          ),
+        ],
+      );
+    }
+
+    const palette = <MaterialColor>[
+      Colors.teal, Colors.indigo, Colors.orange, Colors.purple, Colors.red,
+      Colors.blue, Colors.green, Colors.brown, Colors.pink, Colors.cyan,
+    ];
+    double maxVal = 0;
+    for (final c in cats) {
+      final v = ((c['total'] ?? 0) as num).toDouble();
+      if (v > maxVal) maxVal = v;
+    }
+    final groups = <BarChartGroupData>[];
+    for (var i = 0; i < cats.length; i++) {
+      final v = ((cats[i]['total'] ?? 0) as num).toDouble();
+      final color = palette[i % palette.length];
+      groups.add(BarChartGroupData(x: i, barRods: [
+        BarChartRodData(
+          toY: v,
+          width: 20,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [color.shade700, color.shade300],
+          ),
+        ),
+      ]));
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(Icons.show_chart, size: 16, color: Colors.grey.shade600),
-            const SizedBox(width: 6),
-            const Text('Projection trésorerie (6 mois)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          ],
-        ),
-        const SizedBox(height: 10),
+        header,
+        const SizedBox(height: 12),
         SizedBox(
-          height: 200,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: LineChart(
-            LineChartData(
-              gridData: const FlGridData(show: true),
-              lineTouchData: LineTouchData(
+          height: 210,
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: maxVal <= 0 ? 1 : maxVal * 1.18,
+              gridData: const FlGridData(show: true, drawVerticalLine: false),
+              borderData: FlBorderData(show: false),
+              barTouchData: BarTouchData(
                 enabled: true,
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (touchedSpots) {
-                    return touchedSpots.map((spot) {
-                      final i = spot.x.toInt();
-                      if (i < 0 || i >= parsed.length) {
-                        return const LineTooltipItem('', TextStyle());
-                      }
-                      final month = (parsed[i]['mois'] ?? '').toString();
-                      final value = ((parsed[i]['soldeProjete'] ?? 0) as num);
-                      return LineTooltipItem(
-                        '$month\n${formatAmountFcfa(value)}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                      );
-                    }).toList();
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, gi, rod, ri) {
+                    final i = group.x.toInt();
+                    if (i < 0 || i >= cats.length) return null;
+                    return BarTooltipItem(
+                      '${cats[i]['categorie']}\n${formatAmountFcfa((cats[i]['total'] ?? 0) as num)}',
+                      const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    );
                   },
                 ),
               ),
@@ -626,7 +659,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 46,
+                    reservedSize: 42,
                     getTitlesWidget: (value, meta) {
                       if (value == meta.min || value == meta.max) return const SizedBox.shrink();
                       return Padding(
@@ -639,49 +672,23 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 28,
-                    interval: 1,
+                    reservedSize: 34,
                     getTitlesWidget: (value, meta) {
-                      // Un seul label par point (valeurs entières), sinon doublons superposés.
-                      if ((value - value.roundToDouble()).abs() > 0.01) return const SizedBox.shrink();
-                      final i = value.round();
-                      if (i < 0 || i >= parsed.length) return const SizedBox.shrink();
-                      final month = (parsed[i]['mois'] ?? '').toString();
-                      final compact = month.length >= 7 ? month.substring(2) : month;
+                      final i = value.toInt();
+                      if (i < 0 || i >= cats.length) return const SizedBox.shrink();
+                      final label = (cats[i]['categorie'] ?? '').toString();
+                      final short = label.length > 8 ? '${label.substring(0, 7)}…' : label;
                       return Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Text(compact, style: const TextStyle(fontSize: 10)),
+                        child: Text(short, style: const TextStyle(fontSize: 9), maxLines: 1),
                       );
                     },
                   ),
                 ),
               ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  color: Colors.blue,
-                  barWidth: 3,
-                  dotData: const FlDotData(show: true),
-                ),
-              ],
+              barGroups: groups,
             ),
           ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 12,
-          children: const [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.circle, size: 10, color: Colors.blue),
-                SizedBox(width: 4),
-                Text('Solde projeté'),
-              ],
-            ),
-          ],
         ),
       ],
     );

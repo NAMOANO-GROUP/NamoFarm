@@ -409,6 +409,13 @@ class ApiService {
     static Future<Map<String, dynamic>> getProjectionTresorerie({int months = 6}) async =>
             Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/projection-tresorerie', query: {'months': '$months'})));
 
+  static Future<Map<String, dynamic>> getDepensesParCategorie({DateTime? dateFrom, DateTime? dateTo}) async {
+    final query = <String, String>{};
+    if (dateFrom != null) query['dateFrom'] = dateFrom.toIso8601String();
+    if (dateTo != null) query['dateTo'] = dateTo.toIso8601String();
+    return Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/depenses-par-categorie', query: query)) ?? {});
+  }
+
   static Future<Map<String, dynamic>> getComptabiliteAnalytique() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/analytique')));
 

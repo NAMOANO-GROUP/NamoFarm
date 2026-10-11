@@ -899,6 +899,40 @@ router.get('/solde', requirePermission('finance.read'), async (req, res) => {
   }
 });
 
+// Agrégation des dépenses (sorties) par catégorie, pour l'histogramme finance.
+router.get('/depenses-par-categorie', requirePermission('finance.read'), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+    const dateFrom = toIsoDate(req.query.dateFrom);
+    const dateTo = toIsoDate(req.query.dateTo);
+
+    let query = api
+      .from('tresorerie_mouvements')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('nature', 'sortie');
+    if (dateFrom) query = query.gte('date_mouvement', dateFrom);
+    if (dateTo) query = query.lte('date_mouvement', dateTo);
+
+    const { data, error } = await query.limit(20000);
+    if (error) return res.status(500).json({ message: error.message });
+
+    const byCat = new Map();
+    for (const row of data || []) {
+      const cat = (row.categorie || row.category || '').toString().trim() || 'Non classé';
+      byCat.set(cat, (byCat.get(cat) || 0) + Number(row.montant || 0));
+    }
+    const categories = [...byCat.entries()]
+      .map(([categorie, total]) => ({ categorie, total: Number(total.toFixed(2)) }))
+      .sort((a, b) => b.total - a.total);
+    const totalDepenses = categories.reduce((s, c) => s + c.total, 0);
+    return res.json({ categories, totalDepenses: Number(totalDepenses.toFixed(2)) });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 router.post('/depenses', requirePermission('finance.write'), async (req, res) => {
   try {
     const api = getAdminClient();

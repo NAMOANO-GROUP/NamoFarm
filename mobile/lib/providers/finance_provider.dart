@@ -20,6 +20,7 @@ class FinanceProvider with ChangeNotifier {
   Map<String, dynamic> _budgetPrevisionnel = {};
   List<Map<String, dynamic>> _margesBandes = [];
   Map<String, dynamic> _projectionTresorerie = {};
+  Map<String, dynamic> _depensesParCategorie = {};
 
   bool get isLoading => _isLoading;
   String? get lastError => _lastError;
@@ -35,6 +36,7 @@ class FinanceProvider with ChangeNotifier {
   Map<String, dynamic> get budgetPrevisionnel => _budgetPrevisionnel;
   List<Map<String, dynamic>> get margesBandes => _margesBandes;
   Map<String, dynamic> get projectionTresorerie => _projectionTresorerie;
+  Map<String, dynamic> get depensesParCategorie => _depensesParCategorie;
 
   Future<void> chargerTresorerie() async {
     _isLoading = true;
@@ -78,6 +80,7 @@ class FinanceProvider with ChangeNotifier {
       final budgetData = await ApiService.getBudgetPrevisionnel(months: months);
       final margesData = await ApiService.getMargeParBande();
       final projectionData = await ApiService.getProjectionTresorerie(months: months);
+      final categoriesData = await ApiService.getDepensesParCategorie(dateFrom: _dateFrom, dateTo: _dateTo);
 
       _rapprochement = Map<String, dynamic>.from(rapprochementData);
       _budgetPrevisionnel = Map<String, dynamic>.from(budgetData);
@@ -86,6 +89,7 @@ class FinanceProvider with ChangeNotifier {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
       _projectionTresorerie = Map<String, dynamic>.from(projectionData);
+      _depensesParCategorie = Map<String, dynamic>.from(categoriesData);
     } catch (e) {
       _lastError = e.toString().replaceFirst('Exception: ', '');
     }
