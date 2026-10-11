@@ -321,7 +321,16 @@ router.get('/bandes/:id/suivi', requireAnyPermission(['dashboard.sales', 'dashbo
     const configRes = await api.from('app_config').select('referencestheoriques').eq('key', 'main').maybeSingle();
     const references = configRes.error ? {} : (configRes.data?.referencestheoriques || {});
 
-    const growth = toArray(bande.suiviJournalier).map((s, idx) => ({ age: idx + 1, poids: Number(s.poidsMotenG || 0), date: s.date }));
+    const growth = toArray(bande.suiviJournalier).map((s, idx) => {
+      const avg = Number(s.poidsMotenG || 0);
+      return {
+        age: idx + 1,
+        poids: avg,
+        poidsMin: Number(s.poidsMinG != null ? s.poidsMinG : avg) || 0,
+        poidsMax: Number(s.poidsMaxG != null ? s.poidsMaxG : avg) || 0,
+        date: s.date,
+      };
+    });
     const conso = toArray(bande.suiviJournalier).map((s, idx) => ({
       age: idx + 1,
       alimentKg: Number(s.alimentationKg || 0),
@@ -421,12 +430,16 @@ router.get('/bandes/:id/suivi', requireAnyPermission(['dashboard.sales', 'dashbo
       });
     }
 
+    const weighedGrowth = growth.filter((g) => g.poids > 0);
+    const lastWeighed = weighedGrowth.length ? weighedGrowth[weighedGrowth.length - 1] : null;
     const performance = {
       effectifInitial: bande.nombreInitial,
       effectifRestant: bande.nombreActuel,
       mortaliteCumulee,
       consommationCumuleeKg: conso.length ? conso[conso.length - 1].cumulKg : 0,
-      poidsMoyenFinal: growth.length ? growth[growth.length - 1].poids : 0,
+      poidsMoyenFinal: lastWeighed ? lastWeighed.poids : 0,
+      poidsMinFinal: lastWeighed ? lastWeighed.poidsMin : 0,
+      poidsMaxFinal: lastWeighed ? lastWeighed.poidsMax : 0,
       ecartPoidsTheoriquePct: Number(ecartPoidsPct.toFixed(2)),
       ecartConsoTheoriquePct: Number(ecartConsoPct.toFixed(2)),
     };

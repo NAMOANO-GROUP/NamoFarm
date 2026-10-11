@@ -20,7 +20,7 @@ class PoidsScreen extends StatefulWidget {
 
 class _PoidsScreenState extends State<PoidsScreen> {
   DateTime _date = DateTime.now();
-  final TextEditingController _poidsCtrl = TextEditingController();
+  final List<TextEditingController> _poidsCtrls = List.generate(6, (_) => TextEditingController());
   final TextEditingController _obsCtrl = TextEditingController();
   bool _loading = false;
   List<Map<String, dynamic>> _historique = [];
@@ -29,12 +29,19 @@ class _PoidsScreenState extends State<PoidsScreen> {
   @override
   void initState() {
     super.initState();
+    for (final c in _poidsCtrls) {
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
+    }
     _chargerHistorique();
   }
 
   @override
   void dispose() {
-    _poidsCtrl.dispose();
+    for (final c in _poidsCtrls) {
+      c.dispose();
+    }
     _obsCtrl.dispose();
     super.dispose();
   }
@@ -52,14 +59,24 @@ class _PoidsScreenState extends State<PoidsScreen> {
     }
   }
 
+  List<double> _valeurs() =>
+      _poidsCtrls.map((c) => parseAmount(c.text) ?? 0).where((v) => v > 0).toList();
+
   Future<void> _enregistrer() async {
-    final poids = parseAmount(_poidsCtrl.text) ?? 0;
-    if (poids <= 0) return;
+    final valeurs = _valeurs();
+    if (valeurs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saisis au moins une pesée')),
+      );
+      return;
+    }
+    final moyenne = valeurs.reduce((a, b) => a + b) / valeurs.length;
 
     setState(() => _loading = true);
     final ok = await context.read<BandesProvider>().ajouterRelevePoids(widget.bande.id!, {
       'date': _date.toIso8601String(),
-      'poidsMotenG': poids,
+      'poidsValeurs': valeurs,
+      'poidsMotenG': moyenne,
       'observations': _obsCtrl.text.trim(),
     });
 
@@ -69,10 +86,46 @@ class _PoidsScreenState extends State<PoidsScreen> {
       SnackBar(content: Text(ok ? 'Prise de poids enregistrée' : 'Erreur enregistrement')),
     );
     if (ok) {
-      _poidsCtrl.clear();
+      for (final c in _poidsCtrls) {
+        c.clear();
+      }
       _obsCtrl.clear();
       await _chargerHistorique();
     }
+  }
+
+  Widget _apercuMinMax() {
+    final v = _valeurs();
+    if (v.isEmpty) return const SizedBox.shrink();
+    final mn = v.reduce((a, b) => a < b ? a : b);
+    final mx = v.reduce((a, b) => a > b ? a : b);
+    final moy = v.reduce((a, b) => a + b) / v.length;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _apercuItem('Min', '${mn.toStringAsFixed(0)} g', Colors.teal),
+          _apercuItem('Moyenne', '${moy.toStringAsFixed(0)} g', scheme.onSurfaceVariant),
+          _apercuItem('Max', '${mx.toStringAsFixed(0)} g', Colors.green),
+        ],
+      ),
+    );
+  }
+
+  Widget _apercuItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
   }
 
   @override
@@ -100,10 +153,31 @@ class _PoidsScreenState extends State<PoidsScreen> {
               if (d != null) setState(() => _date = d);
             },
           ),
-          NumberField(
-            controller: _poidsCtrl,
-            label: 'Poids moyen (g) *',
+          const SizedBox(height: 8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Pesées individuelles (jusqu\'à 6) *', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
+          const SizedBox(height: 8),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 3.2,
+            children: List.generate(6, (i) {
+              return NumberField(
+                controller: _poidsCtrls[i],
+                label: 'Poids ${i + 1} (g)',
+                decimal: false,
+                prefixIcon: Icons.monitor_weight_outlined,
+              );
+            }),
+          ),
+          const SizedBox(height: 10),
+          _apercuMinMax(),
+          const SizedBox(height: 10),
           TextField(
             controller: _obsCtrl,
             maxLines: 2,
@@ -139,10 +213,13 @@ class _PoidsScreenState extends State<PoidsScreen> {
                 title: Text('Historique des relevés (${_historique.length})'),
                 children: _historique.map((row) {
                   final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
+                  final mn = (row['poidsMinG'] ?? row['poidsMotenG'] ?? 0);
+                  final mx = (row['poidsMaxG'] ?? row['poidsMotenG'] ?? 0);
+                  final moy = (row['poidsMotenG'] ?? 0);
                   return ListTile(
                     leading: const Icon(Icons.monitor_weight),
-                    title: Text('${(row['poidsMotenG'] ?? 0).toString()} g'),
-                    subtitle: Text('${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
+                    title: Text('Min $mn g • Max $mx g'),
+                    subtitle: Text('Moy. $moy g • ${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
                   );
                 }).toList(),
               ),

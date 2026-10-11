@@ -747,8 +747,23 @@ router.post('/:id/mortalite', requirePermission('bandes.mortalite.create'), asyn
 
 router.post('/:id/poids', requirePermission('bandes.poids.create'), async (req, res) => {
   try {
-    const poids = Number(req.body.poidsMotenG || 0);
-    if (poids <= 0) return res.status(400).json({ message: 'Le poids moyen doit être supérieur à 0' });
+    // Accepte une liste de valeurs (jusqu'à 6) OU un poids moyen direct (rétro-compat).
+    const valeurs = Array.isArray(req.body.poidsValeurs)
+      ? req.body.poidsValeurs.map((v) => Number(v)).filter((v) => Number.isFinite(v) && v > 0)
+      : [];
+    let moyenne;
+    let minG;
+    let maxG;
+    if (valeurs.length > 0) {
+      moyenne = valeurs.reduce((s, v) => s + v, 0) / valeurs.length;
+      minG = Math.min(...valeurs);
+      maxG = Math.max(...valeurs);
+    } else {
+      moyenne = Number(req.body.poidsMotenG || 0);
+      minG = moyenne;
+      maxG = moyenne;
+    }
+    if (!(moyenne > 0)) return res.status(400).json({ message: 'Le poids doit être supérieur à 0' });
 
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
@@ -759,7 +774,10 @@ router.post('/:id/poids', requirePermission('bandes.poids.create'), async (req, 
     const suivis = [...bande.suiviJournalier, {
       _id: crypto.randomUUID(),
       date: isoOrNow(req.body.date),
-      poidsMotenG: poids,
+      poidsMotenG: Number(moyenne.toFixed(2)),
+      poidsMinG: Number(minG.toFixed(2)),
+      poidsMaxG: Number(maxG.toFixed(2)),
+      poidsValeurs: valeurs,
       mortaliteJour: 0,
       alimentationKg: 0,
       eauLitres: 0,
@@ -784,7 +802,15 @@ router.get('/:id/poids', requirePermission('bandes.read'), async (req, res) => {
 
     const poids = bande.suiviJournalier
       .filter((s) => Number(s.poidsMotenG || 0) > 0)
-      .map((s) => ({ id: s._id, date: s.date, poidsMotenG: s.poidsMotenG, observations: s.observations || '' }))
+      .map((s) => ({
+        id: s._id,
+        date: s.date,
+        poidsMotenG: s.poidsMotenG,
+        poidsMinG: s.poidsMinG != null ? s.poidsMinG : s.poidsMotenG,
+        poidsMaxG: s.poidsMaxG != null ? s.poidsMaxG : s.poidsMotenG,
+        poidsValeurs: Array.isArray(s.poidsValeurs) ? s.poidsValeurs : [],
+        observations: s.observations || '',
+      }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return res.json(poids);

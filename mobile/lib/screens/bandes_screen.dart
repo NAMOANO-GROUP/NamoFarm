@@ -143,6 +143,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   Widget _buildBandeCard(Bande bande, {required bool active}) {
     final isAdmin = context.watch<AuthProvider>().isAdmin;
     final dateFormat = DateFormat('dd/MM/yyyy');
+    final ageJours = (bande.dateFermeture ?? DateTime.now()).difference(bande.dateOuverture).inDays;
     final scheme = Theme.of(context).colorScheme;
     final headerColors = active
         ? [Colors.green.shade600, Colors.green.shade400]
@@ -247,6 +248,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    _bandeInfoChip(Icons.cake_outlined, 'Âge: $ageJours j'),
                     if (bande.batiment.isNotEmpty) _bandeInfoChip(Icons.home_work_outlined, bande.batiment),
                     _bandeInfoChip(Icons.event_available_outlined, 'Ouverte le ${dateFormat.format(bande.dateOuverture)}'),
                     if (!active && bande.dateFermeture != null)
@@ -351,8 +353,8 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
     final objectifCtrl = TextEditingController(
       text: bande.objectifPoidsG > 0 ? bande.objectifPoidsG.toStringAsFixed(0) : '',
     );
-    String selectedType = bande.typeVolaille.isNotEmpty ? bande.typeVolaille : 'poulet_chair';
-    const types = ['poulet_chair', 'poulet_ameliore', 'poule_pondeuse', 'dinde', 'canard', 'autre'];
+    String selectedType = bande.typeVolaille.isNotEmpty ? bande.typeVolaille : 'poulet_ameliore_45j';
+    const types = ['poulet_ameliore_45j', 'poulet_local_ameliore', 'poulet_ameliore', 'poulet_local', 'poule_pondeuse', 'canard', 'dinde', 'autre'];
     if (!types.contains(selectedType)) selectedType = 'autre';
 
     showDialog(
@@ -370,11 +372,13 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
               initialValue: selectedType,
               decoration: const InputDecoration(labelText: 'Type de volaille', prefixIcon: Icon(Icons.category_outlined)),
               items: const [
-                DropdownMenuItem(value: 'poulet_chair', child: Text('Poulet de chair')),
+                DropdownMenuItem(value: 'poulet_ameliore_45j', child: Text('Poulet amélioré 45J')),
+                DropdownMenuItem(value: 'poulet_local_ameliore', child: Text('Poulet local amélioré')),
                 DropdownMenuItem(value: 'poulet_ameliore', child: Text('Poulet amélioré')),
+                DropdownMenuItem(value: 'poulet_local', child: Text('Poulet local')),
                 DropdownMenuItem(value: 'poule_pondeuse', child: Text('Poule pondeuse')),
-                DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
                 DropdownMenuItem(value: 'canard', child: Text('Canard')),
+                DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
                 DropdownMenuItem(value: 'autre', child: Text('Autre')),
               ],
               onChanged: (v) => setDialogState(() => selectedType = v ?? selectedType),
@@ -491,7 +495,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
     final poidsArriveeCtrl = TextEditingController();
     final objectifPoidsCtrl = TextEditingController();
     final batimentCtrl = TextEditingController();
-    String selectedType = 'poulet_chair';
+    String selectedType = 'poulet_ameliore_45j';
     DateTime dateOuverture = DateTime.now();
     String? selectedProtocoleId;
 
@@ -528,11 +532,13 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                 prefixIcon: Icon(Icons.category_outlined),
               ),
               items: const [
-                DropdownMenuItem(value: 'poulet_chair', child: Text('Poulet de chair')),
+                DropdownMenuItem(value: 'poulet_ameliore_45j', child: Text('Poulet amélioré 45J')),
+                DropdownMenuItem(value: 'poulet_local_ameliore', child: Text('Poulet local amélioré')),
                 DropdownMenuItem(value: 'poulet_ameliore', child: Text('Poulet amélioré')),
+                DropdownMenuItem(value: 'poulet_local', child: Text('Poulet local')),
                 DropdownMenuItem(value: 'poule_pondeuse', child: Text('Poule pondeuse')),
-                DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
                 DropdownMenuItem(value: 'canard', child: Text('Canard')),
+                DropdownMenuItem(value: 'dinde', child: Text('Dinde')),
                 DropdownMenuItem(value: 'autre', child: Text('Autre')),
               ],
               onChanged: (v) => setDialogState(() {

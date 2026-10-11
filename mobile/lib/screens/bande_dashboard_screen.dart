@@ -68,8 +68,8 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
           _buildPerfPanel(perf),
           const SizedBox(height: 12),
           _cardChart(
-            'Courbe de croissance (réel vs théorique)',
-            _lineChart(growth, 'poids', Colors.green, yUnit: 'g', second: theoriqueGrowth, secondYKey: 'poids', secondColor: Colors.orange, interpolateReal: true),
+            'Courbe de croissance (min / max vs théorique)',
+            _lineChart(growth, 'poidsMax', Colors.green, yUnit: 'g', extraYKey: 'poidsMin', extraColor: Colors.teal, second: theoriqueGrowth, secondYKey: 'poids', secondColor: Colors.orange, interpolateReal: true),
             legend: const [
               _LegendItem('Réel', Colors.green),
               _LegendItem('Théorique', Colors.orange),
@@ -168,13 +168,16 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
   Widget _buildPerfPanel(Map<String, dynamic> perf) {
     final ecartPoids = (perf['ecartPoidsTheoriquePct'] ?? 0).toDouble();
     final ecartConso = (perf['ecartConsoTheoriquePct'] ?? 0).toDouble();
+    final ageJours = (widget.bande.dateFermeture ?? DateTime.now()).difference(widget.bande.dateOuverture).inDays;
     final isWide = MediaQuery.of(context).size.width > 600;
     final items = <Widget>[
+      _statTile('Âge sujets', '$ageJours j', Icons.cake_outlined, Colors.indigo),
       _statTile('Effectif initial', '${perf['effectifInitial'] ?? 0}', Icons.egg_outlined, Colors.blueGrey),
       _statTile('Effectif restant', '${perf['effectifRestant'] ?? 0}', Icons.groups_outlined, Colors.teal),
       _statTile('Mortalité cumulée', '${(perf['mortaliteCumulee'] ?? 0).toStringAsFixed(1)} %', Icons.warning_amber_outlined, Colors.red),
       _statTile('Conso cumulée', '${(perf['consommationCumuleeKg'] ?? 0).toStringAsFixed(1)} kg', Icons.restaurant, Colors.brown),
-      _statTile('Poids final', '${(perf['poidsMoyenFinal'] ?? 0).toStringAsFixed(0)} g', Icons.monitor_weight_outlined, Colors.green),
+      _statTile('Poids min', '${(perf['poidsMinFinal'] ?? 0).toStringAsFixed(0)} g', Icons.arrow_downward, Colors.teal),
+      _statTile('Poids max', '${(perf['poidsMaxFinal'] ?? 0).toStringAsFixed(0)} g', Icons.arrow_upward, Colors.green),
       _statTile('Écart poids', '${ecartPoids >= 0 ? '+' : ''}${ecartPoids.toStringAsFixed(1)} %', Icons.trending_up, ecartPoids >= 0 ? Colors.green : Colors.orange),
       _statTile('Écart conso', '${ecartConso >= 0 ? '+' : ''}${ecartConso.toStringAsFixed(1)} %', Icons.show_chart, ecartConso <= 0 ? Colors.green : Colors.orange),
     ];
@@ -295,6 +298,8 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     String? secondYKey,
     Color? secondColor,
     bool interpolateReal = false,
+    String? extraYKey,
+    Color? extraColor,
   }) {
     if (raw.isEmpty) return const Center(child: Text('Pas de données'));
 
@@ -309,6 +314,17 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     spots.sort((a, b) => a.x.compareTo(b.x));
     if (spots.isEmpty) return const Center(child: Text('Pas de données'));
 
+    final extraSpots = <FlSpot>[];
+    if (extraYKey != null) {
+      for (var i = 0; i < raw.length; i++) {
+        final age = (raw[i]['age'] ?? (i + 1)).toDouble();
+        final y = (raw[i][extraYKey] ?? 0).toDouble();
+        if (interpolateReal && y <= 0) continue;
+        extraSpots.add(FlSpot(age, y));
+      }
+      extraSpots.sort((a, b) => a.x.compareTo(b.x));
+    }
+
     final secondSpots = <FlSpot>[];
     if (second != null && secondYKey != null && second.isNotEmpty) {
       for (var i = 0; i < second.length; i++) {
@@ -319,7 +335,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
 
     // Pas de l'axe des jours calculé sur l'étendue réelle ET la largeur d'écran,
     // pour éviter le chevauchement des libellés sur petit écran.
-    final allX = <double>[...spots.map((s) => s.x), ...secondSpots.map((s) => s.x)];
+    final allX = <double>[...spots.map((s) => s.x), ...secondSpots.map((s) => s.x), ...extraSpots.map((s) => s.x)];
     final maxX = allX.isEmpty ? 1.0 : allX.reduce((a, b) => a > b ? a : b);
     final width = MediaQuery.of(context).size.width;
     final targetTicks = width < 360 ? 4 : (width < 500 ? 6 : 8);
@@ -330,7 +346,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
 
     // Axe Y borné à une valeur ronde avec un pas net, pour éviter le chevauchement
     // du max réel (ex: 411) avec un tick rond (ex: 400).
-    final allY = <double>[...spots.map((s) => s.y), ...secondSpots.map((s) => s.y)];
+    final allY = <double>[...spots.map((s) => s.y), ...secondSpots.map((s) => s.y), ...extraSpots.map((s) => s.y)];
     final dataMaxY = allY.isEmpty ? 1.0 : allY.reduce((a, b) => a > b ? a : b);
     final yStep = _niceCeil(dataMaxY / 5);
     final yMax = ((dataMaxY / yStep).ceil() * yStep).clamp(yStep, double.infinity);
@@ -381,6 +397,14 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
             barWidth: 3,
             dotData: FlDotData(show: interpolateReal),
           ),
+          if (extraSpots.isNotEmpty)
+            LineChartBarData(
+              spots: extraSpots,
+              isCurved: !interpolateReal,
+              color: extraColor ?? Colors.teal,
+              barWidth: 3,
+              dotData: FlDotData(show: interpolateReal),
+            ),
           if (secondSpots.isNotEmpty)
             LineChartBarData(
               spots: secondSpots,
