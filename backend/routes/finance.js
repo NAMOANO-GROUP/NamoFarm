@@ -473,7 +473,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
 
     const mouvRes = await api
       .from('tresorerie_mouvements')
-      .select('nature,montant,reference_type,reference_id,type,source')
+      .select('*')
       .eq('company_id', companyId)
       .limit(12000);
     if (mouvRes.error) return res.status(500).json({ message: mouvRes.error.message });
