@@ -16,9 +16,16 @@ class SanteScreen extends StatefulWidget {
 }
 
 class _SanteScreenState extends State<SanteScreen> {
-  static const List<String> _typesVolaille = [
-    'poulet_chair', 'poulet_ameliore', 'poule_pondeuse', 'dinde', 'canard', 'autre',
-  ];
+  static const Map<String, String> _typesVolaille = {
+    'poulet_ameliore_45j': 'Poulet amélioré 45J',
+    'poulet_local_ameliore': 'Poulet local amélioré',
+    'poulet_ameliore': 'Poulet amélioré',
+    'poulet_local': 'Poulet local',
+    'poule_pondeuse': 'Poule pondeuse',
+    'canard': 'Canard',
+    'dinde': 'Dinde',
+    'autre': 'Autre',
+  };
 
   @override
   void initState() {
@@ -122,7 +129,7 @@ class _SanteScreenState extends State<SanteScreen> {
     final isEdit = protocole != null;
     final nomCtrl = TextEditingController(text: protocole?.nom ?? '');
     final notesCtrl = TextEditingController(text: protocole?.notes ?? '');
-    String type = protocole?.typeVolaille.isNotEmpty == true ? protocole!.typeVolaille : 'poulet_chair';
+    String type = protocole?.typeVolaille.isNotEmpty == true ? protocole!.typeVolaille : 'poulet_ameliore_45j';
     final etapes = List<ProtocoleEtape>.from(protocole?.etapes ?? const []);
 
     showDialog(
@@ -140,7 +147,10 @@ class _SanteScreenState extends State<SanteScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: type,
                   decoration: const InputDecoration(labelText: 'Type de volaille'),
-                  items: _typesVolaille.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  items: [
+                    ..._typesVolaille.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
+                    if (!_typesVolaille.containsKey(type)) DropdownMenuItem(value: type, child: Text(type)),
+                  ],
                   onChanged: (v) => setDialog(() => type = v ?? type),
                 ),
                 const SizedBox(height: 8),
