@@ -135,27 +135,35 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _row('Statut', '${b['statut'] ?? ''}${type.isNotEmpty ? ' • $type' : ''}'),
-                _row('Effectif', '${b['effectifVivant'] ?? 0} / ${b['nombreInitial'] ?? 0}'),
-                _row('Mortalité', '${b['mortalite'] ?? 0} (${_n(b['tauxMortalite']).toStringAsFixed(1)} %)'),
-                const Divider(),
-                _row('Coût poussins', formatAmountFcfa(_n(b['coutPoussins']))),
-                _row('Coût aliment/conso', formatAmountFcfa(_n(b['coutAliment']))),
-                _row('Prophylaxie', formatAmountFcfa(_n(b['prophylaxie']))),
-                _row('Autre dépense', formatAmountFcfa(b.containsKey('autresDepenses') ? _n(b['autresDepenses']) : (_n(b['depenses']) - _n(b['prophylaxie'])))),
-                _row('Coût Fixe', formatAmountFcfa(_n(b['coutFixe']))),
-                _row('Amortissement', formatAmountFcfa(_n(b['coutAmortissement']))),
-                _row('Coût total', formatAmountFcfa(_n(b['coutTotal'])), bold: true),
-                _row('Revenus', formatAmountFcfa(_n(b['revenus']))),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _infoChip(Icons.flag_outlined, '${b['statut'] ?? ''}${type.isNotEmpty ? ' • $type' : ''}'),
+                    _infoChip(Icons.groups_outlined, 'Effectif ${b['effectifVivant'] ?? 0}/${b['nombreInitial'] ?? 0}'),
+                    _infoChip(Icons.warning_amber_outlined, 'Mortalité ${b['mortalite'] ?? 0} (${_n(b['tauxMortalite']).toStringAsFixed(1)}%)'),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _coutPie(b),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _metricTile('Coût total', formatCompactFcfa(_n(b['coutTotal'])), Colors.blueGrey),
+                    const SizedBox(width: 8),
+                    _metricTile('Revenus', formatCompactFcfa(_n(b['revenus'])), Colors.green),
+                    const SizedBox(width: 8),
+                    _metricTile('Marge', formatCompactFcfa(marge), margeColor),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 _row('Marge nette', '${formatAmountFcfa(marge)} (${_n(b['tauxMarge']).toStringAsFixed(1)} %)', bold: true, valueColor: margeColor),
-                const Divider(),
+                const Divider(height: 24),
                 _row('Coût de revient / sujet', formatAmountFcfa(_n(b['coutParSujet']))),
                 _row('Seuil rentabilité / sujet', formatAmountFcfa(_n(b['seuilRentabiliteParSujet']))),
                 if (coutParKg != null) _row('Coût de revient / kg', formatAmountFcfa(_n(coutParKg))),
                 if (_n(b['poidsMoyenKg']) > 0) _row('Poids moyen', '${_n(b['poidsMoyenKg']).toStringAsFixed(2)} kg'),
-                const Divider(),
-                _coutPie(b),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -245,6 +253,42 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
           );
         }),
       ],
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 5),
+          Text(text, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricTile(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 2),
+            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
     );
   }
 

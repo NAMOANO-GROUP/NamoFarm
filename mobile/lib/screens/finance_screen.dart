@@ -578,7 +578,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     final header = Row(
       children: [
-        Icon(Icons.bar_chart_rounded, size: 16, color: Colors.grey.shade600),
+        Icon(Icons.pie_chart_outline, size: 16, color: Colors.grey.shade600),
         const SizedBox(width: 6),
         const Expanded(child: Text('Coûts par catégorie', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
         if (cats.isNotEmpty)
@@ -604,92 +604,78 @@ class _FinanceScreenState extends State<FinanceScreen> {
       Colors.teal, Colors.indigo, Colors.orange, Colors.purple, Colors.red,
       Colors.blue, Colors.green, Colors.brown, Colors.pink, Colors.cyan,
     ];
-    double maxVal = 0;
+    double total = 0;
     for (final c in cats) {
-      final v = ((c['total'] ?? 0) as num).toDouble();
-      if (v > maxVal) maxVal = v;
+      total += ((c['total'] ?? 0) as num).toDouble();
     }
-    final groups = <BarChartGroupData>[];
+    if (total <= 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('Aucune dépense à afficher', style: TextStyle(color: Colors.grey))),
+          ),
+        ],
+      );
+    }
+
+    final sections = <PieChartSectionData>[];
     for (var i = 0; i < cats.length; i++) {
       final v = ((cats[i]['total'] ?? 0) as num).toDouble();
       final color = palette[i % palette.length];
-      groups.add(BarChartGroupData(x: i, barRods: [
-        BarChartRodData(
-          toY: v,
-          width: 20,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [color.shade700, color.shade300],
-          ),
-        ),
-      ]));
+      final pct = v / total * 100;
+      sections.add(PieChartSectionData(
+        value: v,
+        color: color,
+        radius: 58,
+        title: pct >= 6 ? '${pct.toStringAsFixed(0)}%' : '',
+        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+      ));
     }
 
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         header,
         const SizedBox(height: 12),
         SizedBox(
-          height: 210,
-          child: BarChart(
-            BarChartData(
-              alignment: BarChartAlignment.spaceAround,
-              maxY: maxVal <= 0 ? 1 : maxVal * 1.18,
-              gridData: const FlGridData(show: true, drawVerticalLine: false),
-              borderData: FlBorderData(show: false),
-              barTouchData: BarTouchData(
-                enabled: true,
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipItem: (group, gi, rod, ri) {
-                    final i = group.x.toInt();
-                    if (i < 0 || i >= cats.length) return null;
-                    return BarTooltipItem(
-                      '${cats[i]['categorie']}\n${formatAmountFcfa((cats[i]['total'] ?? 0) as num)}',
-                      const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                    );
-                  },
-                ),
-              ),
-              titlesData: FlTitlesData(
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 42,
-                    getTitlesWidget: (value, meta) {
-                      if (value == meta.min || value == meta.max) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Text(formatCompactNumber(value), style: const TextStyle(fontSize: 9)),
-                      );
-                    },
-                  ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 34,
-                    getTitlesWidget: (value, meta) {
-                      final i = value.toInt();
-                      if (i < 0 || i >= cats.length) return const SizedBox.shrink();
-                      final label = (cats[i]['categorie'] ?? '').toString();
-                      final short = label.length > 8 ? '${label.substring(0, 7)}…' : label;
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(short, style: const TextStyle(fontSize: 9), maxLines: 1),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              barGroups: groups,
+          height: 190,
+          child: PieChart(
+            PieChartData(
+              sections: sections,
+              sectionsSpace: 2,
+              centerSpaceRadius: 38,
+              startDegreeOffset: -90,
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        ...List.generate(cats.length, (i) {
+          final v = ((cats[i]['total'] ?? 0) as num).toDouble();
+          final pct = v / total * 100;
+          final color = palette[i % palette.length];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text((cats[i]['categorie'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Text(
+                  '${formatAmountFcfa(v)}  •  ${pct.toStringAsFixed(1)}%',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }

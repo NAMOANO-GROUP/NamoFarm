@@ -143,7 +143,8 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   Widget _buildBandeCard(Bande bande, {required bool active}) {
     final isAdmin = context.watch<AuthProvider>().isAdmin;
     final dateFormat = DateFormat('dd/MM/yyyy');
-    final ageJours = (bande.dateFermeture ?? DateTime.now()).difference(bande.dateOuverture).inDays;
+    final ageRef = bande.dateFermeture ?? DateTime.now();
+    final ageJours = DateUtils.dateOnly(ageRef).difference(DateUtils.dateOnly(bande.dateOuverture)).inDays;
     final scheme = Theme.of(context).colorScheme;
     final headerColors = active
         ? [Colors.green.shade600, Colors.green.shade400]

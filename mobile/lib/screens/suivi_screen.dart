@@ -663,7 +663,8 @@ class _SuiviScreenState extends State<SuiviScreen> {
   }
 
   int _calcAge(Bande bande) {
-    return DateTime.now().difference(bande.dateOuverture).inDays;
+    final a = DateUtils.dateOnly(DateTime.now()).difference(DateUtils.dateOnly(bande.dateOuverture)).inDays;
+    return a < 0 ? 0 : a;
   }
 
   // Âge (en jours) des sujets à la date d'une entrée de suivi = jours depuis l'ouverture.

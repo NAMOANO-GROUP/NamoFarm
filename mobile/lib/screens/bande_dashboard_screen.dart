@@ -168,7 +168,8 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
   Widget _buildPerfPanel(Map<String, dynamic> perf) {
     final ecartPoids = (perf['ecartPoidsTheoriquePct'] ?? 0).toDouble();
     final ecartConso = (perf['ecartConsoTheoriquePct'] ?? 0).toDouble();
-    final ageJours = (widget.bande.dateFermeture ?? DateTime.now()).difference(widget.bande.dateOuverture).inDays;
+    final ageRef = widget.bande.dateFermeture ?? DateTime.now();
+    final ageJours = DateUtils.dateOnly(ageRef).difference(DateUtils.dateOnly(widget.bande.dateOuverture)).inDays;
     final isWide = MediaQuery.of(context).size.width > 600;
     final items = <Widget>[
       _statTile('Âge sujets', '$ageJours j', Icons.cake_outlined, Colors.indigo),
