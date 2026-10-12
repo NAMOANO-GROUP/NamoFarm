@@ -261,37 +261,13 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => SuiviScreen(bande: bande)));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
-                        icon: const Icon(Icons.trending_up),
-                        label: const Text('Suivi'),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => BandeDashboardScreen(bande: bande)));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
-                        icon: const Icon(Icons.insights),
-                        label: const Text('Dashboard'),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => _confirmerFermeture(bande),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        ),
-                        icon: const Icon(Icons.stop_circle, color: Colors.red),
-                        label: const Text('Fermer', style: TextStyle(color: Colors.red)),
-                      ),
+                      _bandeActionButton('Suivi', Icons.trending_up, [Colors.green.shade600, Colors.green.shade400], () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => SuiviScreen(bande: bande)));
+                      }),
+                      _bandeActionButton('Dashboard', Icons.insights, [Colors.indigo.shade500, Colors.indigo.shade300], () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => BandeDashboardScreen(bande: bande)));
+                      }),
+                      _bandeDangerButton('Fermer', Icons.stop_circle, () => _confirmerFermeture(bande)),
                     ],
                   ),
                 ],
@@ -323,6 +299,56 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bandeActionButton(String label, IconData icon, List<Color> gradient, VoidCallback onTap) {
+    return Material(
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bandeDangerButton(String label, IconData icon, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.6)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: Colors.red),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       ),
     );

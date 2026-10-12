@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../services/api_service.dart';
 import '../utils/money_format.dart';
@@ -152,6 +153,8 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
                 _row('Seuil rentabilité / sujet', formatAmountFcfa(_n(b['seuilRentabiliteParSujet']))),
                 if (coutParKg != null) _row('Coût de revient / kg', formatAmountFcfa(_n(coutParKg))),
                 if (_n(b['poidsMoyenKg']) > 0) _row('Poids moyen', '${_n(b['poidsMoyenKg']).toStringAsFixed(2)} kg'),
+                const Divider(),
+                _coutPie(b),
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
@@ -166,6 +169,82 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Camembert (donut) premium de la répartition des postes de coût de la bande.
+  Widget _coutPie(Map<String, dynamic> b) {
+    final autresDepenses = b.containsKey('autresDepenses')
+        ? _n(b['autresDepenses'])
+        : (_n(b['depenses']) - _n(b['prophylaxie']));
+    final posts = <(String, double, Color)>[
+      ('Poussins', _n(b['coutPoussins']).toDouble(), Colors.teal),
+      ('Aliment/conso', _n(b['coutAliment']).toDouble(), Colors.brown),
+      ('Prophylaxie', _n(b['prophylaxie']).toDouble(), Colors.purple),
+      ('Autre dépense', autresDepenses.toDouble(), Colors.orange),
+      ('Coût fixe', _n(b['coutFixe']).toDouble(), Colors.indigo),
+      ('Amortissement', _n(b['coutAmortissement']).toDouble(), Colors.blueGrey),
+    ].where((p) => p.$2 > 0).toList();
+    final total = posts.fold<double>(0, (s, p) => s + p.$2);
+    if (total <= 0) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    final sections = posts.map((p) {
+      final pct = p.$2 / total * 100;
+      return PieChartSectionData(
+        value: p.$2,
+        color: p.$3,
+        radius: 52,
+        title: pct >= 7 ? '${pct.toStringAsFixed(0)}%' : '',
+        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+      );
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.pie_chart_outline, size: 16, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            const Text('Répartition des coûts', style: TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 170,
+          child: PieChart(
+            PieChartData(
+              sections: sections,
+              sectionsSpace: 2,
+              centerSpaceRadius: 34,
+              startDegreeOffset: -90,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...posts.map((p) {
+          final pct = p.$2 / total * 100;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(color: p.$3, borderRadius: BorderRadius.circular(3)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(p.$1, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Text(
+                  '${formatAmountFcfa(p.$2)}  •  ${pct.toStringAsFixed(1)}%',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 
