@@ -107,6 +107,22 @@ class BandesProvider with ChangeNotifier {
     }
   }
 
+  Future<String?> modifierStockSuiviAlimentation(
+    String bandeId,
+    String suiviId,
+    String alimentationStockId,
+  ) async {
+    _lastError = null;
+    try {
+      await ApiService.modifierStockSuiviAlimentation(bandeId, suiviId, alimentationStockId);
+      await chargerBandesActives();
+      return null;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      return _lastError;
+    }
+  }
+
   Future<bool> ajouterMortalite(String bandeId, Map<String, dynamic> data) async {
     try {
       await ApiService.ajouterMortalite(bandeId, data);

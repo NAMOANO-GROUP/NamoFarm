@@ -132,6 +132,16 @@ class ApiService {
   static Future<Map<String, dynamic>> ajouterSuivi(String bandeId, Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/bandes/$bandeId/suivi', body: data), accepted: const [201]));
 
+    static Future<Map<String, dynamic>> modifierStockSuiviAlimentation(
+        String bandeId,
+        String suiviId,
+        String alimentationStockId,
+    ) async =>
+            Map<String, dynamic>.from(_ensureSuccess(await _put(
+                '/bandes/$bandeId/suivi/$suiviId/alimentation',
+                body: {'alimentationStockId': alimentationStockId},
+            )));
+
   static Future<Map<String, dynamic>> ajouterMortalite(String bandeId, Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/bandes/$bandeId/mortalite', body: data), accepted: const [201]));
 

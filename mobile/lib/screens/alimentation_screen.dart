@@ -135,6 +135,60 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
     }
   }
 
+  Future<void> _modifierAliment(Map<String, dynamic> row) async {
+    final suiviId = (row['_id'] ?? row['id'] ?? '').toString();
+    final currentStockId = (row['alimentationStockId'] ?? '').toString();
+    if (suiviId.isEmpty || currentStockId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ce relevé ancien ne peut pas être réaffecté automatiquement.')),
+      );
+      return;
+    }
+
+    final selectedId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Corriger le type d’aliment'),
+        content: DropdownButtonFormField<String>(
+          initialValue: _stocksAliment.any((s) => s['_id']?.toString() == currentStockId)
+              ? currentStockId
+              : null,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Stock alimentaire'),
+          items: _stocksAliment.map((stock) {
+            final id = stock['_id']?.toString() ?? '';
+            final name = (stock['nom'] ?? 'Aliment').toString();
+            return DropdownMenuItem<String>(
+              value: id,
+              child: Text(name, overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) Navigator.pop(dialogContext, value);
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+        ],
+      ),
+    );
+    if (selectedId == null || selectedId == currentStockId || !mounted) return;
+
+    final error = await context.read<BandesProvider>().modifierStockSuiviAlimentation(
+          widget.bande.id!,
+          suiviId,
+          selectedId,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error == null ? 'Type d’aliment corrigé' : 'Erreur: $error')),
+    );
+    if (error == null) {
+      await _loadStocks();
+      await _chargerHistorique();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('dd/MM/yyyy');
@@ -216,11 +270,17 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
                 title: Text('Historique alimentation (${_historique.length})'),
                 children: _historique.map((row) {
                   final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
+                  final stockName = (row['alimentationType'] ?? '').toString();
                   return ListTile(
                     leading: const Icon(Icons.restaurant),
-                    title: Text('Alim: ${(row['alimentationKg'] ?? 0).toString()} kg • Eau: ${(row['eauLitres'] ?? 0).toString()} L'),
+                    title: Text('${row['alimentationKg']} kg • ${stockName.isNotEmpty ? stockName : 'Aliment'}'),
                     subtitle: Text(
-                      '${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}',
+                      '${date != null ? df.format(date) : '-'} • Eau: ${(row['eauLitres'] ?? 0).toString()} L${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}',
+                    ),
+                    trailing: IconButton(
+                      tooltip: 'Corriger le type d’aliment',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _modifierAliment(row),
                     ),
                   );
                 }).toList(),

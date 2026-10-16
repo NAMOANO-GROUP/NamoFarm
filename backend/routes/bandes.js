@@ -656,6 +656,7 @@ router.post('/:id/suivi', requirePermission('bandes.suivi.create'), async (req, 
     const stockMouvements = toArray(stockRes.data.mouvements);
     stockMouvements.push({
       _id: crypto.randomUUID(),
+      suiviId: suivi._id,
       date: suiviDateIso,
       type: 'sortie',
       quantite: alimentationKg,
@@ -687,6 +688,133 @@ router.post('/:id/suivi', requirePermission('bandes.suivi.create'), async (req, 
 
     if (saved.error) return res.status(400).json({ message: saved.error.message });
     return res.status(201).json(mapBandeRow(saved.data));
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+});
+
+router.put('/:id/suivi/:suiviId/alimentation', requirePermission('bandes.suivi.create'), async (req, res) => {
+  try {
+    const alimentationStockId = (req.body.alimentationStockId || '').toString().trim();
+    if (!alimentationStockId) return res.status(400).json({ message: "Le type d'alimentation est obligatoire" });
+
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+    const bandeRow = await getBandeOr404(api, companyId, req.params.id, res);
+    if (!bandeRow) return undefined;
+
+    const suivis = toArray(bandeRow.suivi_journalier).map((s) => ({ ...s }));
+    const suiviIndex = suivis.findIndex((s) => String(s._id || '') === req.params.suiviId);
+    if (suiviIndex < 0) return res.status(404).json({ message: 'Relevé de suivi introuvable' });
+
+    const suivi = suivis[suiviIndex];
+    const oldStockId = (suivi.alimentationStockId || '').toString();
+    const alimentationKg = Number(suivi.alimentationKg || 0);
+    if (!oldStockId || alimentationKg <= 0) {
+      return res.status(400).json({ message: "Ce relevé n'a pas de stock alimentaire modifiable" });
+    }
+
+    const oldStockRes = await api.from('stocks').select('*').eq('company_id', companyId).eq('id', oldStockId).maybeSingle();
+    if (oldStockRes.error) return res.status(400).json({ message: oldStockRes.error.message });
+    if (!oldStockRes.data) return res.status(404).json({ message: "L'ancien stock alimentaire est introuvable" });
+
+    const newStockRes = await api.from('stocks').select('*').eq('company_id', companyId).eq('id', alimentationStockId).maybeSingle();
+    if (newStockRes.error) return res.status(400).json({ message: newStockRes.error.message });
+    if (!newStockRes.data) return res.status(404).json({ message: 'Le nouveau stock alimentaire est introuvable' });
+    if (newStockRes.data.categorie !== 'aliment') {
+      return res.status(400).json({ message: 'Le stock sélectionné doit être de catégorie aliment' });
+    }
+
+    const bande = mapBandeRow(bandeRow);
+    const oldMovements = toArray(oldStockRes.data.mouvements);
+    const suiviDate = new Date(suivi.date).getTime();
+    const candidates = oldMovements
+      .map((movement, index) => ({ movement, index }))
+      .filter(({ movement }) => {
+        if (movement.suiviId) return String(movement.suiviId) === req.params.suiviId;
+        const movementDate = new Date(movement.date || '').getTime();
+        return movement.type === 'sortie'
+          && String(movement.bandeId || '') === String(bande._id)
+          && Math.abs(Number(movement.quantite || 0) - alimentationKg) < 0.001
+          && Math.abs(movementDate - suiviDate) < 1000
+          && (movement.motif || '').toString().startsWith('Consommation alimentation - suivi bande ');
+      });
+    if (candidates.length !== 1) {
+      return res.status(409).json({ message: "Mouvement de stock introuvable ou ambigu : inventaire inchangé" });
+    }
+
+    suivi.alimentationStockId = alimentationStockId;
+    suivi.alimentationType = (newStockRes.data.nom || '').toString();
+
+    if (oldStockId === alimentationStockId) {
+      suivis[suiviIndex] = suivi;
+      const saved = await api.from('bandes')
+        .update({ suivi_journalier: suivis, updated_at: new Date().toISOString() })
+        .eq('company_id', companyId)
+        .eq('id', bande._id)
+        .select('*')
+        .single();
+      if (saved.error) return res.status(400).json({ message: saved.error.message });
+      return res.json(mapBandeRow(saved.data));
+    }
+
+    const targetMovements = toArray(newStockRes.data.mouvements);
+    const movedStockEntry = {
+      ...candidates[0].movement,
+      suiviId: req.params.suiviId,
+      utilisateur: getUserLabel(req),
+      bandeId: bande._id,
+      motif: `Consommation alimentation - suivi bande ${bande.nom}`,
+      coutUnitaire: Number(newStockRes.data.prix_unitaire || 0),
+    };
+    oldMovements.splice(candidates[0].index, 1);
+    targetMovements.push(movedStockEntry);
+
+    if (Number(newStockRes.data.quantite_actuelle || 0) < alimentationKg) {
+      return res.status(400).json({ message: 'Stock insuffisant pour corriger ce relevé' });
+    }
+
+    const oldQuantity = Number(oldStockRes.data.quantite_actuelle || 0);
+    const targetQuantity = Number(newStockRes.data.quantite_actuelle || 0);
+    const oldSaved = await updateStockCompat(api, companyId, oldStockId, {
+      quantite_actuelle: oldQuantity + alimentationKg,
+      mouvements: oldMovements,
+      updated_at: new Date().toISOString(),
+    });
+    if (oldSaved.error) return res.status(400).json({ message: oldSaved.error.message });
+
+    const targetSaved = await updateStockCompat(api, companyId, alimentationStockId, {
+      quantite_actuelle: targetQuantity - alimentationKg,
+      mouvements: targetMovements,
+      updated_at: new Date().toISOString(),
+    });
+    if (targetSaved.error) {
+      await updateStockCompat(api, companyId, oldStockId, {
+        quantite_actuelle: oldQuantity,
+        mouvements: toArray(oldStockRes.data.mouvements),
+      });
+      return res.status(400).json({ message: targetSaved.error.message });
+    }
+
+    suivis[suiviIndex] = suivi;
+    const saved = await api.from('bandes')
+      .update({ suivi_journalier: suivis, updated_at: new Date().toISOString() })
+      .eq('company_id', companyId)
+      .eq('id', bande._id)
+      .select('*')
+      .single();
+    if (saved.error) {
+      await updateStockCompat(api, companyId, oldStockId, {
+        quantite_actuelle: oldQuantity,
+        mouvements: toArray(oldStockRes.data.mouvements),
+      });
+      await updateStockCompat(api, companyId, alimentationStockId, {
+        quantite_actuelle: targetQuantity,
+        mouvements: toArray(newStockRes.data.mouvements),
+      });
+      return res.status(400).json({ message: saved.error.message });
+    }
+    return res.json(mapBandeRow(saved.data));
   } catch (err) {
     return res.status(400).json({ message: err.message });
   }
