@@ -201,6 +201,9 @@ function mapBandeRow(row) {
     _id: s._id || crypto.randomUUID(),
     date: s.date || new Date().toISOString(),
     poidsMotenG: Number(s.poidsMotenG || 0),
+    ...(s.poidsMinG != null ? { poidsMinG: Number(s.poidsMinG) } : {}),
+    ...(s.poidsMaxG != null ? { poidsMaxG: Number(s.poidsMaxG) } : {}),
+    ...(Array.isArray(s.poidsValeurs) ? { poidsValeurs: s.poidsValeurs } : {}),
     mortaliteJour: Number(s.mortaliteJour || 0),
     alimentationKg: Number(s.alimentationKg || 0),
     alimentationStockId: s.alimentationStockId || null,
@@ -944,6 +947,53 @@ router.get('/:id/poids', requirePermission('bandes.read'), async (req, res) => {
     return res.json(poids);
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/:id/poids/:suiviId', requirePermission('bandes.poids.create'), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+    const bandeRow = await getBandeOr404(api, companyId, req.params.id, res);
+    if (!bandeRow) return undefined;
+    const bande = mapBandeRow(bandeRow);
+
+    const index = bande.suiviJournalier.findIndex((s) => String(s._id) === req.params.suiviId);
+    if (index < 0) return res.status(404).json({ message: 'Relevé de poids introuvable' });
+    const entry = bande.suiviJournalier[index];
+    if (!(Number(entry.poidsMotenG || 0) > 0)) {
+      return res.status(400).json({ message: "Cette entrée ne contient pas de relevé de poids" });
+    }
+
+    // Entrée de pesée pure => supprimée ; si elle porte aussi alimentation/mortalité/climat, on n'efface que le poids.
+    const purePoids = Number(entry.alimentationKg || 0) === 0
+      && Number(entry.mortaliteJour || 0) === 0
+      && Number(entry.eauLitres || 0) === 0
+      && Number(entry.temperature || 0) === 0
+      && Number(entry.humidite || 0) === 0;
+
+    let suivis;
+    if (purePoids) {
+      suivis = bande.suiviJournalier.filter((_, i) => i !== index);
+    } else {
+      suivis = bande.suiviJournalier.map((s, i) => {
+        if (i !== index) return s;
+        const { poidsMinG, poidsMaxG, poidsValeurs, ...rest } = s;
+        return { ...rest, poidsMotenG: 0 };
+      });
+    }
+
+    const saved = await api
+      .from('bandes')
+      .update({ suivi_journalier: suivis, updated_at: new Date().toISOString() })
+      .eq('company_id', companyId)
+      .eq('id', bande._id)
+      .select('*')
+      .single();
+    if (saved.error) return res.status(400).json({ message: saved.error.message });
+    return res.json(mapBandeRow(saved.data));
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
   }
 });
 

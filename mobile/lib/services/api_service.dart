@@ -151,6 +151,10 @@ class ApiService {
   static Future<List<dynamic>> getRelevesPoids(String bandeId) async =>
       List<dynamic>.from(_ensureSuccess(await _get('/bandes/$bandeId/poids')) ?? []);
 
+  static Future<void> supprimerRelevePoids(String bandeId, String suiviId) async {
+    _ensureSuccess(await _delete('/bandes/$bandeId/poids/$suiviId'));
+  }
+
   static Future<Map<String, dynamic>> ajouterReleveClimat(String bandeId, Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _post('/bandes/$bandeId/climat', body: data), accepted: const [201]));
 

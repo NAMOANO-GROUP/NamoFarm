@@ -156,6 +156,18 @@ class BandesProvider with ChangeNotifier {
     }
   }
 
+  Future<String?> supprimerRelevePoids(String bandeId, String suiviId) async {
+    _lastError = null;
+    try {
+      await ApiService.supprimerRelevePoids(bandeId, suiviId);
+      await chargerBandesActives();
+      return null;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      return _lastError;
+    }
+  }
+
   Future<bool> ajouterReleveClimat(String bandeId, Map<String, dynamic> data) async {
     try {
       await ApiService.ajouterReleveClimat(bandeId, data);

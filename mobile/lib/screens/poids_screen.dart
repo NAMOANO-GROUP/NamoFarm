@@ -94,6 +94,37 @@ class _PoidsScreenState extends State<PoidsScreen> {
     }
   }
 
+  Future<void> _supprimerReleve(Map<String, dynamic> row) async {
+    final suiviId = (row['id'] ?? row['_id'] ?? '').toString();
+    if (suiviId.isEmpty) return;
+    final date = row['date'] != null ? DateTime.tryParse(row['date'].toString()) : null;
+    final label = '${row['poidsMotenG']} g${date != null ? ' du ${DateFormat('dd/MM/yyyy').format(date)}' : ''}';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer ce relevé ?'),
+        content: Text('Le relevé de poids ($label) sera supprimé. Cette action est irréversible.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final error = await context.read<BandesProvider>().supprimerRelevePoids(widget.bande.id!, suiviId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error == null ? 'Relevé supprimé' : 'Erreur: $error')),
+    );
+    if (error == null) await _chargerHistorique();
+  }
+
   Widget _apercuMinMax() {
     final v = _valeurs();
     if (v.isEmpty) return const SizedBox.shrink();
@@ -159,13 +190,15 @@ class _PoidsScreenState extends State<PoidsScreen> {
             child: Text('Pesées individuelles (jusqu\'à 6) *', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           const SizedBox(height: 8),
-          GridView.count(
-            crossAxisCount: 2,
+          GridView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 3.2,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              mainAxisExtent: 56,
+            ),
             children: List.generate(6, (i) {
               return NumberField(
                 controller: _poidsCtrls[i],
@@ -220,6 +253,11 @@ class _PoidsScreenState extends State<PoidsScreen> {
                     leading: const Icon(Icons.monitor_weight),
                     title: Text('Min $mn g • Max $mx g'),
                     subtitle: Text('Moy. $moy g • ${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
+                    trailing: IconButton(
+                      tooltip: 'Supprimer ce relevé',
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                      onPressed: () => _supprimerReleve(row),
+                    ),
                   );
                 }).toList(),
               ),
