@@ -58,9 +58,6 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
 
       setState(() {
         _stocksAliment = aliments;
-        if (_selectedAlimentStockId == null && _stocksAliment.isNotEmpty) {
-          _selectedAlimentStockId = _stocksAliment.first['_id']?.toString();
-        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -79,6 +76,53 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
       }
     }
     return '';
+  }
+
+  // Dernier aliment utilisé sur cette bande (rappel uniquement, jamais présélectionné).
+  String get _dernierAlimentUtilise {
+    if (_historique.isEmpty) return '';
+    return (_historique.first['alimentationType'] ?? '').toString();
+  }
+
+  Future<bool> _confirmerSaisie(double kg) async {
+    final stock = _stocksAliment.firstWhere(
+      (s) => s['_id']?.toString() == _selectedAlimentStockId,
+      orElse: () => <String, dynamic>{},
+    );
+    final nom = (stock['nom'] ?? '').toString();
+    final unite = (stock['unite'] ?? 'kg').toString();
+    final dispo = (stock['quantiteActuelle'] as num?)?.toDouble() ?? 0;
+    final age = DateUtils.dateOnly(_date).difference(DateUtils.dateOnly(widget.bande.dateOuverture)).inDays;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmer l’aliment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Bande : ${widget.bande.nom} (J$age)'),
+            const SizedBox(height: 8),
+            Text(nom, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('${kg.toStringAsFixed(2)} $unite seront retirés du stock.'),
+            Text('Stock restant : ${(dispo - kg).toStringAsFixed(2)} $unite'),
+            if (_dernierAlimentUtilise.isNotEmpty && _dernierAlimentUtilise != nom) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Attention : le dernier aliment utilisé sur cette bande était « $_dernierAlimentUtilise ».',
+                style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Corriger')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer')),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   Future<void> _chargerHistorique() async {
@@ -110,6 +154,8 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
       return;
     }
 
+    if (!await _confirmerSaisie(alimentation) || !mounted) return;
+
     setState(() => _loading = true);
     final ok = await context.read<BandesProvider>().ajouterSuivi(widget.bande.id!, {
       'date': _date.toIso8601String(),
@@ -130,6 +176,7 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
       _alimentationCtrl.clear();
       _eauCtrl.clear();
       _obsCtrl.clear();
+      setState(() => _selectedAlimentStockId = null);
       await _loadStocks();
       await _chargerHistorique();
     }
@@ -229,7 +276,11 @@ class _AlimentationScreenState extends State<AlimentationScreen> {
                 )
                 .toList(),
             onChanged: (v) => setState(() => _selectedAlimentStockId = v),
-            decoration: const InputDecoration(labelText: 'Type d\'alimentation *'),
+            decoration: InputDecoration(
+              labelText: 'Type d\'alimentation *',
+              hintText: 'Choisir le stock d’aliment',
+              helperText: _dernierAlimentUtilise.isEmpty ? null : 'Dernier utilisé : $_dernierAlimentUtilise',
+            ),
           ),
           TextField(
             controller: _obsCtrl,
