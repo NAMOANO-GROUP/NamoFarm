@@ -249,10 +249,42 @@ class _PoidsScreenState extends State<PoidsScreen> {
                   final mn = (row['poidsMinG'] ?? row['poidsMotenG'] ?? 0);
                   final mx = (row['poidsMaxG'] ?? row['poidsMotenG'] ?? 0);
                   final moy = (row['poidsMotenG'] ?? 0);
+                  final valeurs = (row['poidsValeurs'] as List? ?? const [])
+                      .whereType<num>()
+                      .toList();
+                  final muted = Theme.of(context).colorScheme.onSurfaceVariant;
                   return ListTile(
                     leading: const Icon(Icons.monitor_weight),
                     title: Text('Min $mn g • Max $mx g'),
-                    subtitle: Text('Moy. $moy g • ${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Moy. $moy g • ${date != null ? df.format(date) : '-'}${(row['observations'] ?? '').toString().isNotEmpty ? ' • ${row['observations']}' : ''}'),
+                        const SizedBox(height: 6),
+                        if (valeurs.isEmpty)
+                          Text('Détail des pesées non enregistré', style: TextStyle(fontSize: 11, color: muted))
+                        else
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (var i = 0; i < valeurs.length; i++)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${i + 1} : ${valeurs[i].toStringAsFixed(valeurs[i] % 1 == 0 ? 0 : 1)} g',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    isThreeLine: true,
                     trailing: IconButton(
                       tooltip: 'Supprimer ce relevé',
                       icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
