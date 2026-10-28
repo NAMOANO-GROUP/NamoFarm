@@ -16,6 +16,16 @@ class ConfigScreen extends StatefulWidget {
   State<ConfigScreen> createState() => _ConfigScreenState();
 }
 
+class _RefType {
+  final String key;
+  final String label;
+  final int duree;
+  final int poids;
+  final double conso;
+
+  const _RefType(this.key, this.label, this.duree, this.poids, this.conso);
+}
+
 class _ConfigScreenState extends State<ConfigScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -26,6 +36,18 @@ class _ConfigScreenState extends State<ConfigScreen>
     {'value': 'gestionnaire_ferme', 'label': "Gestionnaire d'exploitation"},
     {'value': 'commercial', 'label': 'Commercial'},
     {'value': 'technicien', 'label': 'Technicien'},
+  ];
+
+  // Types de volaille (mêmes clés que les bandes) et leurs références par défaut.
+  static const List<_RefType> _refTypes = [
+    _RefType('poulet_ameliore_45j', 'Poulet amélioré 45J', 45, 2000, 4.5),
+    _RefType('poulet_local_ameliore', 'Poulet local amélioré', 90, 1500, 5.5),
+    _RefType('poulet_ameliore', 'Poulet amélioré', 60, 2200, 5.5),
+    _RefType('poulet_local', 'Poulet local', 120, 1400, 6.0),
+    _RefType('poule_pondeuse', 'Poule pondeuse', 140, 1800, 14.0),
+    _RefType('canard', 'Canard', 50, 3200, 6.0),
+    _RefType('dinde', 'Dinde', 90, 7000, 18.0),
+    _RefType('autre', 'Autre', 45, 2500, 5.0),
   ];
 
   String _roleLabel(String roleValue) {
@@ -259,67 +281,29 @@ class _ConfigScreenState extends State<ConfigScreen>
         final refs = Map<String, dynamic>.from(
             (cfg['referencesTheoriques'] ?? {}) as Map);
 
-        Map<String, dynamic> refFor(String key,
-            {required int d, required int p, required double c}) {
-          final source = refs[key] is Map
-              ? Map<String, dynamic>.from(refs[key] as Map)
+        // Pour chaque type : valeurs enregistrées (ou défauts) + contrôleurs de saisie.
+        final refData = <String, Map<String, dynamic>>{};
+        final dureeCtrls = <String, TextEditingController>{};
+        final poidsCtrls = <String, TextEditingController>{};
+        final consoCtrls = <String, TextEditingController>{};
+        for (final t in _refTypes) {
+          final source = refs[t.key] is Map
+              ? Map<String, dynamic>.from(refs[t.key] as Map)
               : <String, dynamic>{};
-          return {
-            'dureeJours': source['dureeJours'] ?? d,
-            'poidsFinalG': source['poidsFinalG'] ?? p,
-            'consoTotaleKgParTete': source['consoTotaleKgParTete'] ?? c,
+          final data = <String, dynamic>{
+            'dureeJours': source['dureeJours'] ?? t.duree,
+            'poidsFinalG': source['poidsFinalG'] ?? t.poids,
+            'consoTotaleKgParTete': source['consoTotaleKgParTete'] ?? t.conso,
             'courbeTheorique': _normalizeCourbe(source['courbeTheorique']),
           };
+          refData[t.key] = data;
+          dureeCtrls[t.key] =
+              TextEditingController(text: '${data['dureeJours']}');
+          poidsCtrls[t.key] =
+              TextEditingController(text: '${data['poidsFinalG']}');
+          consoCtrls[t.key] =
+              TextEditingController(text: '${data['consoTotaleKgParTete']}');
         }
-
-        final refPoulet = refFor('poulet_chair', d: 42, p: 2500, c: 4.2);
-        final refAmeliore = refFor('poulet_ameliore', d: 60, p: 2200, c: 5.5);
-        final refPondeuse = refFor('poule_pondeuse', d: 140, p: 1800, c: 14.0);
-        final refDinde = refFor('dinde', d: 90, p: 7000, c: 18.0);
-        final refCanard = refFor('canard', d: 50, p: 3200, c: 6.0);
-        final refAutre = refFor('autre', d: 45, p: 2500, c: 5.0);
-
-        final pouletDureeCtrl =
-            TextEditingController(text: '${refPoulet['dureeJours']}');
-        final pouletPoidsCtrl =
-            TextEditingController(text: '${refPoulet['poidsFinalG']}');
-        final pouletConsoCtrl =
-            TextEditingController(text: '${refPoulet['consoTotaleKgParTete']}');
-
-        final amelioreDureeCtrl =
-            TextEditingController(text: '${refAmeliore['dureeJours']}');
-        final ameliorePoidsCtrl =
-            TextEditingController(text: '${refAmeliore['poidsFinalG']}');
-        final amelioreConsoCtrl =
-            TextEditingController(text: '${refAmeliore['consoTotaleKgParTete']}');
-
-        final pondeuseDureeCtrl =
-            TextEditingController(text: '${refPondeuse['dureeJours']}');
-        final pondeusePoidsCtrl =
-            TextEditingController(text: '${refPondeuse['poidsFinalG']}');
-        final pondeuseConsoCtrl = TextEditingController(
-            text: '${refPondeuse['consoTotaleKgParTete']}');
-
-        final dindeDureeCtrl =
-            TextEditingController(text: '${refDinde['dureeJours']}');
-        final dindePoidsCtrl =
-            TextEditingController(text: '${refDinde['poidsFinalG']}');
-        final dindeConsoCtrl =
-            TextEditingController(text: '${refDinde['consoTotaleKgParTete']}');
-
-        final canardDureeCtrl =
-            TextEditingController(text: '${refCanard['dureeJours']}');
-        final canardPoidsCtrl =
-            TextEditingController(text: '${refCanard['poidsFinalG']}');
-        final canardConsoCtrl =
-            TextEditingController(text: '${refCanard['consoTotaleKgParTete']}');
-
-        final autreDureeCtrl =
-            TextEditingController(text: '${refAutre['dureeJours']}');
-        final autrePoidsCtrl =
-            TextEditingController(text: '${refAutre['poidsFinalG']}');
-        final autreConsoCtrl =
-            TextEditingController(text: '${refAutre['consoTotaleKgParTete']}');
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -340,90 +324,22 @@ class _ConfigScreenState extends State<ConfigScreen>
             Text('Références théoriques (courbes)',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            _refSection(
-              title: 'Poulet de chair',
-              duree: pouletDureeCtrl,
-              poids: pouletPoidsCtrl,
-              conso: pouletConsoCtrl,
-              courbeCount: (refPoulet['courbeTheorique'] as List).length,
-              onEditCurve: () async {
-                final updated = await _showCourbeDialog('Poulet de chair',
-                    refPoulet['courbeTheorique'] as List<dynamic>);
-                if (updated != null) {
-                  refPoulet['courbeTheorique'] = updated;
-                }
-              },
-            ),
-            _refSection(
-              title: 'Poulet amélioré',
-              duree: amelioreDureeCtrl,
-              poids: ameliorePoidsCtrl,
-              conso: amelioreConsoCtrl,
-              courbeCount: (refAmeliore['courbeTheorique'] as List).length,
-              onEditCurve: () async {
-                final updated = await _showCourbeDialog('Poulet amélioré',
-                    refAmeliore['courbeTheorique'] as List<dynamic>);
-                if (updated != null) {
-                  refAmeliore['courbeTheorique'] = updated;
-                }
-              },
-            ),
-            _refSection(
-              title: 'Poule pondeuse',
-              duree: pondeuseDureeCtrl,
-              poids: pondeusePoidsCtrl,
-              conso: pondeuseConsoCtrl,
-              courbeCount: (refPondeuse['courbeTheorique'] as List).length,
-              onEditCurve: () async {
-                final updated = await _showCourbeDialog('Poule pondeuse',
-                    refPondeuse['courbeTheorique'] as List<dynamic>);
-                if (updated != null) {
-                  refPondeuse['courbeTheorique'] = updated;
-                }
-              },
-            ),
-            _refSection(
-              title: 'Dinde',
-              duree: dindeDureeCtrl,
-              poids: dindePoidsCtrl,
-              conso: dindeConsoCtrl,
-              courbeCount: (refDinde['courbeTheorique'] as List).length,
-              onEditCurve: () async {
-                final updated = await _showCourbeDialog(
-                    'Dinde', refDinde['courbeTheorique'] as List<dynamic>);
-                if (updated != null) {
-                  refDinde['courbeTheorique'] = updated;
-                }
-              },
-            ),
-            _refSection(
-              title: 'Canard',
-              duree: canardDureeCtrl,
-              poids: canardPoidsCtrl,
-              conso: canardConsoCtrl,
-              courbeCount: (refCanard['courbeTheorique'] as List).length,
-              onEditCurve: () async {
-                final updated = await _showCourbeDialog(
-                    'Canard', refCanard['courbeTheorique'] as List<dynamic>);
-                if (updated != null) {
-                  refCanard['courbeTheorique'] = updated;
-                }
-              },
-            ),
-            _refSection(
-              title: 'Autre',
-              duree: autreDureeCtrl,
-              poids: autrePoidsCtrl,
-              conso: autreConsoCtrl,
-              courbeCount: (refAutre['courbeTheorique'] as List).length,
-              onEditCurve: () async {
-                final updated = await _showCourbeDialog(
-                    'Autre', refAutre['courbeTheorique'] as List<dynamic>);
-                if (updated != null) {
-                  refAutre['courbeTheorique'] = updated;
-                }
-              },
-            ),
+            for (final t in _refTypes)
+              _refSection(
+                title: t.label,
+                duree: dureeCtrls[t.key]!,
+                poids: poidsCtrls[t.key]!,
+                conso: consoCtrls[t.key]!,
+                courbeCount:
+                    (refData[t.key]!['courbeTheorique'] as List).length,
+                onEditCurve: () async {
+                  final updated = await _showCourbeDialog(t.label,
+                      refData[t.key]!['courbeTheorique'] as List<dynamic>);
+                  if (updated != null) {
+                    refData[t.key]!['courbeTheorique'] = updated;
+                  }
+                },
+              ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () async {
@@ -432,60 +348,17 @@ class _ConfigScreenState extends State<ConfigScreen>
                   'devise': deviseCtrl.text.trim(),
                   'sessionTimeoutMinutes': int.tryParse(timeoutCtrl.text) ?? 30,
                   'referencesTheoriques': {
-                    'poulet_chair': {
-                      'dureeJours': int.tryParse(pouletDureeCtrl.text) ?? 42,
-                      'poidsFinalG':
-                          parseAmount(pouletPoidsCtrl.text) ?? 2500,
-                      'consoTotaleKgParTete':
-                          double.tryParse(pouletConsoCtrl.text) ?? 4.2,
-                      'courbeTheorique':
-                          _normalizeCourbe(refPoulet['courbeTheorique']),
-                    },
-                    'poulet_ameliore': {
-                      'dureeJours': int.tryParse(amelioreDureeCtrl.text) ?? 60,
-                      'poidsFinalG':
-                          parseAmount(ameliorePoidsCtrl.text) ?? 2200,
-                      'consoTotaleKgParTete':
-                          double.tryParse(amelioreConsoCtrl.text) ?? 5.5,
-                      'courbeTheorique':
-                          _normalizeCourbe(refAmeliore['courbeTheorique']),
-                    },
-                    'poule_pondeuse': {
-                      'dureeJours': int.tryParse(pondeuseDureeCtrl.text) ?? 140,
-                      'poidsFinalG':
-                          parseAmount(pondeusePoidsCtrl.text) ?? 1800,
-                      'consoTotaleKgParTete':
-                          double.tryParse(pondeuseConsoCtrl.text) ?? 14.0,
-                      'courbeTheorique':
-                          _normalizeCourbe(refPondeuse['courbeTheorique']),
-                    },
-                    'dinde': {
-                      'dureeJours': int.tryParse(dindeDureeCtrl.text) ?? 90,
-                      'poidsFinalG':
-                          parseAmount(dindePoidsCtrl.text) ?? 7000,
-                      'consoTotaleKgParTete':
-                          double.tryParse(dindeConsoCtrl.text) ?? 18.0,
-                      'courbeTheorique':
-                          _normalizeCourbe(refDinde['courbeTheorique']),
-                    },
-                    'canard': {
-                      'dureeJours': int.tryParse(canardDureeCtrl.text) ?? 50,
-                      'poidsFinalG':
-                          parseAmount(canardPoidsCtrl.text) ?? 3200,
-                      'consoTotaleKgParTete':
-                          double.tryParse(canardConsoCtrl.text) ?? 6.0,
-                      'courbeTheorique':
-                          _normalizeCourbe(refCanard['courbeTheorique']),
-                    },
-                    'autre': {
-                      'dureeJours': int.tryParse(autreDureeCtrl.text) ?? 45,
-                      'poidsFinalG':
-                          parseAmount(autrePoidsCtrl.text) ?? 2500,
-                      'consoTotaleKgParTete':
-                          double.tryParse(autreConsoCtrl.text) ?? 5.0,
-                      'courbeTheorique':
-                          _normalizeCourbe(refAutre['courbeTheorique']),
-                    },
+                    for (final t in _refTypes)
+                      t.key: {
+                        'dureeJours':
+                            int.tryParse(dureeCtrls[t.key]!.text) ?? t.duree,
+                        'poidsFinalG':
+                            parseAmount(poidsCtrls[t.key]!.text) ?? t.poids,
+                        'consoTotaleKgParTete':
+                            double.tryParse(consoCtrls[t.key]!.text) ?? t.conso,
+                        'courbeTheorique':
+                            _normalizeCourbe(refData[t.key]!['courbeTheorique']),
+                      },
                   },
                 });
                 if (!context.mounted) return;

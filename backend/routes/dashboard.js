@@ -2,6 +2,7 @@ const express = require('express');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
 const { requireAnyPermission } = require('../middleware/auth');
+const { withDefaultReferences } = require('../config/default_references');
 
 const router = express.Router();
 
@@ -319,7 +320,7 @@ router.get('/bandes/:id/suivi', requireAnyPermission(['dashboard.sales', 'dashbo
 
     const bande = mapBande(bandeRes.data);
     const configRes = await api.from('app_config').select('referencestheoriques').eq('key', 'main').maybeSingle();
-    const references = configRes.error ? {} : (configRes.data?.referencestheoriques || {});
+    const references = withDefaultReferences(configRes.error ? {} : configRes.data?.referencestheoriques);
 
     const growth = toArray(bande.suiviJournalier).map((s, idx) => {
       const avg = Number(s.poidsMotenG || 0);

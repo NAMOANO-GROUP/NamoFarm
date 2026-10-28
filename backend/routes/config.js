@@ -1,19 +1,11 @@
 const express = require('express');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { getAdminClient, logAudit } = require('../services/supabase');
+const { DEFAULT_REFERENCES, withDefaultReferences } = require('../config/default_references');
 
 const router = express.Router();
 
 router.use(authenticate, requireRole('admin'));
-
-const DEFAULT_REFERENCES = {
-  poulet_chair: { dureeJours: 42, poidsFinalG: 2500, consoTotaleKgParTete: 4.2, courbeTheorique: [] },
-  poulet_ameliore: { dureeJours: 60, poidsFinalG: 2200, consoTotaleKgParTete: 5.5, courbeTheorique: [] },
-  poule_pondeuse: { dureeJours: 140, poidsFinalG: 1800, consoTotaleKgParTete: 14.0, courbeTheorique: [] },
-  dinde: { dureeJours: 90, poidsFinalG: 7000, consoTotaleKgParTete: 18.0, courbeTheorique: [] },
-  canard: { dureeJours: 50, poidsFinalG: 3200, consoTotaleKgParTete: 6.0, courbeTheorique: [] },
-  autre: { dureeJours: 45, poidsFinalG: 2500, consoTotaleKgParTete: 5.0, courbeTheorique: [] },
-};
 
 // Les colonnes Postgres de app_config sont en minuscules (créées sans guillemets).
 // L'API expose du camelCase : on mappe dans les deux sens.
@@ -38,7 +30,7 @@ function mapConfigToApi(row) {
     sessionTimeoutMinutes: row.sessiontimeoutminutes ?? row.sessionTimeoutMinutes ?? 30,
     theme: row.theme ?? 'light',
     notificationsEmail: row.notificationsemail ?? row.notificationsEmail ?? false,
-    referencesTheoriques: row.referencestheoriques ?? row.referencesTheoriques ?? DEFAULT_REFERENCES,
+    referencesTheoriques: withDefaultReferences(row.referencestheoriques ?? row.referencesTheoriques),
     notes: row.notes ?? '',
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? null,
