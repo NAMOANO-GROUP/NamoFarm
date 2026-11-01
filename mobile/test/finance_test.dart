@@ -5,6 +5,8 @@ import 'package:namofarm/providers/finance_provider.dart';
 import 'package:namofarm/screens/finance_screen.dart';
 import 'package:namofarm/services/api_service.dart';
 import 'package:namofarm/utils/finance.dart';
+import 'package:namofarm/screens/bande_bilan_screen.dart';
+import 'package:namofarm/widgets/repartition_couts_chart.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -231,6 +233,15 @@ void main() {
       expect(bornesPeriode(PeriodeFinance.tout).from, isNull);
     });
 
+    test('répartition des coûts : 6 postes, somme de plusieurs bandes', () {
+      final b = {'coutPoussins': 100, 'prophylaxie': 20, 'coutAliment': 300, 'coutFixe': 10, 'coutAmortissement': 5, 'autresDepenses': 15};
+      expect(postesCoutBande(b).map((p) => p.$1),
+          ['Prix des poussins', 'Prophylaxie', 'Alimentation', 'Coût fixe', 'Amortissement', 'Autres']);
+      expect(postesCoutBandes([b, b]).map((p) => p.$2), [200, 40, 600, 20, 10, 30]);
+      // Sans « autresDepenses » : dépenses manuelles moins prophylaxie et poussins.
+      expect(postesCoutBande({'depenses': 150, 'prophylaxie': 20, 'coutPoussins': 100}).last.$2, 30);
+    });
+
     test('bornes de filtre envoyées avec fuseau : journée locale complète', () {
       final debut = DateTime.parse(ApiService.debutJourUtc(DateTime(2026, 3, 1, 15))).toLocal();
       final fin = DateTime.parse(ApiService.finJourUtc(DateTime(2026, 3, 31))).toLocal();
@@ -452,6 +463,8 @@ void main() {
           'revenus': 0,
           'margeNette': -900000,
           'coutParKg': 1100,
+          'coutPoussins': 300000,
+          'coutAliment': 600000,
           'seuilRentabiliteParSujet': 1850,
           'effectifVivant': 486,
         },
@@ -467,10 +480,35 @@ void main() {
       expect(find.textContaining('1 850 FCFA par sujet', findRichText: true), findsOneWidget);
       expect(find.text('1 100 FCFA'), findsOneWidget);
 
+      expect(find.text('Coûts des bandes en cours'), findsOneWidget);
+
       await tester.tap(find.textContaining('Terminées'));
       await tester.pumpAndSettle();
       expect(find.text('Bande B11'), findsOneWidget);
       expect(find.text('Terminée avec un bénéfice'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Bilan de bande : camembert de répartition des coûts', (tester) async {
+      _telephone(tester);
+      await tester.pumpWidget(const MaterialApp(
+        home: BandeBilanScreen(bande: {
+          'bandeNom': 'B-001',
+          'coutTotal': 432914,
+          'coutPoussins': 150000,
+          'prophylaxie': 30000,
+          'coutAliment': 200000,
+          'coutFixe': 20000,
+          'coutAmortissement': 10000,
+          'autresDepenses': 22914,
+        }),
+      ));
+      await tester.pumpAndSettle();
+      await tester.dragUntilVisible(find.text('Autres'), find.byType(ListView), const Offset(0, -200));
+      for (final l in ['Prix des poussins', 'Prophylaxie', 'Alimentation', 'Coût fixe', 'Amortissement', 'Autres']) {
+        expect(find.text(l), findsOneWidget);
+      }
+      expect(find.byType(RepartitionCoutsChart), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

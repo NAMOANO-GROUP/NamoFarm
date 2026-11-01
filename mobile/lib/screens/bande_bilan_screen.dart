@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/money_format.dart';
+import '../widgets/repartition_couts_chart.dart';
 
 /// Bilan financier simple d'une bande (données issues de /finance/analytique).
 class BandeBilanScreen extends StatelessWidget {
@@ -87,6 +88,18 @@ class BandeBilanScreen extends StatelessWidget {
               _tile(context, 'Coût / sujet', formatAmountFcfa(_n(bande['coutParSujet'])), Icons.person_outline, Colors.indigo, isDark),
             ],
           ),
+          if (depense > 0) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.6)),
+              ),
+              child: RepartitionCoutsChart.bande(bande),
+            ),
+          ],
         ],
       );
     if (embedded) return content;

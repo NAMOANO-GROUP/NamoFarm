@@ -5,6 +5,7 @@ import '../../providers/finance_provider.dart';
 import '../../utils/finance.dart';
 import '../../widgets/crm/crm_widgets.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/repartition_couts_chart.dart';
 import '../bande_bilan_screen.dart';
 import '../comptabilite_screen.dart';
 
@@ -93,6 +94,12 @@ class _ParBandeTabState extends State<ParBandeTab> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            CrmCard(
+              child: RepartitionCoutsChart(
+                postes: postesCoutBandes(bandes),
+                titre: _terminees ? 'Coûts des bandes terminées' : 'Coûts des bandes en cours',
               ),
             ),
             for (final b in bandes) _BandeCarte(bande: b),
