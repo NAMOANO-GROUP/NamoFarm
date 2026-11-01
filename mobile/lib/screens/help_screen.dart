@@ -145,17 +145,24 @@ class _HelpScreenState extends State<HelpScreen> {
             'l\'éclosion, clôturer, modifier ou supprimer depuis la fiche.',
       ),
     ]),
-    _HelpChapter('Santé / Prophylaxie', Icons.vaccines_outlined, Color(0xFFAD1457), [
+    _HelpChapter('Prophylaxie', Icons.vaccines_outlined, Color(0xFFAD1457), [
       _HelpArticle(
-        'Créer un protocole vaccinal',
-        'Onglet Protocoles → bouton « + ». Ajoutez les étapes (jour d\'âge, intervention, '
-            'produit, voie, délai d\'attente). Le protocole peut ensuite être appliqué à une '
-            'bande pour générer les tâches automatiquement.',
+        'À faire',
+        'Tous les vaccins et traitements prévus sur les bandes en cours, classés En retard, Aujourd\'hui, '
+            'Cette semaine et Plus tard, avec le nom de la bande et son âge. Le bouton ✓ marque l\'intervention '
+            'comme faite. En haut, les délais d\'attente en cours rappellent les bandes à ne pas vendre.',
       ),
       _HelpArticle(
-        'Enregistrer un traitement',
-        'Onglet Registre → bouton « + ». Notez la vaccination ou le traitement réalisé. '
-            'Le délai d\'attente avant consommation/vente est suivi automatiquement.',
+        'Protocoles vaccinaux',
+        'Un protocole est un calendrier de vaccins par âge (J7 Newcastle, J14 Gumboro...). « Partir d\'un modèle » '
+            'crée un calendrier courant à adapter avec votre vétérinaire. Il est appliqué automatiquement à la '
+            'création d\'une bande, ou à une bande en cours avec « Appliquer à une bande » (seules les étapes à venir '
+            'sont planifiées, sans doublon). Menu ⋮ : modifier, dupliquer, supprimer.',
+      ),
+      _HelpArticle(
+        'Registre des traitements',
+        'Bouton « + » : notez chaque traitement (type, bande, produit, dose, voie, motif, date). Avec le délai '
+            'd\'attente, l\'application affiche la date à partir de laquelle les animaux peuvent être vendus.',
       ),
     ]),
     _HelpChapter('Cheptel', Icons.pets_outlined, Color(0xFFEF6C00), [

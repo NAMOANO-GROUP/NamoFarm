@@ -121,8 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _ModuleItem(
       id: 'sante',
       page: SanteScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
-      mobileDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Prophylaxie'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Prophylaxie'),
       permission: 'sante:view',
     ),
     _ModuleItem(

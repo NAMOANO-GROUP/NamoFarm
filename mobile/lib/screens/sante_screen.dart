@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import '../widgets/brand_logo.dart';
 import 'package:provider/provider.dart';
 
-import '../models/sante.dart';
+import '../providers/bandes_provider.dart';
 import '../providers/sante_provider.dart';
-import '../widgets/empty_state.dart';
-import '../widgets/form_section.dart';
 import '../widgets/add_button.dart';
+import '../widgets/brand_logo.dart';
+import 'prophylaxie/a_faire_tab.dart';
+import 'prophylaxie/protocoles_tab.dart';
+import 'prophylaxie/registre_tab.dart';
 
+/// Prophylaxie : planning des interventions, protocoles vaccinaux et registre des traitements.
 class SanteScreen extends StatefulWidget {
   const SanteScreen({super.key});
 
@@ -15,271 +17,57 @@ class SanteScreen extends StatefulWidget {
   State<SanteScreen> createState() => _SanteScreenState();
 }
 
-class _SanteScreenState extends State<SanteScreen> {
-  static const Map<String, String> _typesVolaille = {
-    'poulet_ameliore_45j': 'Poulet amélioré 45J',
-    'poulet_local_ameliore': 'Poulet local amélioré',
-    'poulet_ameliore': 'Poulet amélioré',
-    'poulet_local': 'Poulet local',
-    'poule_pondeuse': 'Poule pondeuse',
-    'canard': 'Canard',
-    'dinde': 'Dinde',
-    'autre': 'Autre',
-  };
+class _SanteScreenState extends State<SanteScreen> with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 3, vsync: this)..addListener(() => setState(() {}));
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<SanteProvider>().charger();
+      context.read<BandesProvider>().chargerBandesActives();
     });
   }
 
   @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final protocoles = _tabs.index == 1;
+    final compact = MediaQuery.sizeOf(context).width < 600;
     return Scaffold(
       appBar: AppBar(
         leading: const BrandLogo(),
-        title: const Text('Santé / Prophylaxie'),
+        title: const Text('Prophylaxie'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: AddButton(
-              tooltip: 'Nouveau protocole',
-              icon: Icons.vaccines,
-              onPressed: _showProtocoleForm,
+              tooltip: protocoles ? 'Nouveau protocole' : 'Nouveau traitement',
+              icon: protocoles ? Icons.vaccines : Icons.medication,
+              onPressed: () => protocoles ? showProtocoleForm(context) : showTraitementForm(context),
             ),
           ),
         ],
-      ),
-      body: Consumer<SanteProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
-          return _protocolesTab(provider);
-        },
-      ),
-    );
-  }
-
-  // -------------------- Protocoles --------------------
-
-  Widget _protocolesTab(SanteProvider provider) {
-    return RefreshIndicator(
-      onRefresh: provider.charger,
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          if (provider.lastError != null && provider.lastError!.isNotEmpty)
-            Card(color: Theme.of(context).brightness == Brightness.dark ? Colors.red.shade900.withValues(alpha: 0.30) : Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)))),
-          if (provider.protocoles.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 40),
-              child: EmptyState(
-                icon: Icons.vaccines_outlined,
-                title: 'Aucun protocole vaccinal',
-                subtitle: 'Créez un protocole pour générer les tâches de vaccination des bandes.',
-              ),
-            )
-          else
-            ...provider.protocoles.map(_protocoleCard),
-        ],
-      ),
-    );
-  }
-
-  Widget _protocoleCard(ProtocoleVaccinal p) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ExpansionTile(
-        leading: const CircleAvatar(child: Icon(Icons.vaccines_outlined)),
-        title: Text(p.nom, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text('${p.typeVolaille.isEmpty ? 'Tous types' : p.typeVolaille} • ${p.etapes.length} étape(s)', maxLines: 1, overflow: TextOverflow.ellipsis),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...p.etapes.map((e) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text('J${e.jourAge} • ${e.intervention}${e.produit.isNotEmpty ? ' (${e.produit})' : ''}${e.voie.isNotEmpty ? ' - ${e.voie}' : ''}${e.delaiAttenteJours > 0 ? ' • délai ${e.delaiAttenteJours}j' : ''}'),
-                    )),
-                if (p.notes.isNotEmpty) Text('Notes: ${p.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    OutlinedButton.icon(onPressed: () => _showProtocoleForm(protocole: p), icon: const Icon(Icons.edit, size: 18), label: const Text('Modifier')),
-                    OutlinedButton.icon(
-                      onPressed: () => _confirmDelete('Supprimer le protocole "${p.nom}" ?', () => context.read<SanteProvider>().supprimerProtocole(p.id!)),
-                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                      label: const Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showProtocoleForm({ProtocoleVaccinal? protocole}) {
-    final isEdit = protocole != null;
-    final nomCtrl = TextEditingController(text: protocole?.nom ?? '');
-    final notesCtrl = TextEditingController(text: protocole?.notes ?? '');
-    String type = protocole?.typeVolaille.isNotEmpty == true ? protocole!.typeVolaille : 'poulet_ameliore_45j';
-    final etapes = List<ProtocoleEtape>.from(protocole?.etapes ?? const []);
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: Text(isEdit ? 'Modifier le protocole' : 'Nouveau protocole'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const FormSection('Informations', icon: Icons.info_outline, padding: EdgeInsets.only(bottom: 4)),
-                TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom du protocole *')),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: const InputDecoration(labelText: 'Type de volaille'),
-                  items: [
-                    ..._typesVolaille.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
-                    if (!_typesVolaille.containsKey(type)) DropdownMenuItem(value: type, child: Text(type)),
-                  ],
-                  onChanged: (v) => setDialog(() => type = v ?? type),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Expanded(child: Text('Étapes (calendrier)', style: TextStyle(fontWeight: FontWeight.bold))),
-                    TextButton.icon(
-                      onPressed: () async {
-                        final etape = await _showEtapeDialog(dialogContext);
-                        if (etape != null) setDialog(() => etapes.add(etape));
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Ajouter'),
-                    ),
-                  ],
-                ),
-                if (etapes.isEmpty)
-                  const Align(alignment: Alignment.centerLeft, child: Text('Aucune étape', style: TextStyle(color: Colors.grey)))
-                else
-                  ...etapes.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final e = entry.value;
-                    return ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('J${e.jourAge} • ${e.intervention}'),
-                      subtitle: Text('${e.produit}${e.voie.isNotEmpty ? ' - ${e.voie}' : ''}${e.delaiAttenteJours > 0 ? ' • délai ${e.delaiAttenteJours}j' : ''}'),
-                      trailing: IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setDialog(() => etapes.removeAt(i))),
-                    );
-                  }),
-                TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final provider = context.read<SanteProvider>();
-                if (nomCtrl.text.trim().isEmpty) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Le nom est obligatoire')));
-                  return;
-                }
-                final payload = {
-                  'nom': nomCtrl.text.trim(),
-                  'typeVolaille': type,
-                  'etapes': etapes.map((e) => e.toJson()).toList(),
-                  'notes': notesCtrl.text.trim(),
-                };
-                final ok = isEdit
-                    ? await provider.mettreAJourProtocole(protocole.id!, payload)
-                    : await provider.creerProtocole(payload);
-                if (!mounted) return;
-                navigator.pop();
-                messenger.showSnackBar(SnackBar(content: Text(ok ? 'Protocole enregistré' : 'Erreur: ${provider.lastError ?? ''}')));
-              },
-              child: const Text('Enregistrer'),
-            ),
+        bottom: TabBar(
+          controller: _tabs,
+          labelPadding: compact ? const EdgeInsets.symmetric(horizontal: 2) : null,
+          tabs: const [
+            Tab(icon: Icon(Icons.event_available_outlined, size: 20), text: 'À faire'),
+            Tab(icon: Icon(Icons.vaccines_outlined, size: 20), text: 'Protocoles'),
+            Tab(icon: Icon(Icons.menu_book_outlined, size: 20), text: 'Registre'),
           ],
         ),
       ),
-    );
-  }
-
-  Future<ProtocoleEtape?> _showEtapeDialog(BuildContext ctx) {
-    final jourCtrl = TextEditingController();
-    final interventionCtrl = TextEditingController();
-    final produitCtrl = TextEditingController();
-    final doseCtrl = TextEditingController();
-    final voieCtrl = TextEditingController();
-    final delaiCtrl = TextEditingController();
-    return showDialog<ProtocoleEtape>(
-      context: ctx,
-      builder: (c) => AlertDialog(
-        title: const Text('Étape du protocole'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: jourCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Âge (jours) *')),
-              TextField(controller: interventionCtrl, decoration: const InputDecoration(labelText: 'Intervention *')),
-              TextField(controller: produitCtrl, decoration: const InputDecoration(labelText: 'Produit / vaccin')),
-              TextField(controller: doseCtrl, decoration: const InputDecoration(labelText: 'Dose')),
-              TextField(controller: voieCtrl, decoration: const InputDecoration(labelText: 'Voie (eau, spray, injection...)')),
-              TextField(controller: delaiCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Délai d\'attente (jours)')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () {
-              if (interventionCtrl.text.trim().isEmpty) return;
-              Navigator.pop(
-                c,
-                ProtocoleEtape(
-                  jourAge: int.tryParse(jourCtrl.text.trim()) ?? 0,
-                  intervention: interventionCtrl.text.trim(),
-                  produit: produitCtrl.text.trim(),
-                  dose: doseCtrl.text.trim(),
-                  voie: voieCtrl.text.trim(),
-                  delaiAttenteJours: int.tryParse(delaiCtrl.text.trim()) ?? 0,
-                ),
-              );
-            },
-            child: const Text('Ajouter'),
-          ),
-        ],
+      body: TabBarView(
+        controller: _tabs,
+        children: const [AFaireTab(), ProtocolesTab(), RegistreTab()],
       ),
     );
-  }
-
-  Future<void> _confirmDelete(String message, Future<bool> Function() action) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmation'),
-        content: Text(message),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Supprimer')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final done = await action();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done ? 'Supprimé' : 'Suppression impossible')));
   }
 }
