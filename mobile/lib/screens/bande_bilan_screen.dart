@@ -6,7 +6,10 @@ import '../utils/money_format.dart';
 class BandeBilanScreen extends StatelessWidget {
   final Map<String, dynamic> bande;
 
-  const BandeBilanScreen({super.key, required this.bande});
+  /// Intégré à la fiche bande (onglet Finances) : contenu seul, sans barre de titre.
+  final bool embedded;
+
+  const BandeBilanScreen({super.key, required this.bande, this.embedded = false});
 
   num _n(dynamic v) => (v ?? 0) as num;
 
@@ -26,11 +29,7 @@ class BandeBilanScreen extends StatelessWidget {
     final beneficePositif = benefice >= 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(nom),
-      ),
-      body: ListView(
+    final content = ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Bandeau bénéfice/marge premium.
@@ -89,8 +88,9 @@ class BandeBilanScreen extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
+      );
+    if (embedded) return content;
+    return Scaffold(appBar: AppBar(title: Text(nom)), body: content);
   }
 
   Widget _tile(BuildContext context, String label, String value, IconData icon, Color color, bool isDark) {

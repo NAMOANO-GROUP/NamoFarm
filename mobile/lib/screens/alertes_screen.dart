@@ -13,7 +13,7 @@ import '../widgets/crm/kanban_board.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/todo/todo_card.dart';
 import '../widgets/week_calendar_view.dart';
-import 'bande_dashboard_screen.dart';
+import 'bandes/bande_detail_screen.dart';
 import 'commandes_screen.dart';
 import 'crm/crm_common.dart';
 import 'crm/tache_dialog.dart';
@@ -143,7 +143,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
         if (bande == null) {
           showCrmSnack(context, 'Bande introuvable');
         } else {
-          navigator.push(MaterialPageRoute(builder: (_) => BandeDashboardScreen(bande: bande)));
+          navigator.push(MaterialPageRoute(builder: (_) => BandeDetailScreen(bande: bande)));
         }
     }
   }

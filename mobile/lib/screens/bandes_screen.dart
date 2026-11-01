@@ -4,15 +4,21 @@ import '../widgets/add_button.dart';
 import '../widgets/number_field.dart';
 import '../widgets/app_form.dart';
 import '../widgets/form_section.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/bandes/bande_widgets.dart';
 import '../utils/number_input.dart';
+import '../utils/bande_kpis.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../providers/alertes_provider.dart';
 import '../providers/bandes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/bande.dart';
 import '../services/api_service.dart';
-import 'suivi_screen.dart';
-import 'bande_dashboard_screen.dart';
+import '../services/references_service.dart';
+import 'bandes/bande_actions.dart';
+import 'bandes/bande_detail_screen.dart';
+import 'bandes/bandes_comparaison_view.dart';
 import '../utils/csv_export.dart';
 import '../widgets/iso_calendar_picker.dart';
 
@@ -25,14 +31,20 @@ class BandesScreen extends StatefulWidget {
 
 class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Map<String, ReferenceType> _refs = Map.of(defaultReferences);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    ReferencesService.charger().then((r) {
+      if (mounted) setState(() => _refs = r);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<BandesProvider>().chargerBandesActives();
       context.read<BandesProvider>().chargerHistorique();
+      final alertes = context.read<AlertesProvider>();
+      if (alertes.alertes.isEmpty) alertes.chargerAlertes(period: 'all');
     });
   }
 
@@ -40,6 +52,12 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  BandeKpis _kpis(Bande b) => computeBandeKpis(b, referencePour(_refs, b.typeVolaille));
+
+  void _ouvrir(Bande b) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => BandeDetailScreen(bande: b)));
   }
 
   @override
@@ -63,6 +81,7 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
           tabs: const [
             Tab(text: 'Actives', icon: Icon(Icons.play_circle)),
             Tab(text: 'Historique', icon: Icon(Icons.history)),
+            Tab(text: 'Comparer', icon: Icon(Icons.compare_arrows)),
           ],
         ),
       ),
@@ -71,36 +90,60 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
         children: [
           _buildBandesActives(),
           _buildHistorique(),
+          Consumer<BandesProvider>(
+            builder: (context, provider, _) => BandesComparaisonView(
+              bandes: [...provider.bandesActives, ...provider.bandesHistorique],
+              references: _refs,
+              onOpen: _ouvrir,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildBandesActives() {
-    return Consumer<BandesProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading) {
+    return Consumer2<BandesProvider, AlertesProvider>(
+      builder: (context, provider, alertes, child) {
+        if (provider.isLoading && provider.bandesActives.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
         if (provider.bandesActives.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.egg_outlined, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('Aucune bande active', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                Text('Appuyez sur + pour ouvrir une bande'),
-              ],
-            ),
+          return EmptyState(
+            icon: Icons.egg_outlined,
+            title: 'Aucune bande active',
+            subtitle: 'Ouvrez une bande pour suivre sa croissance, son alimentation et sa rentabilité.',
+            actionLabel: 'Nouvelle bande',
+            onAction: _showAjouterBandeDialog,
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: provider.bandesActives.length,
-          itemBuilder: (context, index) {
-            return _buildBandeCard(provider.bandesActives[index], active: true);
-          },
+        final kpis = {for (final b in provider.bandesActives) b.id: _kpis(b)};
+        final resume = resumeBandes(provider.bandesActives, {for (final e in kpis.entries) if (e.key != null) e.key!: e.value});
+        return RefreshIndicator(
+          onRefresh: () => Future.wait([provider.chargerBandesActives(), alertes.chargerAlertes(period: 'all')]),
+          child: ListView(
+            padding: const EdgeInsets.all(12),
+            children: [
+              _Resume(resume: resume),
+              const SizedBox(height: 12),
+              for (final b in provider.bandesActives)
+                BandeCard(
+                  bande: b,
+                  kpis: kpis[b.id]!,
+                  prochaineTache: prochaineTachePour(b, alertes.alertes),
+                  onOpen: () => _ouvrir(b),
+                  onSaisie: (s) => ouvrirSaisie(context, b, s),
+                  menuItems: const [
+                    PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                    PopupMenuItem(value: 'fermer', child: Text('Fermer la bande')),
+                  ],
+                  onMenu: (v) {
+                    if (v == 'edit') _showModifierBandeDialog(b);
+                    if (v == 'fermer') fermerBandeAvecBilan(context, b, referencePour(_refs, b.typeVolaille));
+                  },
+                ),
+            ],
+          ),
         );
       },
     );
@@ -109,16 +152,19 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   Widget _buildHistorique() {
     return Consumer<BandesProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoading) {
+        if (provider.isLoading && provider.bandesHistorique.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
         if (provider.bandesHistorique.isEmpty) {
-          return const Center(
-            child: Text('Aucune bande dans l\'historique', style: TextStyle(color: Colors.grey)),
+          return const EmptyState(
+            icon: Icons.history,
+            title: 'Aucune bande dans l’historique',
+            subtitle: 'Les bandes fermées apparaîtront ici avec leurs résultats.',
           );
         }
+        final isAdmin = context.watch<AuthProvider>().isAdmin;
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           children: [
             Align(
               alignment: Alignment.centerRight,
@@ -133,243 +179,23 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
               ),
             ),
             const SizedBox(height: 8),
-            ...provider.bandesHistorique.map((bande) => _buildBandeCard(bande, active: false)),
+            for (final b in provider.bandesHistorique)
+              BandeCard(
+                bande: b,
+                kpis: _kpis(b),
+                onOpen: () => _ouvrir(b),
+                menuItems: [
+                  const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                  if (isAdmin) const PopupMenuItem(value: 'delete', child: Text('Supprimer', style: TextStyle(color: Colors.redAccent))),
+                ],
+                onMenu: (v) {
+                  if (v == 'edit') _showModifierBandeDialog(b);
+                  if (v == 'delete') _confirmerSuppression(b);
+                },
+              ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildBandeCard(Bande bande, {required bool active}) {
-    final isAdmin = context.watch<AuthProvider>().isAdmin;
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final ageRef = bande.dateFermeture ?? DateTime.now();
-    final ageJours = DateUtils.dateOnly(ageRef).difference(DateUtils.dateOnly(bande.dateOuverture)).inDays;
-    final scheme = Theme.of(context).colorScheme;
-    final headerColors = active
-        ? [Colors.green.shade600, Colors.green.shade400]
-        : [Colors.blueGrey.shade600, Colors.blueGrey.shade400];
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // En-tête premium (dégradé) : nom + race/type + menu actions.
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: headerColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.white.withValues(alpha: 0.25),
-                  child: const Icon(Icons.egg_alt, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        bande.nom,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${bande.race} • ${bande.typeVolaille}',
-                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.92)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(active ? Icons.lock_open : Icons.lock_outline, size: 12, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(active ? 'Ouverte' : 'Fermée',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  tooltip: 'Options',
-                  onSelected: (v) {
-                    if (v == 'edit') _showModifierBandeDialog(bande);
-                    if (v == 'delete') _confirmerSuppression(bande);
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Modifier')),
-                    ),
-                    if (!active && isAdmin)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.delete_outline, color: Colors.redAccent),
-                          title: Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _bandeMetric(Icons.groups_outlined, 'Effectif actuel',
-                        '${bande.nombreActuel}/${bande.nombreInitial}', scheme.primary),
-                    const SizedBox(width: 10),
-                    _bandeMetric(Icons.warning_amber_outlined, 'Mortalité',
-                        '${bande.mortaliteTotale} (${bande.tauxMortalite ?? "0"}%)', Colors.orange),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _bandeInfoChip(Icons.cake_outlined, 'Âge: $ageJours j'),
-                    if (bande.batiment.isNotEmpty) _bandeInfoChip(Icons.home_work_outlined, bande.batiment),
-                    _bandeInfoChip(Icons.event_available_outlined, 'Ouverte le ${dateFormat.format(bande.dateOuverture)}'),
-                    if (!active && bande.dateFermeture != null)
-                      _bandeInfoChip(Icons.event_busy_outlined, 'Fermée le ${dateFormat.format(bande.dateFermeture!)}'),
-                  ],
-                ),
-                if (active) ...[
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _bandeActionButton('Suivi', Icons.trending_up, [Colors.green.shade600, Colors.green.shade400], () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => SuiviScreen(bande: bande)));
-                      }),
-                      _bandeActionButton('Dashboard', Icons.insights, [Colors.indigo.shade500, Colors.indigo.shade300], () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => BandeDashboardScreen(bande: bande)));
-                      }),
-                      _bandeDangerButton('Fermer', Icons.stop_circle, () => _confirmerFermeture(bande)),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _bandeMetric(IconData icon, String label, String value, Color color) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: TextStyle(fontSize: 10, color: muted)),
-                  Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bandeActionButton(String label, IconData icon, List<Color> gradient, VoidCallback onTap) {
-    return Material(
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _bandeDangerButton(String label, IconData icon, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.6)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: Colors.red),
-              const SizedBox(width: 8),
-              Text(label, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _bandeInfoChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: 5),
-          Text(text, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
     );
   }
 
@@ -450,27 +276,6 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _confirmerFermeture(Bande bande) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Fermer la bande ?'),
-        content: Text('Voulez-vous vraiment fermer la bande "${bande.nom}" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<BandesProvider>().fermerBande(bande.id!);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Fermer', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -673,6 +478,39 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Synthèse des bandes actives (en tête de liste).
+class _Resume extends StatelessWidget {
+  final ResumeBandes resume;
+  const _Resume({required this.resume});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (Icons.egg_alt_outlined, '${resume.nbBandes}', 'bande(s) active(s)', Colors.green),
+      (Icons.groups_outlined, fmtEntier(resume.effectifTotal), 'sujets en élevage', Colors.teal),
+      (Icons.local_shipping_outlined, '${resume.sortiesProchaines}', 'sortie(s) sous 14 j', Colors.indigo),
+      (Icons.warning_amber_rounded, '${resume.nbAlertes}', 'alerte(s)', resume.nbAlertes > 0 ? Colors.red : Colors.blueGrey),
+    ];
+    return LayoutBuilder(
+      builder: (context, c) {
+        final cols = c.maxWidth >= 700 ? 4 : 2;
+        final w = (c.maxWidth - (cols - 1) * 8) / cols;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final it in items)
+              SizedBox(
+                width: w,
+                child: KpiTile(label: it.$3, value: it.$2, icon: it.$1, color: it.$4, width: w),
+              ),
+          ],
+        );
+      },
     );
   }
 }

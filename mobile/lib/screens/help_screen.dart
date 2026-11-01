@@ -69,21 +69,40 @@ class _HelpScreenState extends State<HelpScreen> {
             'générées automatiquement selon l\'âge des sujets.',
       ),
       _HelpArticle(
-        'Suivi quotidien',
-        'Ouvrez une bande pour saisir chaque jour : prise de poids, alimentation, '
-            'mortalité et température/humidité. Ces relevés alimentent les courbes du '
-            'tableau de bord de la bande.',
+        'Liste des bandes',
+        'Chaque carte montre l\'avancement du cycle (J23 / 45), l\'effectif et la viabilité, le poids comparé à la '
+            'courbe de référence (vert, orange ou rouge), l\'indice de consommation, la prochaine tâche et les '
+            'alertes (retard de croissance, mortalité en hausse, saisie du jour manquante). Les quatre boutons ronds '
+            'ouvrent directement la saisie de pesée, d\'alimentation, de mortalité ou de climat.',
       ),
       _HelpArticle(
-        'Tableau de bord de la bande',
-        'Accessible depuis l\'icône en haut de l\'écran de suivi. Il affiche la performance '
-            '(effectif, mortalité, conso, poids), les courbes réel vs théorique et un '
-            'prévisionnel à 7 jours avec alertes.',
+        'Suivi quotidien',
+        'Chaque saisie a son écran : pesée, alimentation, mortalité et température/humidité. Elles sont '
+            'accessibles depuis la carte de la bande ou le bouton ✎ de sa fiche, et alimentent courbes et indicateurs.',
+      ),
+      _HelpArticle(
+        'Fiche de la bande',
+        'Touchez une bande pour ouvrir sa fiche : les indicateurs en tête, puis les onglets Aperçu (tâches de suivi, '
+            'saisies, prévisionnel 7 jours), Courbes (réel vs théorique), Journal (saisies jour par jour), Santé, '
+            'Tâches (liées à la Todo, avec modèles de plan) et Finances (coûts, ventes, marge).',
+      ),
+      _HelpArticle(
+        'Indicateurs',
+        '• Viabilité : part des sujets de départ encore vivants.\n'
+            '• Gain moyen / jour : prise de poids quotidienne moyenne depuis l\'arrivée.\n'
+            '• Indice de consommation (IC) : kg d\'aliment consommés pour produire 1 kg de poids vif. Plus il est bas, mieux c\'est.\n'
+            '• Indice d\'efficacité (IEP) : viabilité % × poids kg ÷ (âge × IC) × 100. Plus il est élevé, plus la bande est performante.\n'
+            'La courbe de référence de chaque type de volaille se règle dans Configuration.',
+      ),
+      _HelpArticle(
+        'Comparer les bandes',
+        'Onglet Comparer : choisissez les bandes à superposer (courbes de croissance), consultez le classement par '
+            'IEP et les performances moyennes par bâtiment.',
       ),
       _HelpArticle(
         'Clôturer une bande',
-        'Une bande terminée passe dans l\'onglet Historique, où vous pouvez exporter '
-            'les données en CSV.',
+        'Menu ⋮ de la carte ou de la fiche → « Fermer la bande ». Un bilan s\'affiche et l\'application propose de '
+            'planifier le vide sanitaire dans la Todo. La bande passe dans l\'onglet Historique (export CSV possible).',
       ),
     ]),
     _HelpChapter('Reproduction / Couvoir', Icons.egg_alt_outlined, Color(0xFF6A1B9A), [

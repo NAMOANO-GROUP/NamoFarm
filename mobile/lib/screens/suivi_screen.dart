@@ -15,7 +15,13 @@ import '../utils/number_input.dart';
 
 class SuiviScreen extends StatefulWidget {
   final Bande bande;
-  const SuiviScreen({super.key, required this.bande});
+
+  /// Intégré à la fiche bande : sans barre de titre, résumé ni journal (affichés par la fiche).
+  final bool embedded;
+
+  /// Bande fermée : consultation seule (pas de saisie ni de planification).
+  final bool lectureSeule;
+  const SuiviScreen({super.key, required this.bande, this.embedded = false, this.lectureSeule = false});
 
   @override
   State<SuiviScreen> createState() => _SuiviScreenState();
@@ -118,28 +124,20 @@ class _SuiviScreenState extends State<SuiviScreen> {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final bande = widget.bande;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Suivi bande - ${bande.nom}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.event_note),
-            tooltip: 'Nouvelle tâche de suivi',
-            onPressed: _showPlanifierEvenementDialog,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
+    final content = SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // RÉSUMÉ (premium)
-            _buildResume(bande),
-            const SizedBox(height: 12),
+            if (!widget.embedded) ...[
+              _buildResume(bande),
+              const SizedBox(height: 12),
+            ],
             _buildEventsPrevisionnels(),
             const SizedBox(height: 16),
 
+            if (!widget.lectureSeule)
             GridView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -172,6 +170,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
             const SizedBox(height: 8),
 
             // SUIVI JOURNALIER (replié par défaut, état conservé entre les reconstructions)
+            if (!widget.embedded)
             Card(
               child: ExpansionTile(
                 key: const PageStorageKey('suiviJournalier'),
@@ -211,7 +210,21 @@ class _SuiviScreenState extends State<SuiviScreen> {
 
           ],
         ),
+      );
+
+    if (widget.embedded) return content;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Suivi bande - ${bande.nom}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.event_note),
+            tooltip: 'Nouvelle tâche de suivi',
+            onPressed: _showPlanifierEvenementDialog,
+          ),
+        ],
       ),
+      body: content,
     );
   }
 
@@ -225,7 +238,13 @@ class _SuiviScreenState extends State<SuiviScreen> {
           children: [
             Icon(Icons.event_available_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
-            const Text('Tâches de suivi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Expanded(child: Text('Tâches de suivi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            if (widget.embedded && !widget.lectureSeule)
+              TextButton.icon(
+                onPressed: _showPlanifierEvenementDialog,
+                icon: const Icon(Icons.event_note, size: 18),
+                label: const Text('Planifier'),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -519,7 +538,7 @@ class _SuiviScreenState extends State<SuiviScreen> {
             children: [
               SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
               SizedBox(width: 10),
-              Text('Chargement du prévisionnel...'),
+              Flexible(child: Text('Chargement du prévisionnel...', overflow: TextOverflow.ellipsis)),
             ],
           ),
         ),
@@ -557,7 +576,10 @@ class _SuiviScreenState extends State<SuiviScreen> {
               children: [
                 Icon(Icons.insights_outlined, size: 18, color: Colors.grey.shade600),
                 const SizedBox(width: 6),
-                Text('Prévisionnel 7 jours', style: Theme.of(context).textTheme.titleMedium),
+                Flexible(
+                  child: Text('Prévisionnel 7 jours',
+                      overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
+                ),
               ],
             ),
             const SizedBox(height: 12),

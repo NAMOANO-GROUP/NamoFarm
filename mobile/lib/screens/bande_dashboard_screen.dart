@@ -8,7 +8,10 @@ import '../utils/money_format.dart';
 
 class BandeDashboardScreen extends StatefulWidget {
   final Bande bande;
-  const BandeDashboardScreen({super.key, required this.bande});
+
+  /// Intégré à la fiche bande (onglet Courbes) : contenu seul, sans barre de titre.
+  final bool embedded;
+  const BandeDashboardScreen({super.key, required this.bande, this.embedded = false});
 
   @override
   State<BandeDashboardScreen> createState() => _BandeDashboardScreenState();
@@ -41,13 +44,16 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      const spinner = Center(child: CircularProgressIndicator());
+      return widget.embedded ? spinner : const Scaffold(body: spinner);
     }
 
     if (data == null) {
+      const erreur = Center(child: Text('Impossible de charger les données'));
+      if (widget.embedded) return erreur;
       return Scaffold(
         appBar: AppBar(title: Text('Dashboard bande ${widget.bande.nom}')),
-        body: const Center(child: Text('Impossible de charger les données')),
+        body: erreur,
       );
     }
 
@@ -60,9 +66,7 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
     final eventsPrevisionnels = data!['eventsPrevisionnels'] as List<dynamic>? ?? const [];
     final perf = data!['performance'] as Map<String, dynamic>;
 
-    return Scaffold(
-      appBar: AppBar(title: Text('Dashboard bande ${widget.bande.nom}')),
-      body: ListView(
+    final content = ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _buildPerfPanel(perf),
@@ -86,7 +90,11 @@ class _BandeDashboardScreenState extends State<BandeDashboardScreen> {
           _cardChart('Mortalité par jour', _barChart(mortality, 'mortalite', Colors.red, yUnit: 'têtes/jour')),
           _forecastCard(forecast7j, eventsPrevisionnels),
         ],
-      ),
+      );
+    if (widget.embedded) return content;
+    return Scaffold(
+      appBar: AppBar(title: Text('Dashboard bande ${widget.bande.nom}')),
+      body: content,
     );
   }
 

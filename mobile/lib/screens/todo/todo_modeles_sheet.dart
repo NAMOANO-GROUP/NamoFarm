@@ -47,26 +47,39 @@ Future<void> showTodoModelesSheet(BuildContext context) async {
       ),
     ),
   );
-  if (modele != null && context.mounted) {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _AppliquerModeleDialog(modele: modele),
-    );
-  }
+  if (modele != null && context.mounted) await showAppliquerModeleDialog(context, modele);
+}
+
+/// Fenêtre de création des tâches d'un modèle, éventuellement pré-remplie (bande, date de départ).
+Future<void> showAppliquerModeleDialog(
+  BuildContext context,
+  TodoModele modele, {
+  String? bandeId,
+  String bandeNom = '',
+  DateTime? depart,
+}) {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _AppliquerModeleDialog(modele: modele, bandeId: bandeId, bandeNom: bandeNom, depart: depart),
+  );
 }
 
 class _AppliquerModeleDialog extends StatefulWidget {
   final TodoModele modele;
-  const _AppliquerModeleDialog({required this.modele});
+  final String? bandeId;
+  final String bandeNom;
+  final DateTime? depart;
+
+  const _AppliquerModeleDialog({required this.modele, this.bandeId, this.bandeNom = '', this.depart});
 
   @override
   State<_AppliquerModeleDialog> createState() => _AppliquerModeleDialogState();
 }
 
 class _AppliquerModeleDialogState extends State<_AppliquerModeleDialog> {
-  DateTime _depart = DateUtils.dateOnly(DateTime.now());
-  String? _bandeId;
+  late DateTime _depart = DateUtils.dateOnly(widget.depart ?? DateTime.now());
+  late String? _bandeId = widget.bandeId;
   List<Bande> _bandes = [];
   bool _saving = false;
 
@@ -126,6 +139,12 @@ class _AppliquerModeleDialogState extends State<_AppliquerModeleDialog> {
                 items: [
                   const DropdownMenuItem<String?>(value: null, child: Text('Aucune bande')),
                   ..._bandes.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.nom, overflow: TextOverflow.ellipsis))),
+                  // Bande fournie mais absente des bandes ouvertes (ex. bande qu'on vient de fermer).
+                  if (widget.bandeId != null && !_bandes.any((b) => b.id == widget.bandeId))
+                    DropdownMenuItem<String?>(
+                      value: widget.bandeId,
+                      child: Text(widget.bandeNom.isEmpty ? 'Bande' : widget.bandeNom, overflow: TextOverflow.ellipsis),
+                    ),
                 ],
                 onChanged: _choisirBande,
                 decoration: const InputDecoration(labelText: 'Bande concernée', prefixIcon: Icon(Icons.egg_outlined)),

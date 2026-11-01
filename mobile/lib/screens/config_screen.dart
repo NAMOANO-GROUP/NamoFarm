@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/references_service.dart';
 import '../widgets/international_phone_field.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/number_field.dart';
@@ -366,6 +367,8 @@ class _ConfigScreenState extends State<ConfigScreen>
                 });
                 if (!context.mounted) return;
                 if (ok) {
+                  // Les indicateurs des bandes utiliseront les nouvelles références.
+                  ReferencesService.invalider();
                   await context
                       .read<AuthProvider>()
                       .setAppName(nameCtrl.text.trim());
