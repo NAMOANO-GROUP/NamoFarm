@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'global_dashboard_screen.dart';
+import 'tableau_de_bord_screen.dart';
 import 'bandes_screen.dart';
 import 'reproduction_screen.dart';
 import 'sante_screen.dart';
@@ -51,6 +51,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String? _currentId;
 
+  NavHubProvider? _navHub;
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +60,33 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<NavHubProvider>().reset();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final hub = context.read<NavHubProvider>();
+    if (!identical(hub, _navHub)) {
+      _navHub?.removeListener(_surDemandeModule);
+      _navHub = hub..addListener(_surDemandeModule);
+    }
+  }
+
+  @override
+  void dispose() {
+    _navHub?.removeListener(_surDemandeModule);
+    super.dispose();
+  }
+
+  /// Ouverture d'un module demandée depuis une page (ex. Tableau de bord).
+  void _surDemandeModule() {
+    final id = _navHub?.prendreModuleDemande();
+    if (id == null || !mounted) return;
+    if (_navHub?.peutOuvrir(id) ?? true) {
+      setState(() => _currentId = id);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vous n’avez pas accès à ce module.')));
+    }
   }
 
   final List<_ModuleItem> _modules = const [
@@ -70,9 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     _ModuleItem(
       id: 'dashboard',
-      page: GlobalDashboardScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-      mobileDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+      page: TableauDeBordScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Tableau de bord'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Tableau de bord'),
       permission: 'dashboard:view',
     ),
     _ModuleItem(
@@ -173,6 +202,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList(),
       (m) => m.id,
     );
+
+    navHub.modulesAccessibles = {for (final m in accessibleModules) m.id};
 
     if (accessibleModules.isEmpty) {
       return const Scaffold(body: Center(child: Text('Aucun module autorisé')));

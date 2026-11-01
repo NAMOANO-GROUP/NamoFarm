@@ -60,6 +60,26 @@ class _HelpScreenState extends State<HelpScreen> {
             'depuis le module Config.',
       ),
     ]),
+    _HelpChapter('Tableau de bord', Icons.dashboard_outlined, Color(0xFF0277BD), [
+      _HelpArticle(
+        'À faire aujourd\'hui',
+        'En tête du Tableau de bord : tâches en retard ou du jour, stocks bas, vaccinations, relances '
+            'clients, commandes à préparer et bandes qui sortent dans les 7 jours. Les points en retard '
+            'passent en premier. Touchez une ligne pour ouvrir le bon module ou la fiche de la bande.',
+      ),
+      _HelpArticle(
+        'Indicateurs clés',
+        'Choisissez la période (Ce mois, 3 mois, Cette année, Tout) : argent disponible, ventes, dépenses '
+            'et résultat, avec l\'évolution par rapport à la période précédente. Les indicateurs d\'élevage '
+            '(sujets, mortalité, IC moyen, alertes) portent sur les bandes en cours.',
+      ),
+      _HelpArticle(
+        'Personnaliser',
+        'Menu ⋮ → Personnaliser : glissez les blocs pour changer leur ordre et masquez ceux dont vous '
+            'n\'avez pas besoin. Le réglage est mémorisé sur cet appareil. Les rapports PDF et Excel sont '
+            'aussi dans ce menu.',
+      ),
+    ]),
     _HelpChapter('Bandes', Icons.egg_outlined, Color(0xFF1565C0), [
       _HelpArticle(
         'Ouvrir une nouvelle bande',

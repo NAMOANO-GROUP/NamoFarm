@@ -8,7 +8,6 @@ import 'providers/fournisseurs_provider.dart';
 import 'providers/commandes_provider.dart';
 import 'providers/stocks_provider.dart';
 import 'providers/alertes_provider.dart';
-import 'providers/dashboard_provider.dart';
 import 'providers/crm_provider.dart';
 import 'providers/finance_provider.dart';
 import 'providers/auth_provider.dart';
@@ -39,7 +38,6 @@ class NamoFarmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CommandesProvider()),
         ChangeNotifierProvider(create: (_) => StocksProvider()),
         ChangeNotifierProvider(create: (_) => AlertesProvider()),
-        ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => CrmProvider()),
         ChangeNotifierProvider(create: (_) => FinanceProvider()),
         ChangeNotifierProvider(create: (_) => ReproductionProvider()),

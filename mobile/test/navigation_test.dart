@@ -122,4 +122,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(GridView), findsOneWidget);
   });
+
+  testWidgets('Libellé « Tableau de bord » dans la barre du bas sans débordement', (tester) async {
+    await _pumpHome(tester, prefs: {'nav.moduleOrder': ['dashboard', 'aide', 'crm', 'finance']});
+    await tester.tap(find.text('Aide').first);
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('Tableau de bord')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
