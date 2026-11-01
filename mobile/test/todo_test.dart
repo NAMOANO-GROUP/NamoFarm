@@ -6,6 +6,7 @@ import 'package:namofarm/providers/alertes_provider.dart';
 import 'package:namofarm/providers/auth_provider.dart';
 import 'package:namofarm/screens/alertes_screen.dart';
 import 'package:namofarm/screens/todo/todo_dialog.dart';
+import 'package:namofarm/utils/crm_labels.dart';
 import 'package:namofarm/utils/todo.dart';
 import 'package:provider/provider.dart';
 
@@ -127,20 +128,21 @@ void main() {
   final now = DateTime(2026, 10, 28, 10); // mercredi
 
   group('Logique Todo', () {
-    test('filtrerTodo : échéances et Mes tâches', () {
+    test('filtrerTodo : échéances cumulables et Mes tâches', () {
       final taches = [
         _tache('1', 'Retard', DateTime(2026, 10, 26)),
         _tache('2', 'Aujourd’hui', DateTime(2026, 10, 28, 15), assigne: 'Moussa Sow'),
         _tache('3', 'Dimanche', DateTime(2026, 11, 1)),
         _tache('4', 'Plus tard', DateTime(2026, 11, 10)),
       ];
-      List<String> ids(TodoFiltre f, {bool mine = false}) =>
-          filtrerTodo(taches, f, now: now, mesTaches: mine, me: 'moussa sow').map((a) => a.id!).toList();
-      expect(ids(TodoFiltre.tout), ['1', '2', '3', '4']);
-      expect(ids(TodoFiltre.enRetard), ['1']);
-      expect(ids(TodoFiltre.aujourdhui), ['2']);
-      expect(ids(TodoFiltre.semaine), ['1', '2', '3']);
-      expect(ids(TodoFiltre.tout, mine: true), ['2']);
+      List<String> ids(Set<DueBucket> e, {bool mine = false}) =>
+          filtrerTodo(taches, echeances: e, now: now, mesTaches: mine, me: 'moussa sow').map((a) => a.id!).toList();
+      expect(ids({}), ['1', '2', '3', '4']);
+      expect(ids({DueBucket.enRetard}), ['1']);
+      expect(ids({DueBucket.enRetard, DueBucket.aujourdhui}), ['1', '2']);
+      expect(ids({DueBucket.cetteSemaine, DueBucket.plusTard}), ['3', '4']);
+      expect(ids({}, mine: true), ['2']);
+      expect(ids({DueBucket.enRetard}, mine: true), isEmpty);
     });
 
     test('computeTodoStats', () {
@@ -241,28 +243,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Ajout rapide et filtre Mes tâches', (tester) async {
+  testWidgets('Menu Filtres : choix multiples, Mes tâches et réinitialisation', (tester) async {
     _size(tester, const Size(1200, 1000));
     final provider = _FakeTodo(ouvertes: [
-      _tache('t1', 'Tâche de Awa', _today(), assigne: 'Awa'),
-      _tache('t2', 'Ma tâche', _today(), assigne: 'Moussa Sow'),
+      _tache('t1', 'Tâche en retard', _today().subtract(const Duration(days: 2))),
+      _tache('t2', 'Ma tâche du jour', _today(), assigne: 'Moussa Sow'),
+      _tache('t3', 'Tâche lointaine', _today().add(const Duration(days: 30))),
     ]);
     await tester.pumpWidget(_app(provider));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Demain'));
-    await tester.enterText(find.widgetWithText(TextField, 'Ajouter une tâche…'), 'Commander de l’aliment');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(provider.created.single['titre'], 'Commander de l’aliment');
-    expect(provider.created.single['touteJournee'], isTrue);
-    expect(provider.created.single['assigneA'], 'Moussa Sow');
-    expect(DateTime.parse(provider.created.single['dateEcheance']), _today().add(const Duration(days: 1)));
+    // Plus de champ d'ajout rapide : un seul bouton d'ajout.
+    expect(find.widgetWithText(TextField, 'Ajouter une tâche…'), findsNothing);
+    expect(find.byTooltip('Nouvelle tâche'), findsOneWidget);
 
-    await tester.tap(find.text('Mes tâches'));
+    await tester.tap(find.text('Filtres'));
     await tester.pumpAndSettle();
-    expect(find.text('Ma tâche'), findsOneWidget);
-    expect(find.text('Tâche de Awa'), findsNothing);
+    await tester.tap(find.widgetWithText(CheckboxMenuButton, 'En retard (1)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxMenuButton, "Aujourd'hui (1)"));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CheckboxMenuButton, 'En retard (1)'), findsOneWidget,
+        reason: 'le menu reste ouvert pour cocher plusieurs choix');
+    await tester.tapAt(const Offset(5, 995));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tâche en retard'), findsOneWidget);
+    expect(find.text('Ma tâche du jour'), findsOneWidget);
+    expect(find.text('Tâche lointaine'), findsNothing);
+
+    await tester.tap(find.text('Filtres'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxMenuButton, 'Mes tâches'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(5, 995));
+    await tester.pumpAndSettle();
+    expect(find.text('Ma tâche du jour'), findsOneWidget);
+    expect(find.text('Tâche en retard'), findsNothing);
+
+    await tester.tap(find.text('Filtres'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Réinitialiser les filtres'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tâche lointaine'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Tableau par avancement : glisser une carte vers « En cours »', (tester) async {
@@ -273,7 +297,11 @@ void main() {
 
     await tester.tap(find.byTooltip('Tableau'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Filtres'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Par avancement'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(5, 995));
     await tester.pumpAndSettle();
     expect(find.text('En cours'), findsOneWidget);
     expect(find.text('Terminées'), findsOneWidget);

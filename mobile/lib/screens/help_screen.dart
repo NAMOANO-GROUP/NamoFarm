@@ -148,8 +148,7 @@ class _HelpScreenState extends State<HelpScreen> {
       _HelpArticle(
         'Gérer les tâches',
         'La Todo regroupe vos tâches et celles générées automatiquement (stock bas, santé, planning des bandes, '
-            'commandes, relances CRM). Tapez une tâche dans « Ajouter une tâche… » et choisissez Aujourd\'hui, '
-            'Demain ou Semaine prochaine pour la créer en un geste ; le bouton ✓+ ouvre le formulaire complet '
+            'commandes, relances CRM). Le bouton ✓+ ouvre le formulaire de tâche '
             '(catégorie, priorité, bande, personne assignée, récurrence, checklist).',
       ),
       _HelpArticle(
@@ -158,7 +157,9 @@ class _HelpScreenState extends State<HelpScreen> {
             '• Tableau : colonnes par échéance, avancement, catégorie ou bande ; maintenez une carte pour la déplacer.\n'
             '• Planning : la semaine heure par heure.\n'
             '• Graphiques : avancement, catégories, priorités et charge par personne.\n'
-            'Les puces filtrent (En retard, Aujourd\'hui, Cette semaine) et « Mes tâches » ne montre que les vôtres.',
+            'Le bouton « Filtres » ouvre une liste à choix multiples : cochez une ou plusieurs échéances '
+            '(En retard, Aujourd\'hui, Cette semaine, Plus tard) et « Mes tâches » ; en vue Tableau il permet aussi '
+            'de choisir les colonnes. Le chiffre sur le bouton indique le nombre de filtres actifs.',
       ),
       _HelpArticle(
         'Terminer, annuler et historique',

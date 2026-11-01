@@ -41,34 +41,21 @@ const todoProgressions = [
   CrmOption('faite', 'Terminée', Colors.green, Icons.check_circle),
 ];
 
-/// Filtres rapides (puces) de la Todo.
-enum TodoFiltre { tout, enRetard, aujourdhui, semaine }
-
-const todoFiltreLabels = {
-  TodoFiltre.tout: 'Tout',
-  TodoFiltre.enRetard: 'En retard',
-  TodoFiltre.aujourdhui: "Aujourd'hui",
-  TodoFiltre.semaine: 'Cette semaine',
-};
-
 bool _isMine(Alerte a, String me) => me.trim().isNotEmpty && a.assigneA.trim().toLowerCase() == me.trim().toLowerCase();
 
-/// Applique le filtre d'échéance et éventuellement « Mes tâches ».
-List<Alerte> filtrerTodo(List<Alerte> taches, TodoFiltre filtre, {bool mesTaches = false, String me = '', DateTime? now}) {
+/// Filtre multi-choix : tâches dont l'échéance est dans l'une des colonnes cochées
+/// ([echeances] vide = toutes), éventuellement limité à « Mes tâches ». Trié par échéance.
+List<Alerte> filtrerTodo(
+  List<Alerte> taches, {
+  Set<DueBucket> echeances = const {},
+  bool mesTaches = false,
+  String me = '',
+  DateTime? now,
+}) {
   final today = now ?? DateTime.now();
   return taches.where((a) {
     if (mesTaches && !_isMine(a, me)) return false;
-    final bucket = dueBucketFor(a.dateEcheance, now: today);
-    switch (filtre) {
-      case TodoFiltre.tout:
-        return true;
-      case TodoFiltre.enRetard:
-        return bucket == DueBucket.enRetard;
-      case TodoFiltre.aujourdhui:
-        return bucket == DueBucket.aujourdhui;
-      case TodoFiltre.semaine:
-        return bucket != DueBucket.plusTard;
-    }
+    return echeances.isEmpty || echeances.contains(dueBucketFor(a.dateEcheance, now: today));
   }).toList()
     ..sort((a, b) => a.dateEcheance.compareTo(b.dateEcheance));
 }

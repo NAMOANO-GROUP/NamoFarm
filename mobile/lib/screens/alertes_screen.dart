@@ -48,11 +48,10 @@ class AlertesScreen extends StatefulWidget {
 class _AlertesScreenState extends State<AlertesScreen> {
   _Vue _vue = _Vue.liste;
   _Groupe _groupe = _Groupe.echeance;
-  TodoFiltre _filtre = TodoFiltre.tout;
+  /// Échéances cochées dans le menu Filtres (vide = toutes).
+  final Set<DueBucket> _echeances = {};
   bool _mesTaches = false;
   bool _showTerminees = false;
-  final TextEditingController _quick = TextEditingController();
-  int _quickJour = 0;
   List<Bande> _bandes = [];
 
   @override
@@ -70,36 +69,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _quick.dispose();
-    super.dispose();
-  }
-
   // ---------- Actions ----------
-
-  Future<void> _ajoutRapide() async {
-    final titre = _quick.text.trim();
-    if (titre.isEmpty) return;
-    final provider = context.read<AlertesProvider>();
-    final today = DateUtils.dateOnly(DateTime.now());
-    final jour = _quickJour == 7 ? today.add(Duration(days: 8 - today.weekday)) : today.add(Duration(days: _quickJour));
-    _quick.clear();
-    final ok = await provider.creerAlerte({
-      'titre': titre,
-      'message': '',
-      'type': 'autre',
-      'priorite': 'moyenne',
-      'recurrence': 'aucune',
-      'recurrenceConfig': const <String, dynamic>{},
-      'dateEcheance': jour.toIso8601String(),
-      'dateFin': DateTime(jour.year, jour.month, jour.day, 23, 59).toIso8601String(),
-      'touteJournee': true,
-      'assigneA': currentUserName(context),
-      'source': 'todo',
-    });
-    if (mounted) showCrmSnack(context, ok ? 'Tâche ajoutée · ${relativeDay(jour).toLowerCase()}' : "Impossible d'ajouter la tâche");
-  }
 
   Future<void> _terminer(Alerte a) async {
     final provider = context.read<AlertesProvider>();
@@ -291,16 +261,12 @@ class _AlertesScreenState extends State<AlertesScreen> {
           final ouvertes = [...provider.alertes, ...provider.alertesAutomatiques];
           final terminees = [...provider.historiqueAlertes, ...provider.historiqueAlertesAutomatiques]
             ..sort((a, b) => b.dateEcheance.compareTo(a.dateEcheance));
-          final visibles = filtrerTodo(ouvertes, _filtre, mesTaches: _mesTaches, me: me);
+          final visibles = filtrerTodo(ouvertes, echeances: _echeances, mesTaches: _mesTaches, me: me);
           final loading = provider.isLoading && ouvertes.isEmpty && terminees.isEmpty;
 
           return Column(
             children: [
-              _toolbar(),
-              if (_vue == _Vue.liste || _vue == _Vue.tableau) ...[
-                _quickAdd(),
-                _filtres(ouvertes, me),
-              ],
+              _toolbar(ouvertes, me),
               if (loading) const LinearProgressIndicator(minHeight: 2),
               Expanded(
                 child: switch (_vue) {
@@ -324,7 +290,9 @@ class _AlertesScreenState extends State<AlertesScreen> {
     );
   }
 
-  Widget _toolbar() {
+  /// Ligne unique : vues, menu Filtres (liste et tableau) et bouton d'ajout.
+  Widget _toolbar(List<Alerte> ouvertes, String me) {
+    final filtrable = _vue == _Vue.liste || _vue == _Vue.tableau;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Row(
@@ -341,6 +309,10 @@ class _AlertesScreenState extends State<AlertesScreen> {
             onSelectionChanged: (v) => setState(() => _vue = v.first),
           ),
           const Spacer(),
+          if (filtrable) ...[
+            _filtreMenu(ouvertes, me),
+            const SizedBox(width: 8),
+          ],
           IconButton.filled(
             tooltip: 'Nouvelle tâche',
             onPressed: () => showTodoDialog(context),
@@ -352,84 +324,75 @@ class _AlertesScreenState extends State<AlertesScreen> {
     );
   }
 
-  Widget _quickAdd() {
-    const jours = {0: "Aujourd'hui", 1: 'Demain', 7: 'Semaine prochaine'};
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-      child: Column(
-        children: [
-          TextField(
-            controller: _quick,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _ajoutRapide(),
-            decoration: InputDecoration(
-              hintText: 'Ajouter une tâche…',
-              prefixIcon: const Icon(Icons.add),
-              suffixIcon: IconButton(tooltip: 'Ajouter', icon: const Icon(Icons.keyboard_return), onPressed: _ajoutRapide),
-            ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 34,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final e in jours.entries)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      visualDensity: VisualDensity.compact,
-                      avatar: const Icon(Icons.event_outlined, size: 14),
-                      label: Text(e.value, style: const TextStyle(fontSize: 12)),
-                      selected: _quickJour == e.key,
-                      onSelected: (_) => setState(() => _quickJour = e.key),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  int get _nbFiltres => _echeances.length + (_mesTaches ? 1 : 0);
 
-  Widget _filtres(List<Alerte> ouvertes, String me) {
-    int count(TodoFiltre f) => filtrerTodo(ouvertes, f, mesTaches: _mesTaches, me: me).length;
-    return SizedBox(
-      height: 46,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-        children: [
-          FilterChip(
-            avatar: const Icon(Icons.person_pin_outlined, size: 16),
-            label: const Text('Mes tâches'),
-            selected: _mesTaches,
-            onSelected: (v) => setState(() => _mesTaches = v),
+  /// Menu déroulant à choix multiples : échéances (cumulables), Mes tâches, et colonnes du tableau.
+  Widget _filtreMenu(List<Alerte> ouvertes, String me) {
+    int count(DueBucket b) => filtrerTodo(ouvertes, echeances: {b}, mesTaches: _mesTaches, me: me).length;
+    final actifs = _nbFiltres;
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, 4),
+      menuChildren: [
+        const _MenuTitre('Échéance'),
+        for (final b in DueBucket.values)
+          CheckboxMenuButton(
+            closeOnActivate: false,
+            value: _echeances.contains(b),
+            onChanged: (v) => setState(() => v == true ? _echeances.add(b) : _echeances.remove(b)),
+            child: Text('${dueBucketLabels[b]} (${count(b)})'),
           ),
-          const SizedBox(width: 6),
-          for (final f in TodoFiltre.values) ...[
-            ChoiceChip(
-              label: Text('${todoFiltreLabels[f]} · ${count(f)}'),
-              selected: _filtre == f,
-              onSelected: (_) => setState(() => _filtre = f),
+        const Divider(height: 8),
+        CheckboxMenuButton(
+          closeOnActivate: false,
+          value: _mesTaches,
+          onChanged: (v) => setState(() => _mesTaches = v == true),
+          child: const Text('Mes tâches'),
+        ),
+        if (_vue == _Vue.tableau) ...[
+          const Divider(height: 8),
+          const _MenuTitre('Colonnes du tableau'),
+          for (final g in _Groupe.values)
+            RadioMenuButton<_Groupe>(
+              closeOnActivate: false,
+              value: g,
+              groupValue: _groupe,
+              onChanged: (v) => setState(() => _groupe = v ?? _groupe),
+              child: Text(_groupeLabels[g]!),
             ),
-            const SizedBox(width: 6),
-          ],
-          if (_vue == _Vue.tableau) ...[
-            const VerticalDivider(width: 12),
-            for (final g in _Groupe.values) ...[
-              ChoiceChip(
-                avatar: const Icon(Icons.view_column_outlined, size: 16),
-                label: Text(_groupeLabels[g]!),
-                selected: _groupe == g,
-                onSelected: (_) => setState(() => _groupe = g),
-              ),
-              const SizedBox(width: 6),
-            ],
-          ],
         ],
-      ),
+        if (actifs > 0) ...[
+          const Divider(height: 8),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+            onPressed: () => setState(() {
+              _echeances.clear();
+              _mesTaches = false;
+            }),
+            child: const Text('Réinitialiser les filtres'),
+          ),
+        ],
+      ],
+      builder: (context, controller, _) {
+        void toggle() => controller.isOpen ? controller.close() : controller.open();
+        final icon = Badge(
+          isLabelVisible: actifs > 0,
+          label: Text('$actifs'),
+          child: const Icon(Icons.filter_list, size: 20),
+        );
+        // Petit écran : icône seule pour garder vues, filtres et ajout sur une ligne.
+        if (MediaQuery.sizeOf(context).width < 600) {
+          return IconButton.outlined(tooltip: 'Filtres', visualDensity: VisualDensity.compact, onPressed: toggle, icon: icon);
+        }
+        return OutlinedButton.icon(
+          onPressed: toggle,
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          icon: icon,
+          label: const Text('Filtres'),
+        );
+      },
     );
   }
 
@@ -440,7 +403,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
       return EmptyState(
         icon: Icons.task_alt,
         title: 'Aucune tâche',
-        subtitle: 'Ajoutez une tâche ci-dessus ou partez d’un modèle de plan.',
+        subtitle: 'Ajoutez une tâche avec le bouton ✓+ ou partez d’un modèle de plan.',
         actionLabel: 'Modèles de plan',
         actionIcon: Icons.library_add_check_outlined,
         onAction: () => showTodoModelesSheet(context),
@@ -594,4 +557,19 @@ class _AlertesScreenState extends State<AlertesScreen> {
         break;
     }
   }
+}
+
+/// Intitulé de section dans un menu déroulant.
+class _MenuTitre extends StatelessWidget {
+  final String text;
+  const _MenuTitre(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Text(
+          text.toUpperCase(),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary),
+        ),
+      );
 }
