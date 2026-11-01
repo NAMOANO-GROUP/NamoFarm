@@ -28,6 +28,9 @@ git push -u origin main
 5. Create your auth user.
 6. Insert a row in `profiles` with that user id and company id.
 
+Existing database: also run the migrations in `../backend/scripts/sql/`, in particular
+`add_crm_taches_checklist.sql` (CRM task checklists).
+
 Notes:
 
 1. The schema is mono-company friendly today, multi-company ready for later.

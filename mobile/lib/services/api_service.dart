@@ -470,6 +470,9 @@ class ApiService {
     static Future<Map<String, dynamic>> mettreAJourPipelineClient(String clientId, Map<String, dynamic> data) async =>
             Map<String, dynamic>.from(_ensureSuccess(await _post('/crm/pipeline/$clientId', body: data), accepted: const [201]));
 
+  static Future<List<dynamic>> getSuggestionsCrm() async =>
+      List<dynamic>.from(_ensureSuccess(await _get('/crm/suggestions')) ?? []);
+
   // Dashboard / Reports
     static Future<Map<String, dynamic>> getGlobalDashboard({
         String period = 'mois',

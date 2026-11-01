@@ -200,6 +200,7 @@ create table if not exists public.crm_taches (
   priorite text not null default 'moyenne',
   rappel_active boolean not null default true,
   assigne_a text not null default '',
+  checklist jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

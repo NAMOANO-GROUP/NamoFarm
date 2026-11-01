@@ -12,3 +12,18 @@ Prochaines étapes :
 1. Initialiser un projet backend (ex : FastAPI, Django, ou Express.js)
 2. Définir les modèles de données (Bandes, Clients, Commandes)
 3. Créer les routes API
+
+## CRM
+
+Routes sous `/api/crm` (`routes/crm.js`), logique métier pure dans `services/crm_insights.js` :
+
+- `GET /dashboard` : indicateurs (CA du mois et du mois précédent, relances, meilleurs clients, ventes mensuelles).
+- `GET /pipeline` / `POST /pipeline/:clientId` : affaires par étape avec montant, probabilité, date de clôture prévue ;
+  le score (0-100) est calculé automatiquement (engagement, commandes, CA, récence du dernier contact).
+- `GET /suggestions` : relances proposées automatiquement (sortie de bande prochaine, réachat attendu, client actif sans contact).
+- `GET|POST|PUT|DELETE /taches` : tâches avec sous-étapes (`checklist`).
+
+Base existante : exécuter `scripts/sql/add_crm_taches_checklist.sql` dans le SQL Editor Supabase pour activer la checklist
+(sans cette migration, les tâches sont enregistrées sans checklist).
+
+Tests : `npm test`.

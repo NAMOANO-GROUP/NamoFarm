@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class PieceJointe {
   final String nomFichier;
   final String typeMime;
@@ -60,11 +62,24 @@ class Interaction {
       sujet: json['sujet'] ?? '',
       contenu: json['contenu'] ?? '',
       auteur: json['auteur'] ?? 'Utilisateur',
-      dateInteraction: json['dateInteraction'] != null ? DateTime.parse(json['dateInteraction']) : DateTime.now(),
+      dateInteraction: json['dateInteraction'] != null ? DateTime.parse(json['dateInteraction']).toLocal() : DateTime.now(),
       piecesJointes: json['piecesJointes'] != null
           ? (json['piecesJointes'] as List).map((p) => PieceJointe.fromJson(p)).toList()
           : [],
     );
+  }
+
+  bool get isPipelineUpdate => type == 'pipeline_update';
+
+  /// Contenu JSON d'une mise à jour de pipeline ({stage, montant, note...}), sinon null.
+  Map<String, dynamic>? get pipelineMeta {
+    if (!isPipelineUpdate) return null;
+    try {
+      final decoded = jsonDecode(contenu);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() => {
