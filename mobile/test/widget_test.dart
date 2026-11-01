@@ -293,14 +293,19 @@ void main() {
     expect(provider.chargerHistoriqueAlertesCalls, 1);
     expect(provider.chargerHistoriqueAlertesAutomatiquesCalls, 1);
 
-    expect(find.text('Effacer historique'), findsOneWidget);
-    expect(find.text('Historique (2)'), findsOneWidget);
+    expect(find.text('Terminées (2)'), findsOneWidget);
 
-    await tester.tap(find.text('Effacer historique'));
+    // L'effacement passe par le menu et demande confirmation.
+    await tester.tap(find.byTooltip('Plus d’actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Effacer l'historique"));
+    await tester.pumpAndSettle();
+    expect(provider.effacerHistoriqueCalls, 0);
+    await tester.tap(find.text('Effacer'));
     await tester.pumpAndSettle();
 
     expect(provider.effacerHistoriqueCalls, 1);
-    expect(find.text('Historique (2)'), findsNothing);
+    expect(find.text('Terminées (2)'), findsNothing);
   });
 
   testWidgets('Todo UI does not overflow on small screens', (WidgetTester tester) async {

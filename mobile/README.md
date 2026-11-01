@@ -29,7 +29,7 @@ git push -u origin main
 6. Insert a row in `profiles` with that user id and company id.
 
 Existing database: also run the migrations in `../backend/scripts/sql/`, in particular
-`add_crm_taches_checklist.sql` (CRM task checklists).
+`add_crm_taches_checklist.sql` (CRM task checklists) and `add_alertes_planner.sql` (Todo: assignee, checklist, progress).
 
 Notes:
 

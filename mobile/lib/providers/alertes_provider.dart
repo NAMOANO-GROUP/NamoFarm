@@ -146,6 +146,124 @@ class AlertesProvider with ChangeNotifier {
     }
   }
 
+  Future<void> chargerTout() async {
+    await Future.wait([
+      chargerAlertes(period: 'all'),
+      chargerAlertesAutomatiques(),
+      chargerHistoriqueAlertes(),
+      chargerHistoriqueAlertesAutomatiques(),
+    ]);
+  }
+
+  void _remplacer(Alerte a) {
+    final i = _alertes.indexWhere((x) => x.id == a.id);
+    if (i >= 0) _alertes = [..._alertes]..[i] = a;
+  }
+
+  /// Mise à jour optimiste d'une tâche manuelle : affichage immédiat, retour arrière en cas d'échec.
+  Future<bool> modifierLocalement(Alerte avant, Alerte apres, Map<String, dynamic> payload) async {
+    if (!avant.modifiable) return false;
+    _remplacer(apres);
+    notifyListeners();
+    try {
+      await ApiService.mettreAJourAlerte(avant.id!, payload);
+      return true;
+    } catch (e) {
+      debugPrint('Erreur MAJ alerte: $e');
+      _remplacer(avant);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> changerProgression(Alerte a, String progression) =>
+      modifierLocalement(a, a.copyWith(progression: progression), {'progression': progression});
+
+  /// Déplace l'échéance en conservant la durée de la tâche.
+  Future<bool> changerEcheance(Alerte a, DateTime debut) {
+    final duree = a.dateFin?.difference(a.dateEcheance);
+    final fin = duree == null ? null : debut.add(duree);
+    return modifierLocalement(
+      a,
+      a.copyWith(dateEcheance: debut, dateFin: fin),
+      {'dateEcheance': debut.toIso8601String(), if (fin != null) 'dateFin': fin.toIso8601String()},
+    );
+  }
+
+  Future<bool> reporterADemain(Alerte a) => changerEcheance(a, a.dateEcheance.add(const Duration(days: 1)));
+
+  Future<bool> changerType(Alerte a, String type) => modifierLocalement(a, a.copyWith(type: type), {'type': type});
+
+  Future<bool> changerBande(Alerte a, String? bandeId, String bandeNom) => modifierLocalement(
+        a,
+        bandeId == null ? a.copyWith(clearBande: true) : a.copyWith(bandeId: bandeId, bandeNom: bandeNom),
+        {'bandeId': bandeId},
+      );
+
+  Future<bool> basculerChecklist(Alerte a, int index) {
+    final items = [...a.checklist];
+    items[index] = items[index].copyWith(fait: !items[index].fait);
+    return modifierLocalement(a, a.copyWith(checklist: items), {'checklist': items.map((c) => c.toJson()).toList()});
+  }
+
+  /// Termine une tâche. Renvoie (ok, id de l'occurrence suivante créée pour une tâche périodique).
+  Future<({bool ok, String? prochaineId})> terminer(Alerte a) async {
+    if (!a.modifiable) return (ok: await marquerFaite(a), prochaineId: null);
+    _alertes = _alertes.where((x) => x.id != a.id).toList();
+    _historiqueAlertes = [a.copyWith(statut: 'faite'), ..._historiqueAlertes];
+    notifyListeners();
+    try {
+      final res = await ApiService.marquerAlerteFaite(a.id!);
+      await Future.wait([chargerAlertes(), chargerHistoriqueAlertes()]);
+      return (ok: true, prochaineId: res['prochaineId']?.toString());
+    } catch (e) {
+      debugPrint('Erreur: $e');
+      await Future.wait([chargerAlertes(), chargerHistoriqueAlertes()]);
+      return (ok: false, prochaineId: null);
+    }
+  }
+
+  /// Annule une fin de tâche : la rouvre et supprime l'occurrence suivante éventuellement créée (un seul appel).
+  Future<bool> rouvrir(Alerte a, {String? prochaineId}) async {
+    if (a.automatique || a.id == null) return false;
+    var ok = true;
+    try {
+      await ApiService.rouvrirAlerte(a.id!, prochaineId: prochaineId);
+    } catch (e) {
+      debugPrint('Erreur: $e');
+      ok = false;
+    }
+    await Future.wait([chargerAlertes(), chargerHistoriqueAlertes()]);
+    return ok;
+  }
+
+  Future<bool> supprimer(Alerte a) async {
+    if (a.id == null || a.automatique) return false;
+    try {
+      await ApiService.supprimerAlerte(a.id!);
+      await Future.wait([chargerAlertes(), chargerHistoriqueAlertes()]);
+      return true;
+    } catch (e) {
+      debugPrint('Erreur suppression alerte: $e');
+      return false;
+    }
+  }
+
+  /// Crée plusieurs tâches d'un coup (modèles) puis recharge une seule fois. Renvoie le nombre créé.
+  Future<int> creerPlusieurs(List<Map<String, dynamic>> taches) async {
+    var created = 0;
+    for (final t in taches) {
+      try {
+        await ApiService.creerAlerte(t);
+        created++;
+      } catch (e) {
+        debugPrint('Erreur création (modèle): $e');
+      }
+    }
+    await chargerAlertes();
+    return created;
+  }
+
   bool _isSyntheticAlerteId(String? id) {
     if (id == null || id.isEmpty) return false;
     return id.startsWith('stock-')

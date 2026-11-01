@@ -168,6 +168,9 @@ create table if not exists public.alertes (
   priorite text not null default 'moyenne',
   source text not null default 'todo',
   automatique boolean not null default false,
+  assigne_a text not null default '',
+  checklist jsonb not null default '[]'::jsonb,
+  progression text not null default 'a_faire',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

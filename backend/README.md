@@ -26,4 +26,15 @@ Routes sous `/api/crm` (`routes/crm.js`), logique métier pure dans `services/cr
 Base existante : exécuter `scripts/sql/add_crm_taches_checklist.sql` dans le SQL Editor Supabase pour activer la checklist
 (sans cette migration, les tâches sont enregistrées sans checklist).
 
+## Todo (alertes)
+
+Routes sous `/api/alertes` (`routes/alertes.js`), utilitaires partagés avec le CRM dans `services/task_utils.js`
+(checklist, récurrence, écriture tolérante aux colonnes non migrées).
+
+- Champs façon Planner : `assigneA`, `checklist`, `progression` (`a_faire` / `en_cours`).
+- `PUT /:id/fait` renvoie `prochaineId` (occurrence suivante d'une tâche périodique) pour permettre l'annulation.
+- Les alertes automatiques exposent leur origine (`stockId`, `bandeId`, `crmTacheId`, `clientId`).
+
+Base existante : exécuter `scripts/sql/add_alertes_planner.sql` (sans cette migration, ces trois champs ne sont pas enregistrés).
+
 Tests : `npm test`.

@@ -7,9 +7,14 @@ import '../../utils/contact_launcher.dart';
 import '../../utils/crm_labels.dart';
 import 'interaction_dialog.dart';
 
-/// Nom de l'utilisateur connecté (auteur des interactions, tâches "Mes tâches").
+/// Nom de l'utilisateur connecté (auteur des interactions, tâches "Mes tâches"), vide si inconnu.
 String currentUserName(BuildContext context) {
-  final auth = context.read<AuthProvider>();
+  final AuthProvider auth;
+  try {
+    auth = context.read<AuthProvider>();
+  } on ProviderNotFoundException {
+    return '';
+  }
   final full = '${auth.userPrenom} ${auth.userNom}'.trim();
   if (full.isNotEmpty) return full;
   return (auth.user?['email'] ?? '').toString();

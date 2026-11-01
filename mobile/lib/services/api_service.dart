@@ -261,6 +261,14 @@ class ApiService {
   static Future<Map<String, dynamic>> mettreAJourAlerte(String id, Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _put('/alertes/$id', body: data)));
 
+  static Future<void> supprimerAlerte(String id) async {
+    _ensureSuccess(await _delete('/alertes/$id'));
+  }
+
+  /// Annule une fin de tâche (et supprime l'occurrence suivante d'une tâche périodique).
+  static Future<Map<String, dynamic>> rouvrirAlerte(String id, {String? prochaineId}) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/alertes/$id/rouvrir', body: {'prochaineId': prochaineId})));
+
     static Future<void> effacerHistoriqueAlertes() async {
         _ensureSuccess(await _delete('/alertes/historique/all'));
     }

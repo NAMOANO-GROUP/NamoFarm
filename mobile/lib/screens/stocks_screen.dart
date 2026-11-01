@@ -102,36 +102,38 @@ class _StocksScreenState extends State<StocksScreen> {
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _categoryFilter,
-                isExpanded: true,
-                isDense: true,
-                style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                decoration: filterDecoration('Catégorie'),
-                items: _categoryOptions
-                    .map(
-                      (opt) => DropdownMenuItem<String>(
-                        value: opt['value'],
-                        child: Text(opt['label'] ?? '', style: kFilterTextStyle),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _categoryFilter = value ?? '';
-                  });
-                },
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: AddButton(
+              // Filtre et bouton d'ajout sur la même ligne (comme Fournisseurs).
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _categoryFilter,
+                      isExpanded: true,
+                      isDense: true,
+                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: filterDecoration('Catégorie'),
+                      items: _categoryOptions
+                          .map(
+                            (opt) => DropdownMenuItem<String>(
+                              value: opt['value'],
+                              child: Text(opt['label'] ?? '', style: kFilterTextStyle),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _categoryFilter = value ?? '';
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AddButton(
                     tooltip: 'Nouveau stock',
                     icon: Icons.inventory_2_outlined,
                     onPressed: () => _showAjouterStockDialog(),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 8),
               // Alertes stock bas

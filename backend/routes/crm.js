@@ -12,6 +12,7 @@ const {
   summarizePipeline,
   buildSuggestions,
 } = require('../services/crm_insights');
+const { normalizeChecklist, writeWithOptionalColumns } = require('../services/task_utils');
 
 const router = express.Router();
 const COMMANDES_COMPANY_COLUMNS = ['company_id', 'companyId'];
@@ -33,30 +34,9 @@ function authorName(req) {
   return full || u.email || fromBody || 'Utilisateur';
 }
 
-function normalizeChecklist(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => ({
-      titre: (item?.titre || '').toString().trim(),
-      fait: item?.fait === true,
-    }))
-    .filter((item) => item.titre)
-    .slice(0, 30);
-}
-
-function isMissingColumnError(error, column) {
-  const message = (error?.message || '').toString();
-  return message.includes(`'${column}'`) && /column/i.test(message);
-}
-
 // Écrit une tâche ; si la colonne checklist n'a pas encore été migrée, réessaie sans elle.
-async function writeTache(run, payload) {
-  let result = await run(payload);
-  if (result.error && isMissingColumnError(result.error, 'checklist') && 'checklist' in payload) {
-    const { checklist: _ignored, ...rest } = payload;
-    result = await run(rest);
-  }
-  return result;
+function writeTache(run, payload) {
+  return writeWithOptionalColumns(run, payload, ['checklist']);
 }
 
 function mapInteraction(row, commande = null) {

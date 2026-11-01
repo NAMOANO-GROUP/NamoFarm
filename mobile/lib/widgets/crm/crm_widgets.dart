@@ -54,7 +54,14 @@ class CrmPill extends StatelessWidget {
             Icon(option.icon, size: dense ? 11 : 13, color: fg),
             const SizedBox(width: 4),
           ],
-          Text(option.label, style: TextStyle(color: fg, fontSize: dense ? 11 : 12, fontWeight: FontWeight.w700)),
+          Flexible(
+            child: Text(
+              option.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: fg, fontSize: dense ? 11 : 12, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );

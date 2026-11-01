@@ -147,13 +147,30 @@ class _HelpScreenState extends State<HelpScreen> {
     _HelpChapter('Todo / Tâches', Icons.notifications_outlined, Color(0xFF283593), [
       _HelpArticle(
         'Gérer les tâches',
-        'Le module Todo regroupe les tâches manuelles et celles générées automatiquement '
-            '(vaccinations, événements prévisionnels). Bouton « + » en haut pour créer une tâche.',
+        'La Todo regroupe vos tâches et celles générées automatiquement (stock bas, santé, planning des bandes, '
+            'commandes, relances CRM). Tapez une tâche dans « Ajouter une tâche… » et choisissez Aujourd\'hui, '
+            'Demain ou Semaine prochaine pour la créer en un geste ; le bouton ✓+ ouvre le formulaire complet '
+            '(catégorie, priorité, bande, personne assignée, récurrence, checklist).',
       ),
       _HelpArticle(
-        'Filtrer et archiver',
-        'Filtrez par date et par période. Une tâche terminée part dans l\'historique, '
-            'replié par défaut et exportable en CSV.',
+        'Vues Liste, Tableau, Planning et Graphiques',
+        '• Liste : tâches groupées par échéance ; glissez à droite pour terminer, à gauche pour reporter à demain.\n'
+            '• Tableau : colonnes par échéance, avancement, catégorie ou bande ; maintenez une carte pour la déplacer.\n'
+            '• Planning : la semaine heure par heure.\n'
+            '• Graphiques : avancement, catégories, priorités et charge par personne.\n'
+            'Les puces filtrent (En retard, Aujourd\'hui, Cette semaine) et « Mes tâches » ne montre que les vôtres.',
+      ),
+      _HelpArticle(
+        'Terminer, annuler et historique',
+        'Touchez le rond d\'une tâche pour la terminer ; « Annuler » apparaît quelques secondes. '
+            'Une tâche périodique crée automatiquement sa prochaine occurrence. Les tâches terminées sont '
+            'regroupées dans « Terminées » ; menu ⋮ pour exporter l\'historique en CSV ou l\'effacer.',
+      ),
+      _HelpArticle(
+        'Modèles de plan',
+        'Bouton « Modèles de plan » en haut : créez en un clic toutes les tâches d\'une nouvelle bande de poulets '
+            'de chair (préparation, vaccins, pesées, transitions d\'aliment, vente), d\'un vide sanitaire ou d\'une '
+            'routine pondeuses. Le calendrier est indicatif : ajustez-le au protocole de votre vétérinaire.',
       ),
     ]),
     _HelpChapter('CRM & Commandes', Icons.people_outlined, Color(0xFFC62828), [

@@ -2,6 +2,11 @@ const express = require('express');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
 const { requirePermission, requireAdmin } = require('../middleware/auth');
+const { normalizeChecklist, resetChecklist, writeWithOptionalColumns, nextEcheance } = require('../services/task_utils');
+
+// Colonnes ajoutées par scripts/sql/add_alertes_planner.sql (ignorées tant que la migration n'est pas faite).
+const PLANNER_COLUMNS = ['assigne_a', 'checklist', 'progression'];
+const PROGRESSIONS = ['a_faire', 'en_cours'];
 
 const router = express.Router();
 
@@ -20,59 +25,6 @@ function readStatus(row) {
 
 function toArray(value) {
   return Array.isArray(value) ? value : [];
-}
-
-// Calcule la prochaine échéance d'une tâche périodique selon sa récurrence et sa config.
-// config: { joursSemaine:[1..7] } (hebdo), { jourMois:1..31 } (mensuel), { mois:1..12, jourMois:1..31 } (annuel).
-function clampDay(year, monthIndex, day) {
-  const last = new Date(year, monthIndex + 1, 0).getDate();
-  return Math.min(day, last);
-}
-
-function nextEcheance(dateIso, recurrence, config = {}) {
-  const d = new Date(dateIso);
-  if (Number.isNaN(d.getTime())) return null;
-  const cfg = config && typeof config === 'object' ? config : {};
-  switch ((recurrence || '').toString().toLowerCase()) {
-    case 'quotidien':
-      d.setDate(d.getDate() + 1);
-      return d;
-    case 'hebdomadaire': {
-      const jours = Array.isArray(cfg.joursSemaine)
-        ? cfg.joursSemaine.map(Number).filter((n) => n >= 1 && n <= 7)
-        : [];
-      if (jours.length === 0) {
-        d.setDate(d.getDate() + 7);
-        return d;
-      }
-      // Cherche le prochain jour de la semaine coché (ISO: 1=lundi..7=dimanche).
-      for (let i = 1; i <= 7; i += 1) {
-        const cand = new Date(d);
-        cand.setDate(d.getDate() + i);
-        const iso = ((cand.getDay() + 6) % 7) + 1;
-        if (jours.includes(iso)) return cand;
-      }
-      d.setDate(d.getDate() + 7);
-      return d;
-    }
-    case 'bihebdomadaire':
-      d.setDate(d.getDate() + 14);
-      return d;
-    case 'mensuel': {
-      const year = d.getFullYear();
-      const month = d.getMonth() + 1;
-      const jour = Number(cfg.jourMois) >= 1 && Number(cfg.jourMois) <= 31 ? Number(cfg.jourMois) : d.getDate();
-      return new Date(year, month, clampDay(year, month, jour), d.getHours(), d.getMinutes());
-    }
-    case 'annuel': {
-      const year = d.getFullYear() + 1;
-      const monthIndex = Number(cfg.mois) >= 1 && Number(cfg.mois) <= 12 ? Number(cfg.mois) - 1 : d.getMonth();
-      const jour = Number(cfg.jourMois) >= 1 && Number(cfg.jourMois) <= 31 ? Number(cfg.jourMois) : d.getDate();
-      return new Date(year, monthIndex, clampDay(year, monthIndex, jour), d.getHours(), d.getMinutes());
-    }
-    default:
-      return null;
-  }
 }
 
 function mapAlerteRow(row, bandeMap = new Map()) {
@@ -94,6 +46,9 @@ function mapAlerteRow(row, bandeMap = new Map()) {
     priorite: row.priorite || 'moyenne',
     source: row.source || 'todo',
     automatique: row.automatique === true,
+    assigneA: row.assigne_a || '',
+    checklist: normalizeChecklist(row.checklist),
+    progression: PROGRESSIONS.includes(row.progression) ? row.progression : 'a_faire',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -185,6 +140,7 @@ router.get('/automatiques', requirePermission('alertes.read'), async (req, res) 
         dateEcheance: maintenant.toISOString(),
         source: 'stock',
         automatique: true,
+        stockId: s.id,
       });
     }
 
@@ -210,6 +166,7 @@ router.get('/automatiques', requirePermission('alertes.read'), async (req, res) 
           dateEcheance: d.toISOString(),
           source: 'sanitaire',
           automatique: true,
+          bandeId: { _id: b.id, nom: b.nom || '' },
         });
       }
 
@@ -231,7 +188,7 @@ router.get('/automatiques', requirePermission('alertes.read'), async (req, res) 
           dateEcheance: d.toISOString(),
           source: 'planification',
           automatique: true,
-          bandeId: b.id,
+          bandeId: { _id: b.id, nom: b.nom || '' },
           eventId: p._id,
         });
       }
@@ -302,6 +259,8 @@ router.get('/automatiques', requirePermission('alertes.read'), async (req, res) 
         dateEcheance: tache.date_echeance,
         source: 'crm_tache',
         automatique: true,
+        crmTacheId: tache.id,
+        clientId: tache.client_id || null,
       });
     }
 
@@ -513,10 +472,17 @@ router.post('/', requirePermission('alertes.create'), async (req, res) => {
       source: req.body.source || 'todo',
       automatique: req.body.automatique === true,
       statut: req.body.statut || 'active',
+      assigne_a: (req.body.assigneA || '').toString().trim(),
+      checklist: normalizeChecklist(req.body.checklist),
+      progression: PROGRESSIONS.includes(req.body.progression) ? req.body.progression : 'a_faire',
       updated_at: new Date().toISOString(),
     };
 
-    const created = await api.from('alertes').insert(payload).select('*').single();
+    const created = await writeWithOptionalColumns(
+      (p) => api.from('alertes').insert(p).select('*').single(),
+      payload,
+      PLANNER_COLUMNS,
+    );
     if (created.error) return res.status(400).json({ message: created.error.message });
 
     return res.status(201).json(mapAlerteRow(created.data));
@@ -564,17 +530,77 @@ router.put('/:id', requirePermission('alertes.update'), async (req, res) => {
         updates[dbk] = req.body[k];
       }
     }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'assigneA')) {
+      updates.assigne_a = (req.body.assigneA || '').toString().trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'checklist')) {
+      updates.checklist = normalizeChecklist(req.body.checklist);
+    }
+    if (PROGRESSIONS.includes(req.body.progression)) {
+      updates.progression = req.body.progression;
+    }
 
-    const saved = await api
+    const saved = await writeWithOptionalColumns(
+      (p) => api
+        .from('alertes')
+        .update(p)
+        .eq('company_id', companyId)
+        .eq('id', req.params.id)
+        .select('*')
+        .single(),
+      updates,
+      PLANNER_COLUMNS,
+    );
+
+    if (saved.error) return res.status(400).json({ message: saved.error.message });
+    return res.json(mapAlerteRow(saved.data));
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+});
+
+router.put('/:id/rouvrir', requirePermission('alertes.mark_done'), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+
+    const original = await api
       .from('alertes')
-      .update(updates)
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (original.error) return res.status(400).json({ message: original.error.message });
+    if (!original.data) return res.status(404).json({ message: 'Alerte non trouvée' });
+    if (original.data.automatique === true) {
+      return res.status(400).json({ message: 'Les alertes automatiques ne peuvent pas être rouvertes' });
+    }
+
+    // Annulation d'une tâche périodique : on retire d'abord l'occurrence créée par /fait,
+    // uniquement si c'est bien la sienne (même titre et même récurrence, encore active).
+    const prochaineId = (req.body.prochaineId || '').toString();
+    if (prochaineId) {
+      const removed = await api
+        .from('alertes')
+        .delete()
+        .eq('company_id', companyId)
+        .eq('id', prochaineId)
+        .eq('automatique', false)
+        .eq('statut', 'active')
+        .eq('titre', original.data.titre)
+        .eq('recurrence', original.data.recurrence || 'aucune');
+      if (removed.error) return res.status(400).json({ message: removed.error.message });
+    }
+
+    const reopened = await api
+      .from('alertes')
+      .update({ statut: 'active', updated_at: new Date().toISOString() })
       .eq('company_id', companyId)
       .eq('id', req.params.id)
       .select('*')
       .single();
-
-    if (saved.error) return res.status(400).json({ message: saved.error.message });
-    return res.json(mapAlerteRow(saved.data));
+    if (reopened.error) return res.status(400).json({ message: reopened.error.message });
+    return res.json(mapAlerteRow(reopened.data));
   } catch (err) {
     return res.status(400).json({ message: err.message });
   }
@@ -668,6 +694,7 @@ router.put('/:id/fait', requirePermission('alertes.mark_done'), async (req, res)
     if (!updated.data) return res.status(404).json({ message: 'Alerte non trouvée' });
 
     // Tâche périodique : on recrée automatiquement la prochaine occurrence (comme Outlook/Teams).
+    let prochaineId = null;
     const recurrence = (updated.data.recurrence || 'aucune').toString();
     if (recurrence !== 'aucune') {
       const prochaine = nextEcheance(updated.data.date_echeance, recurrence, updated.data.recurrence_config || {});
@@ -680,7 +707,7 @@ router.put('/:id/fait', requirePermission('alertes.mark_done'), async (req, res)
             prochaineFin = new Date(prochaine.getTime() + duree).toISOString();
           }
         }
-        await api.from('alertes').insert({
+        const next = await writeWithOptionalColumns((p) => api.from('alertes').insert(p).select('id').single(), {
           company_id: companyId,
           titre: updated.data.titre,
           message: updated.data.message,
@@ -695,12 +722,17 @@ router.put('/:id/fait', requirePermission('alertes.mark_done'), async (req, res)
           priorite: updated.data.priorite || 'moyenne',
           source: updated.data.source || 'todo',
           automatique: false,
+          assigne_a: updated.data.assigne_a || '',
+          checklist: resetChecklist(updated.data.checklist),
+          progression: 'a_faire',
           updated_at: new Date().toISOString(),
-        });
+        }, PLANNER_COLUMNS);
+        prochaineId = next.data?.id || null;
       }
     }
 
-    return res.json(mapAlerteRow(updated.data));
+    // prochaineId permet à l'application d'annuler proprement (rouvrir + supprimer l'occurrence créée).
+    return res.json({ ...mapAlerteRow(updated.data), prochaineId });
   } catch (err) {
     return res.status(400).json({ message: err.message });
   }

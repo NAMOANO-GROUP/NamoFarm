@@ -1,16 +1,43 @@
 import 'package:flutter/material.dart';
-import '../widgets/brand_logo.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
-import '../providers/alertes_provider.dart';
 import '../models/alerte.dart';
+import '../models/bande.dart';
+import '../providers/alertes_provider.dart';
+import '../providers/crm_provider.dart';
 import '../services/api_service.dart';
+import '../utils/crm_labels.dart';
 import '../utils/csv_export.dart';
-import '../widgets/iso_calendar_picker.dart';
-import '../widgets/filter_styles.dart';
-import '../widgets/recurrence_picker.dart';
+import '../utils/todo.dart';
+import '../widgets/brand_logo.dart';
+import '../widgets/crm/kanban_board.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/todo/todo_card.dart';
 import '../widgets/week_calendar_view.dart';
+import 'bande_dashboard_screen.dart';
+import 'commandes_screen.dart';
+import 'crm/crm_common.dart';
+import 'crm/tache_dialog.dart';
+import 'stocks_screen.dart';
+import 'todo/todo_charts.dart';
+import 'todo/todo_dialog.dart';
+import 'todo/todo_modeles_sheet.dart';
 
+enum _Vue { liste, tableau, planning, graphiques }
+
+enum _Groupe { echeance, avancement, categorie, bande }
+
+const _groupeLabels = {
+  _Groupe.echeance: 'Par échéance',
+  _Groupe.avancement: 'Par avancement',
+  _Groupe.categorie: 'Par catégorie',
+  _Groupe.bande: 'Par bande',
+};
+
+/// Catégories toujours proposées comme colonnes du tableau « par catégorie ».
+const _categoriesTableau = ['vaccination', 'medicament', 'alimentation', 'pesee', 'stock_bas', 'vente', 'autre'];
+
+/// Todo façon Microsoft Planner : vues Liste / Tableau / Planning / Graphiques,
+/// ajout rapide, filtres, gestes de glissement, modèles de plan.
 class AlertesScreen extends StatefulWidget {
   const AlertesScreen({super.key});
 
@@ -19,58 +46,207 @@ class AlertesScreen extends StatefulWidget {
 }
 
 class _AlertesScreenState extends State<AlertesScreen> {
-  bool _showHistory = false;
-  bool _vueSemaine = false;
-  String _dateFilter = 'all';
-  DateTime? _selectedDate;
-  DateTimeRange? _selectedRange;
-
-  static const List<Map<String, String>> _dateFilterOptions = [
-    {'value': 'all', 'label': 'Toutes les dates'},
-    {'value': 'tomorrow', 'label': 'Demain'},
-    {'value': 'date', 'label': 'Date précise'},
-    {'value': 'range', 'label': 'Intervalle'},
-  ];
-
-  static const List<Map<String, String>> _periodOptions = [
-    {'value': 'today', 'label': 'Ma journée'},
-    {'value': 'week', 'label': 'Cette semaine'},
-    {'value': 'month', 'label': 'Ce mois'},
-    {'value': 'all', 'label': 'Toutes les tâches'},
-  ];
+  _Vue _vue = _Vue.liste;
+  _Groupe _groupe = _Groupe.echeance;
+  TodoFiltre _filtre = TodoFiltre.tout;
+  bool _mesTaches = false;
+  bool _showTerminees = false;
+  final TextEditingController _quick = TextEditingController();
+  int _quickJour = 0;
+  List<Bande> _bandes = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AlertesProvider>().chargerAlertes(period: 'all');
-      context.read<AlertesProvider>().chargerAlertesAutomatiques();
-      context.read<AlertesProvider>().chargerHistoriqueAlertes();
-      context.read<AlertesProvider>().chargerHistoriqueAlertesAutomatiques();
+      final provider = context.read<AlertesProvider>();
+      provider.chargerAlertes(period: 'all');
+      provider.chargerAlertesAutomatiques();
+      provider.chargerHistoriqueAlertes();
+      provider.chargerHistoriqueAlertesAutomatiques();
+      chargerBandesOuvertes().then((b) {
+        if (mounted) setState(() => _bandes = b);
+      });
     });
   }
 
-  bool _sameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+  @override
+  void dispose() {
+    _quick.dispose();
+    super.dispose();
   }
 
-  bool _matchesDateFilter(Alerte alerte) {
-    final d = alerte.dateEcheance;
-    if (_dateFilter == 'all') return true;
-    if (_dateFilter == 'tomorrow') {
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
-      return _sameDay(d, tomorrow);
-    }
-    if (_dateFilter == 'date' && _selectedDate != null) {
-      return _sameDay(d, _selectedDate!);
-    }
-    if (_dateFilter == 'range' && _selectedRange != null) {
-      final start = DateTime(_selectedRange!.start.year, _selectedRange!.start.month, _selectedRange!.start.day);
-      final end = DateTime(_selectedRange!.end.year, _selectedRange!.end.month, _selectedRange!.end.day, 23, 59, 59);
-      return !d.isBefore(start) && !d.isAfter(end);
-    }
-    return true;
+  // ---------- Actions ----------
+
+  Future<void> _ajoutRapide() async {
+    final titre = _quick.text.trim();
+    if (titre.isEmpty) return;
+    final provider = context.read<AlertesProvider>();
+    final today = DateUtils.dateOnly(DateTime.now());
+    final jour = _quickJour == 7 ? today.add(Duration(days: 8 - today.weekday)) : today.add(Duration(days: _quickJour));
+    _quick.clear();
+    final ok = await provider.creerAlerte({
+      'titre': titre,
+      'message': '',
+      'type': 'autre',
+      'priorite': 'moyenne',
+      'recurrence': 'aucune',
+      'recurrenceConfig': const <String, dynamic>{},
+      'dateEcheance': jour.toIso8601String(),
+      'dateFin': DateTime(jour.year, jour.month, jour.day, 23, 59).toIso8601String(),
+      'touteJournee': true,
+      'assigneA': currentUserName(context),
+      'source': 'todo',
+    });
+    if (mounted) showCrmSnack(context, ok ? 'Tâche ajoutée · ${relativeDay(jour).toLowerCase()}' : "Impossible d'ajouter la tâche");
   }
+
+  Future<void> _terminer(Alerte a) async {
+    final provider = context.read<AlertesProvider>();
+    if (!a.modifiable) {
+      final ok = await provider.marquerFaite(a);
+      if (mounted) showCrmSnack(context, ok ? 'Alerte traitée' : 'Mise à jour impossible');
+      return;
+    }
+    final res = await provider.terminer(a);
+    if (!mounted) return;
+    final recurrente = a.recurrence != 'aucune' && a.recurrence.isNotEmpty;
+    showCrmSnack(
+      context,
+      !res.ok ? 'Mise à jour impossible' : (recurrente ? 'Tâche terminée · prochaine occurrence planifiée' : 'Tâche terminée 🎉'),
+      action: res.ok
+          ? SnackBarAction(
+              label: 'Annuler',
+              onPressed: () async {
+                final undone = await provider.rouvrir(a, prochaineId: res.prochaineId);
+                if (!undone && mounted) showCrmSnack(context, "Impossible d'annuler, la tâche reste terminée");
+              },
+            )
+          : null,
+    );
+  }
+
+  Future<void> _rouvrir(Alerte a) async {
+    if (!a.modifiable) return;
+    final ok = await context.read<AlertesProvider>().rouvrir(a);
+    if (mounted) showCrmSnack(context, ok ? 'Tâche rouverte' : 'Mise à jour impossible');
+  }
+
+  Future<void> _reporter(Alerte a) async {
+    final provider = context.read<AlertesProvider>();
+    final ok = await provider.reporterADemain(a);
+    if (!mounted) return;
+    final deplacee = a.copyWith(
+      dateEcheance: a.dateEcheance.add(const Duration(days: 1)),
+      dateFin: a.dateFin?.add(const Duration(days: 1)),
+    );
+    showCrmSnack(
+      context,
+      ok ? 'Reportée à ${relativeDay(deplacee.dateEcheance).toLowerCase()}' : 'Report impossible',
+      action: ok ? SnackBarAction(label: 'Annuler', onPressed: () => provider.changerEcheance(deplacee, a.dateEcheance)) : null,
+    );
+  }
+
+  bool _hasSource(Alerte a) =>
+      a.automatique && const ['crm_tache', 'stock', 'commercial', 'sanitaire', 'planification'].contains(a.source);
+
+  Future<void> _ouvrirSource(Alerte a) async {
+    final navigator = Navigator.of(context);
+    switch (a.source) {
+      case 'crm_tache':
+        final crm = context.read<CrmProvider>();
+        if (crm.taches.isEmpty) await crm.chargerTachesCrm();
+        final tache = crm.taches.where((t) => t.id == a.crmTacheId).firstOrNull;
+        if (!mounted) return;
+        if (tache == null) {
+          showCrmSnack(context, 'Relance CRM introuvable');
+        } else {
+          await showTacheDialog(context, tache: tache);
+          if (mounted) context.read<AlertesProvider>().chargerAlertesAutomatiques();
+        }
+      case 'stock':
+        navigator.push(MaterialPageRoute(builder: (_) => const StocksScreen()));
+      case 'commercial':
+        navigator.push(MaterialPageRoute(builder: (_) => const CommandesScreen()));
+      default:
+        final bande = _bandes.where((b) => b.id == a.bandeId).firstOrNull;
+        if (bande == null) {
+          showCrmSnack(context, 'Bande introuvable');
+        } else {
+          navigator.push(MaterialPageRoute(builder: (_) => BandeDashboardScreen(bande: bande)));
+        }
+    }
+  }
+
+  void _ouvrir(Alerte a) {
+    if (!a.modifiable && _hasSource(a)) {
+      _ouvrirSource(a);
+    } else {
+      showTodoDialog(context, alerte: a);
+    }
+  }
+
+  Future<void> _effacerHistorique() async {
+    final provider = context.read<AlertesProvider>();
+    final ok = await confirmAction(
+      context,
+      title: "Effacer l'historique",
+      message: 'Supprimer définitivement toutes les tâches terminées ?',
+      confirmLabel: 'Effacer',
+      destructive: true,
+    );
+    if (!ok) return;
+    final done = await provider.effacerHistorique();
+    if (mounted) showCrmSnack(context, done ? 'Historique effacé' : "Impossible d'effacer l'historique");
+  }
+
+  void _autoNonModifiable() =>
+      showCrmSnack(context, 'Tâche automatique : ouvrez-la ou convertissez-la en tâche pour la déplacer.');
+
+  // ---------- Construction ----------
+
+  Widget _card(Alerte a, {bool compact = false}) => TodoCard(
+        alerte: a,
+        compact: compact,
+        onToggleDone: a.estFaite ? () => _rouvrir(a) : () => _terminer(a),
+        onTap: () => _ouvrir(a),
+        onOpenSource: _hasSource(a) ? () => _ouvrirSource(a) : null,
+      );
+
+  /// Glisser à droite : terminer ; glisser à gauche : reporter à demain.
+  Widget _swipe(Alerte a) {
+    return Dismissible(
+      key: ValueKey('todo-${a.id ?? a.titre}-${a.dateEcheance.toIso8601String()}'),
+      direction: a.modifiable ? DismissDirection.horizontal : DismissDirection.startToEnd,
+      confirmDismiss: (dir) async {
+        if (dir == DismissDirection.startToEnd) {
+          await _terminer(a);
+        } else {
+          await _reporter(a);
+        }
+        // La liste est mise à jour par le provider : on ne retire pas la carte nous-mêmes.
+        return false;
+      },
+      background: _swipeBg(Colors.green, Icons.check, 'Terminer', Alignment.centerLeft),
+      secondaryBackground: _swipeBg(Colors.blue, Icons.next_plan_outlined, 'Demain', Alignment.centerRight),
+      child: _card(a),
+    );
+  }
+
+  Widget _swipeBg(Color color, IconData icon, String label, Alignment align) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(12)),
+        alignment: align,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -80,238 +256,67 @@ class _AlertesScreenState extends State<AlertesScreen> {
         title: const Text('Todo list'),
         actions: [
           IconButton(
-            tooltip: _vueSemaine ? 'Vue liste' : 'Vue semaine',
-            icon: Icon(_vueSemaine ? Icons.view_list_outlined : Icons.calendar_view_week_outlined),
-            onPressed: () => setState(() => _vueSemaine = !_vueSemaine),
+            tooltip: 'Modèles de plan',
+            icon: const Icon(Icons.library_add_check_outlined),
+            onPressed: () => showTodoModelesSheet(context),
+          ),
+          Consumer<AlertesProvider>(
+            builder: (context, provider, _) {
+              final hasHistorique = provider.historiqueAlertes.isNotEmpty || provider.historiqueAlertesAutomatiques.isNotEmpty;
+              return PopupMenuButton<String>(
+                tooltip: 'Plus d’actions',
+                onSelected: (v) {
+                  switch (v) {
+                    case 'refresh':
+                      provider.chargerTout();
+                    case 'export':
+                      exportCsvToClipboard(context, loader: ApiService.exportHistoriqueAlertesCsv, label: 'Historique alertes');
+                    case 'clear':
+                      _effacerHistorique();
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'refresh', child: Text('Actualiser')),
+                  PopupMenuItem(value: 'export', enabled: hasHistorique, child: const Text("Exporter l'historique (CSV)")),
+                  PopupMenuItem(value: 'clear', enabled: hasHistorique, child: const Text("Effacer l'historique")),
+                ],
+              );
+            },
           ),
         ],
       ),
       body: Consumer<AlertesProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        builder: (context, provider, _) {
+          final me = currentUserName(context);
+          final ouvertes = [...provider.alertes, ...provider.alertesAutomatiques];
+          final terminees = [...provider.historiqueAlertes, ...provider.historiqueAlertesAutomatiques]
+            ..sort((a, b) => b.dateEcheance.compareTo(a.dateEcheance));
+          final visibles = filtrerTodo(ouvertes, _filtre, mesTaches: _mesTaches, me: me);
+          final loading = provider.isLoading && ouvertes.isEmpty && terminees.isEmpty;
 
-          final maintenant = DateTime.now();
-          final base = [...provider.alertes, ...provider.alertesAutomatiques];
-          final historique = [...provider.historiqueAlertes, ...provider.historiqueAlertesAutomatiques];
-
-          if (_vueSemaine) {
-            return WeekCalendarView(
-              alertes: base,
-              onTap: (a) {
-                if (!a.automatique && a.id != null) _showModifierAlerteDialog(a);
-              },
-              onMove: (a, newStart) async {
-                if (a.automatique || a.id == null) return;
-                final duree = (a.dateFin ?? a.dateEcheance.add(const Duration(hours: 1))).difference(a.dateEcheance);
-                final newFin = newStart.add(duree.inMinutes > 0 ? duree : const Duration(hours: 1));
-                final prov = context.read<AlertesProvider>();
-                await prov.mettreAJourAlerte(a.id!, {
-                  'dateEcheance': newStart.toIso8601String(),
-                  'dateFin': newFin.toIso8601String(),
-                });
-                await prov.chargerAlertes(period: 'all');
-              },
-            );
-          }
-
-          final filtered = base.where(_matchesDateFilter).toList()
-            ..sort((a, b) => a.dateEcheance.compareTo(b.dateEcheance));
-
-          final enRetard = filtered.where((a) => a.dateEcheance.isBefore(maintenant)).toList();
-          final aVenir = filtered.where((a) => !a.dateEcheance.isBefore(maintenant)).toList();
-          final isEmpty = base.isEmpty && historique.isEmpty;
-
-          return ListView(
-            padding: const EdgeInsets.all(12),
+          return Column(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _dateFilter,
-                      isExpanded: true,
-                      isDense: true,
-                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                      decoration: const InputDecoration(
-                        labelText: 'Date',
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      ),
-                      items: _dateFilterOptions
-                          .map(
-                            (opt) => DropdownMenuItem<String>(
-                              value: opt['value'],
-                              child: Text(opt['label'] ?? '', style: kFilterTextStyle),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) async {
-                        if (value == null) return;
-                        if (value == 'date') {
-                          final picked = await showIsoDatePicker(
-                            context: context,
-                            initialDate: _selectedDate ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _selectedDate = picked;
-                              _dateFilter = 'date';
-                            });
-                          }
-                          return;
-                        }
-                        if (value == 'range') {
-                          final picked = await showIsoDateRangePicker(
-                            context: context,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                            initialDateRange: _selectedRange,
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _selectedRange = picked;
-                              _dateFilter = 'range';
-                            });
-                          }
-                          return;
-                        }
-                        setState(() => _dateFilter = value);
+              _toolbar(),
+              if (_vue == _Vue.liste || _vue == _Vue.tableau) ...[
+                _quickAdd(),
+                _filtres(ouvertes, me),
+              ],
+              if (loading) const LinearProgressIndicator(minHeight: 2),
+              Expanded(
+                child: switch (_vue) {
+                  _Vue.liste => _liste(visibles, terminees, ouvertes.isEmpty && terminees.isEmpty),
+                  _Vue.tableau => _tableau(visibles, terminees),
+                  _Vue.planning => WeekCalendarView(
+                      alertes: ouvertes,
+                      onTap: _ouvrir,
+                      onMove: (a, newStart) async {
+                        if (!a.modifiable) return _autoNonModifiable();
+                        await provider.changerEcheance(a, newStart);
                       },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: provider.todoPeriod,
-                      isExpanded: true,
-                      isDense: true,
-                      style: kFilterTextStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
-                      decoration: const InputDecoration(
-                        labelText: 'Période',
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      ),
-                      items: _periodOptions
-                          .map(
-                            (opt) => DropdownMenuItem<String>(
-                              value: opt['value'],
-                              child: Text(opt['label'] ?? '', style: kFilterTextStyle),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          provider.chargerAlertes(period: value);
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                  _Vue.graphiques => TodoChartsView(ouvertes: ouvertes, terminees: terminees),
+                },
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: IconButton.filled(
-                    tooltip: 'Nouvelle tâche',
-                    onPressed: () => _showAjouterAlerteDialog(),
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.add_alert, size: 18),
-                  ),
-                ),
-              ),
-              if (_dateFilter == 'date' && _selectedDate != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text('Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}'),
-                ),
-              if (_dateFilter == 'range' && _selectedRange != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text('Du ${DateFormat('dd/MM').format(_selectedRange!.start)} au ${DateFormat('dd/MM').format(_selectedRange!.end)}'),
-                ),
-              const SizedBox(height: 12),
-              if (historique.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => exportCsvToClipboard(
-                          context,
-                          loader: ApiService.exportHistoriqueAlertesCsv,
-                          label: 'Historique alertes',
-                        ),
-                        icon: const Icon(Icons.download_outlined),
-                        label: const Text('Exporter CSV'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => context.read<AlertesProvider>().effacerHistorique(),
-                        icon: const Icon(Icons.delete_sweep),
-                        label: const Text('Effacer historique'),
-                      ),
-                    ],
-                  ),
-                ),
-              if (historique.isNotEmpty) const SizedBox(height: 8),
-              if (isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 48),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text('Aucune tâche active', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                ),
-              if (enRetard.isNotEmpty) ...[
-                Row(
-                  children: [
-                    const Icon(Icons.warning, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Text('En retard (${enRetard.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ...enRetard.map((a) => _buildAlerteCard(a, enRetard: true)),
-                const SizedBox(height: 16),
-              ],
-              if (aVenir.isNotEmpty) ...[
-                Row(
-                  children: [
-                    const Icon(Icons.schedule, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Text('À venir (${aVenir.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ...aVenir.map((a) => _buildAlerteCard(a, enRetard: false)),
-              ],
-              if (historique.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                ExpansionTile(
-                  initiallyExpanded: _showHistory,
-                  onExpansionChanged: (expanded) => setState(() => _showHistory = expanded),
-                  leading: const Icon(Icons.history, color: Colors.blueGrey),
-                  title: Text('Historique (${historique.length})'),
-                  children: [
-                    ...historique.map((a) => _buildAlerteCard(a, enRetard: false, allowComplete: false)),
-                  ],
-                ),
-              ],
             ],
           );
         },
@@ -319,485 +324,274 @@ class _AlertesScreenState extends State<AlertesScreen> {
     );
   }
 
-  Widget _buildAlerteCard(Alerte alerte, {required bool enRetard, bool allowComplete = true}) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    Color prioriteColor;
-    switch (alerte.priorite) {
-      case 'urgente':
-        prioriteColor = Colors.red;
-        break;
-      case 'haute':
-        prioriteColor = Colors.orange;
-        break;
-      case 'moyenne':
-        prioriteColor = Colors.blue;
-        break;
-      default:
-        prioriteColor = Colors.grey;
-    }
-
-    final done = !allowComplete; // historique = déjà faite
-    final canEdit = !alerte.automatique && alerte.id != null;
-    final dateColor = enRetard ? Colors.red.shade400 : scheme.onSurfaceVariant;
-    final hasRecurrence = alerte.recurrence != 'aucune' && alerte.recurrence.isNotEmpty;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: canEdit ? () => _showModifierAlerteDialog(alerte) : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 6),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.22 : 0.45),
-            borderRadius: BorderRadius.circular(12),
+  Widget _toolbar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Row(
+        children: [
+          SegmentedButton<_Vue>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: _Vue.liste, icon: Icon(Icons.view_list_outlined), tooltip: 'Liste'),
+              ButtonSegment(value: _Vue.tableau, icon: Icon(Icons.view_kanban_outlined), tooltip: 'Tableau'),
+              ButtonSegment(value: _Vue.planning, icon: Icon(Icons.calendar_view_week_outlined), tooltip: 'Planning'),
+              ButtonSegment(value: _Vue.graphiques, icon: Icon(Icons.insights_outlined), tooltip: 'Graphiques'),
+            ],
+            selected: {_vue},
+            onSelectionChanged: (v) => setState(() => _vue = v.first),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          const Spacer(),
+          IconButton.filled(
+            tooltip: 'Nouvelle tâche',
+            onPressed: () => showTodoDialog(context),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add_task, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickAdd() {
+    const jours = {0: "Aujourd'hui", 1: 'Demain', 7: 'Semaine prochaine'};
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Column(
+        children: [
+          TextField(
+            controller: _quick,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _ajoutRapide(),
+            decoration: InputDecoration(
+              hintText: 'Ajouter une tâche…',
+              prefixIcon: const Icon(Icons.add),
+              suffixIcon: IconButton(tooltip: 'Ajouter', icon: const Icon(Icons.keyboard_return), onPressed: _ajoutRapide),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
               children: [
-                // Barre d'accent = priorité.
-                Container(width: 4, color: prioriteColor),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-                  child: Tooltip(
-                    message: done ? 'Tâche faite' : 'Marquer comme faite',
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: (allowComplete && alerte.id != null)
-                          ? () => context.read<AlertesProvider>().marquerFaite(alerte)
-                          : null,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: done ? Colors.green : Colors.transparent,
-                          border: Border.all(color: done ? Colors.green : prioriteColor, width: 2),
-                        ),
-                        child: done ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(_typeIcon(alerte.type), size: 16, color: prioriteColor),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                alerte.titre,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14.5,
-                                  decoration: done ? TextDecoration.lineThrough : null,
-                                  color: done ? scheme.onSurfaceVariant : null,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Icon(enRetard ? Icons.event_busy_outlined : Icons.event_outlined, size: 13, color: dateColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              dateFormat.format(alerte.dateEcheance),
-                              style: TextStyle(fontSize: 12, color: dateColor, fontWeight: enRetard ? FontWeight.w700 : FontWeight.w500),
-                            ),
-                            if (hasRecurrence) ...[
-                              Text('  •  ', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                              Icon(Icons.repeat, size: 12, color: Colors.indigo.shade300),
-                              const SizedBox(width: 3),
-                              Flexible(
-                                child: Text(
-                                  recurrenceSummary(alerte.recurrence, alerte.recurrenceConfig),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (alerte.message.trim().isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            alerte.message.trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (canEdit)
+                for (final e in jours.entries)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8, left: 2),
-                    child: Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _typeIcon(String type) {
-    switch (type) {
-      case 'vaccination': return Icons.vaccines;
-      case 'alimentation': return Icons.restaurant;
-      case 'stock_bas': return Icons.inventory;
-      case 'vente': return Icons.sell;
-      case 'medicament': return Icons.medication;
-      case 'controle_sanitaire': return Icons.health_and_safety;
-      case 'pesee': return Icons.monitor_weight;
-      case 'intervention_diverse': return Icons.build_circle;
-      default: return Icons.notifications;
-    }
-  }
-
-  DateTime _defaultDebut() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day + 1, 8);
-  }
-
-  String _fmtDateTime(DateTime d, bool allDay) {
-    return allDay ? DateFormat('dd/MM/yyyy').format(d) : DateFormat('dd/MM/yyyy HH:mm').format(d);
-  }
-
-  Future<DateTime?> _pickDateTime(DateTime initial, bool allDay) async {
-    final date = await showIsoDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 3650)),
-    );
-    if (date == null || !mounted) return null;
-    if (allDay) return DateTime(date.year, date.month, date.day);
-    final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(initial));
-    final tt = t ?? TimeOfDay.fromDateTime(initial);
-    return DateTime(date.year, date.month, date.day, tt.hour, tt.minute);
-  }
-
-  // Calcule les échéances début/fin finales selon la récurrence et le mode "toute la journée".
-  ({DateTime debut, DateTime fin}) _computeEcheances(
-      String rec, Map<String, dynamic> config, DateTime debut, DateTime fin, bool allDay) {
-    if (rec != 'aucune' && rec != 'quotidien') {
-      final first = computeFirstEcheance(rec, config, debut);
-      final d = allDay
-          ? DateTime(first.year, first.month, first.day)
-          : DateTime(first.year, first.month, first.day, debut.hour, debut.minute);
-      final durMin = fin.difference(debut).inMinutes;
-      final f = allDay
-          ? DateTime(first.year, first.month, first.day, 23, 59)
-          : d.add(Duration(minutes: durMin > 0 ? durMin : 60));
-      return (debut: d, fin: f);
-    }
-    final d = allDay ? DateTime(debut.year, debut.month, debut.day) : debut;
-    final f = allDay
-        ? DateTime(fin.year, fin.month, fin.day, 23, 59)
-        : (fin.isAfter(d) ? fin : d.add(const Duration(hours: 1)));
-    return (debut: d, fin: f);
-  }
-
-  void _showAjouterAlerteDialog() {
-    final titreCtrl = TextEditingController();
-    final messageCtrl = TextEditingController();
-    String selectedType = 'vaccination';
-    String selectedPriorite = 'moyenne';
-    String selectedRecurrence = 'aucune';
-    Map<String, dynamic> recurrenceConfig = {};
-    bool touteJournee = false;
-    DateTime debut = _defaultDebut();
-    DateTime fin = _defaultDebut().add(const Duration(hours: 1));
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nouvelle tâche'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titreCtrl, decoration: const InputDecoration(labelText: 'Titre *')),
-                TextField(controller: messageCtrl, decoration: const InputDecoration(labelText: 'Message')),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  items: const [
-                    DropdownMenuItem(value: 'vaccination', child: Text('Vaccination')),
-                    DropdownMenuItem(value: 'alimentation', child: Text('Alimentation')),
-                    DropdownMenuItem(value: 'stock_bas', child: Text('Stock bas')),
-                    DropdownMenuItem(value: 'vente', child: Text('Vente')),
-                    DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
-                  ],
-                  onChanged: (v) => setDialogState(() => selectedType = v!),
-                  decoration: const InputDecoration(labelText: 'Type'),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedPriorite,
-                  items: const [
-                    DropdownMenuItem(value: 'basse', child: Text('Basse')),
-                    DropdownMenuItem(value: 'moyenne', child: Text('Moyenne')),
-                    DropdownMenuItem(value: 'haute', child: Text('Haute')),
-                    DropdownMenuItem(value: 'urgente', child: Text('Urgente')),
-                  ],
-                  onChanged: (v) => setDialogState(() => selectedPriorite = v!),
-                  decoration: const InputDecoration(labelText: 'Priorité'),
-                ),
-                const SizedBox(height: 8),
-                RecurrencePicker(
-                  recurrence: selectedRecurrence,
-                  config: recurrenceConfig,
-                  onChanged: (r, c) => setDialogState(() {
-                    selectedRecurrence = r;
-                    recurrenceConfig = c;
-                  }),
-                ),
-                const SizedBox(height: 4),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Toute la journée'),
-                  value: touteJournee,
-                  onChanged: (v) => setDialogState(() => touteJournee = v),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Début'),
-                  subtitle: Text(_fmtDateTime(debut, touteJournee)),
-                  trailing: const Icon(Icons.schedule),
-                  onTap: () async {
-                    final picked = await _pickDateTime(debut, touteJournee);
-                    if (picked != null) {
-                      setDialogState(() {
-                        debut = picked;
-                        if (!fin.isAfter(debut)) fin = debut.add(const Duration(hours: 1));
-                      });
-                    }
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Fin'),
-                  subtitle: Text(_fmtDateTime(fin, touteJournee)),
-                  trailing: const Icon(Icons.schedule),
-                  onTap: () async {
-                    final picked = await _pickDateTime(fin, touteJournee);
-                    if (picked != null) setDialogState(() => fin = picked);
-                  },
-                ),
-                if (selectedRecurrence != 'aucune' && selectedRecurrence != 'quotidien')
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4, left: 4),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('La date de début s\'aligne sur la récurrence ; l\'heure est conservée.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      avatar: const Icon(Icons.event_outlined, size: 14),
+                      label: Text(e.value, style: const TextStyle(fontSize: 12)),
+                      selected: _quickJour == e.key,
+                      onSelected: (_) => setState(() => _quickJour = e.key),
                     ),
                   ),
               ],
             ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                if (titreCtrl.text.isEmpty) return;
-                Navigator.pop(ctx);
-                final e = _computeEcheances(selectedRecurrence, recurrenceConfig, debut, fin, touteJournee);
-                context.read<AlertesProvider>().creerAlerte({
-                  'titre': titreCtrl.text,
-                  'message': messageCtrl.text,
-                  'type': selectedType,
-                  'priorite': selectedPriorite,
-                  'recurrence': selectedRecurrence,
-                  'recurrenceConfig': recurrenceConfig,
-                  'dateEcheance': e.debut.toIso8601String(),
-                  'dateFin': e.fin.toIso8601String(),
-                  'touteJournee': touteJournee,
-                });
-              },
-              child: const Text('Créer'),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  void _showModifierAlerteDialog(Alerte alerte) {
-    if (alerte.id == null) return;
-
-    final titreCtrl = TextEditingController(text: alerte.titre);
-    final messageCtrl = TextEditingController(text: alerte.message);
-    String selectedType = alerte.type;
-    String selectedPriorite = alerte.priorite;
-    String selectedRecurrence = alerte.recurrence.isEmpty ? 'aucune' : alerte.recurrence;
-    Map<String, dynamic> recurrenceConfig = Map<String, dynamic>.from(alerte.recurrenceConfig);
-    bool touteJournee = alerte.touteJournee;
-    DateTime debut = alerte.dateEcheance;
-    DateTime fin = alerte.dateFin ?? alerte.dateEcheance.add(const Duration(hours: 1));
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Modifier tâche'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titreCtrl, decoration: const InputDecoration(labelText: 'Titre *')),
-                TextField(controller: messageCtrl, decoration: const InputDecoration(labelText: 'Message')),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  items: const [
-                    DropdownMenuItem(value: 'vaccination', child: Text('Vaccination')),
-                    DropdownMenuItem(value: 'alimentation', child: Text('Alimentation')),
-                    DropdownMenuItem(value: 'stock_bas', child: Text('Stock bas')),
-                    DropdownMenuItem(value: 'vente', child: Text('Vente')),
-                    DropdownMenuItem(value: 'medicament', child: Text('Médicament')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
-                  ],
-                  onChanged: (v) => setDialogState(() => selectedType = v ?? selectedType),
-                  decoration: const InputDecoration(labelText: 'Type'),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedPriorite,
-                  items: const [
-                    DropdownMenuItem(value: 'basse', child: Text('Basse')),
-                    DropdownMenuItem(value: 'moyenne', child: Text('Moyenne')),
-                    DropdownMenuItem(value: 'haute', child: Text('Haute')),
-                    DropdownMenuItem(value: 'urgente', child: Text('Urgente')),
-                  ],
-                  onChanged: (v) => setDialogState(() => selectedPriorite = v ?? selectedPriorite),
-                  decoration: const InputDecoration(labelText: 'Priorité'),
-                ),
-                const SizedBox(height: 8),
-                RecurrencePicker(
-                  recurrence: selectedRecurrence,
-                  config: recurrenceConfig,
-                  onChanged: (r, c) => setDialogState(() {
-                    selectedRecurrence = r;
-                    recurrenceConfig = c;
-                  }),
-                ),
-                const SizedBox(height: 4),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Toute la journée'),
-                  value: touteJournee,
-                  onChanged: (v) => setDialogState(() => touteJournee = v),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Début'),
-                  subtitle: Text(_fmtDateTime(debut, touteJournee)),
-                  trailing: const Icon(Icons.schedule),
-                  onTap: () async {
-                    final picked = await _pickDateTime(debut, touteJournee);
-                    if (picked != null) {
-                      setDialogState(() {
-                        debut = picked;
-                        if (!fin.isAfter(debut)) fin = debut.add(const Duration(hours: 1));
-                      });
-                    }
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Fin'),
-                  subtitle: Text(_fmtDateTime(fin, touteJournee)),
-                  trailing: const Icon(Icons.schedule),
-                  onTap: () async {
-                    final picked = await _pickDateTime(fin, touteJournee);
-                    if (picked != null) setDialogState(() => fin = picked);
-                  },
-                ),
-                if (selectedRecurrence != 'aucune' && selectedRecurrence != 'quotidien')
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4, left: 4),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('La date de début s\'aligne sur la récurrence ; l\'heure est conservée.', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    ),
-                  ),
-              ],
-            ),
+  Widget _filtres(List<Alerte> ouvertes, String me) {
+    int count(TodoFiltre f) => filtrerTodo(ouvertes, f, mesTaches: _mesTaches, me: me).length;
+    return SizedBox(
+      height: 46,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+        children: [
+          FilterChip(
+            avatar: const Icon(Icons.person_pin_outlined, size: 16),
+            label: const Text('Mes tâches'),
+            selected: _mesTaches,
+            onSelected: (v) => setState(() => _mesTaches = v),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () async {
-                if (titreCtrl.text.trim().isEmpty) return;
-                final navigator = Navigator.of(ctx);
-                final messenger = ScaffoldMessenger.of(this.context);
-                final provider = context.read<AlertesProvider>();
-                bool ok;
-                final e = _computeEcheances(selectedRecurrence, recurrenceConfig, debut, fin, touteJournee);
-                if (alerte.automatique) {
-                  // Automatic alerts are generated by rules; convert to a manual editable task.
-                  ok = await provider.creerAlerte({
-                    'titre': titreCtrl.text.trim(),
-                    'message': messageCtrl.text.trim(),
-                    'type': selectedType,
-                    'priorite': selectedPriorite,
-                    'recurrence': selectedRecurrence,
-                    'recurrenceConfig': recurrenceConfig,
-                    'dateEcheance': e.debut.toIso8601String(),
-                    'dateFin': e.fin.toIso8601String(),
-                    'touteJournee': touteJournee,
-                    'source': 'todo',
-                    'automatique': false,
-                  });
-                  if (ok) {
-                    await provider.marquerFaite(alerte);
-                  }
-                } else {
-                  ok = await provider.mettreAJourAlerte(
-                    alerte.id!,
-                    {
-                      'titre': titreCtrl.text.trim(),
-                      'message': messageCtrl.text.trim(),
-                      'type': selectedType,
-                      'priorite': selectedPriorite,
-                      'recurrence': selectedRecurrence,
-                      'recurrenceConfig': recurrenceConfig,
-                      'dateEcheance': e.debut.toIso8601String(),
-                      'dateFin': e.fin.toIso8601String(),
-                      'touteJournee': touteJournee,
-                    },
-                  );
-                }
-                if (!mounted) return;
-                navigator.pop();
-                messenger.showSnackBar(
-                  SnackBar(content: Text(ok
-                      ? (alerte.automatique ? 'Alerte convertie en tâche modifiable' : 'Tâche modifiée')
-                      : 'Erreur modification tâche')),
-                );
-              },
-              child: Text(alerte.automatique ? 'Convertir en tâche' : 'Enregistrer'),
+          const SizedBox(width: 6),
+          for (final f in TodoFiltre.values) ...[
+            ChoiceChip(
+              label: Text('${todoFiltreLabels[f]} · ${count(f)}'),
+              selected: _filtre == f,
+              onSelected: (_) => setState(() => _filtre = f),
             ),
+            const SizedBox(width: 6),
           ],
-        ),
+          if (_vue == _Vue.tableau) ...[
+            const VerticalDivider(width: 12),
+            for (final g in _Groupe.values) ...[
+              ChoiceChip(
+                avatar: const Icon(Icons.view_column_outlined, size: 16),
+                label: Text(_groupeLabels[g]!),
+                selected: _groupe == g,
+                onSelected: (_) => setState(() => _groupe = g),
+              ),
+              const SizedBox(width: 6),
+            ],
+          ],
+        ],
       ),
     );
+  }
+
+  // ---------- Vue Liste ----------
+
+  Widget _liste(List<Alerte> visibles, List<Alerte> terminees, bool vide) {
+    if (vide) {
+      return EmptyState(
+        icon: Icons.task_alt,
+        title: 'Aucune tâche',
+        subtitle: 'Ajoutez une tâche ci-dessus ou partez d’un modèle de plan.',
+        actionLabel: 'Modèles de plan',
+        actionIcon: Icons.library_add_check_outlined,
+        onAction: () => showTodoModelesSheet(context),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => context.read<AlertesProvider>().chargerTout(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+        children: [
+          if (visibles.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: Text('Rien à faire pour ce filtre 🎉', style: TextStyle(color: Colors.grey))),
+            ),
+          for (final b in DueBucket.values) ...() {
+            final items = visibles.where((a) => dueBucketFor(a.dateEcheance) == b).toList();
+            if (items.isEmpty) return const <Widget>[];
+            return [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+                child: Row(
+                  children: [
+                    Container(width: 10, height: 10, decoration: BoxDecoration(color: dueBucketColors[b], shape: BoxShape.circle)),
+                    const SizedBox(width: 8),
+                    Text('${dueBucketLabels[b]} (${items.length})', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+              ...items.map(_swipe),
+            ];
+          }(),
+          if (terminees.isNotEmpty)
+            ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+              initiallyExpanded: _showTerminees,
+              onExpansionChanged: (v) => setState(() => _showTerminees = v),
+              leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+              title: Text('Terminées (${terminees.length})'),
+              children: terminees.take(100).map((a) => _card(a, compact: true)).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- Vue Tableau ----------
+
+  Widget _tableau(List<Alerte> visibles, List<Alerte> terminees) {
+    final List<KanbanColumn<Alerte>> columns;
+    switch (_groupe) {
+      case _Groupe.echeance:
+        columns = [
+          for (final b in DueBucket.values)
+            KanbanColumn<Alerte>(
+              id: b.name,
+              title: dueBucketLabels[b]!,
+              color: dueBucketColors[b]!,
+              icon: b == DueBucket.enRetard ? Icons.warning_amber_rounded : Icons.event_outlined,
+              acceptsDrops: b != DueBucket.enRetard,
+              items: visibles.where((a) => dueBucketFor(a.dateEcheance) == b).toList(),
+            ),
+        ];
+      case _Groupe.avancement:
+        columns = [
+          for (final p in todoProgressions.take(2))
+            KanbanColumn<Alerte>(
+              id: p.value,
+              title: p.label,
+              color: p.color,
+              icon: p.icon,
+              items: visibles.where((a) => (a.progression == 'en_cours') == (p.value == 'en_cours')).toList(),
+            ),
+          KanbanColumn<Alerte>(
+            id: 'faite',
+            title: 'Terminées',
+            color: Colors.green,
+            icon: Icons.check_circle,
+            items: terminees.take(30).toList(),
+          ),
+        ];
+      case _Groupe.categorie:
+        final types = {..._categoriesTableau, ...visibles.map((a) => a.type)};
+        columns = [
+          for (final t in types)
+            KanbanColumn<Alerte>(
+              id: t,
+              title: todoCategorie(t).label,
+              color: todoCategorie(t).color,
+              icon: todoCategorie(t).icon,
+              items: visibles.where((a) => a.type == t).toList(),
+            ),
+        ];
+      case _Groupe.bande:
+        final noms = <String, String>{for (final b in _bandes) b.id!: b.nom};
+        for (final a in visibles) {
+          if (a.bandeId != null) noms.putIfAbsent(a.bandeId!, () => a.bandeNom.isEmpty ? 'Bande' : a.bandeNom);
+        }
+        columns = [
+          KanbanColumn<Alerte>(
+            id: '',
+            title: 'Sans bande',
+            color: Colors.blueGrey,
+            icon: Icons.inbox_outlined,
+            items: visibles.where((a) => a.bandeId == null).toList(),
+          ),
+          for (final e in noms.entries)
+            KanbanColumn<Alerte>(
+              id: e.key,
+              title: e.value,
+              color: avatarColor(e.value),
+              icon: Icons.egg_outlined,
+              items: visibles.where((a) => a.bandeId == e.key).toList(),
+            ),
+        ];
+    }
+
+    return KanbanBoard<Alerte>(
+      columns: columns,
+      columnWidth: 280,
+      itemKey: (a) => a.id ?? '${a.titre}-${a.dateEcheance.toIso8601String()}',
+      emptyLabel: 'Glissez une tâche ici',
+      onMove: (a, columnId) => _deplacer(a, columnId, columns),
+      itemBuilder: (context, a) => _card(a, compact: true),
+    );
+  }
+
+  Future<void> _deplacer(Alerte a, String columnId, List<KanbanColumn<Alerte>> columns) async {
+    final provider = context.read<AlertesProvider>();
+    if (_groupe == _Groupe.avancement) {
+      if (columnId == 'faite') return _terminer(a);
+      if (a.estFaite) return _rouvrir(a);
+      if (!a.modifiable) return _autoNonModifiable();
+      await provider.changerProgression(a, columnId);
+      return;
+    }
+    if (!a.modifiable) return _autoNonModifiable();
+    switch (_groupe) {
+      case _Groupe.echeance:
+        final jour = dueDateForBucket(DueBucket.values.firstWhere((b) => b.name == columnId));
+        if (jour == null) return;
+        final debut = DateTime(jour.year, jour.month, jour.day, a.dateEcheance.hour, a.dateEcheance.minute);
+        final ok = await provider.changerEcheance(a, debut);
+        if (mounted) showCrmSnack(context, ok ? 'Échéance : ${relativeDay(debut).toLowerCase()}' : 'Mise à jour impossible');
+      case _Groupe.categorie:
+        await provider.changerType(a, columnId);
+      case _Groupe.bande:
+        final nom = columns.firstWhere((c) => c.id == columnId).title;
+        await provider.changerBande(a, columnId.isEmpty ? null : columnId, columnId.isEmpty ? '' : nom);
+      case _Groupe.avancement:
+        break;
+    }
   }
 }
