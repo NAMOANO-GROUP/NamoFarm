@@ -8,9 +8,9 @@ import '../../models/tache_crm.dart';
 import '../../providers/clients_provider.dart';
 import '../../providers/crm_provider.dart';
 import '../../services/api_service.dart';
-import '../../utils/contact_launcher.dart';
 import '../../utils/crm_labels.dart';
 import '../../utils/money_format.dart';
+import '../../widgets/crm/contact_widgets.dart';
 import '../../widgets/crm/crm_widgets.dart';
 import '../../widgets/crm/tache_card.dart';
 import 'client_form_dialog.dart';
@@ -32,26 +32,6 @@ class ClientDetailScreen extends StatefulWidget {
 enum _Section { activite, relances, commandes, infos }
 
 enum _Filtre { tout, echanges, commandes, taches, pipeline }
-
-class _TimelineEntry {
-  final DateTime date;
-  final _Filtre kind;
-  final IconData icon;
-  final MaterialColor color;
-  final String title;
-  final String? body;
-  final String? meta;
-
-  const _TimelineEntry({
-    required this.date,
-    required this.kind,
-    required this.icon,
-    required this.color,
-    required this.title,
-    this.body,
-    this.meta,
-  });
-}
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
   List<Commande> _commandes = [];
@@ -101,33 +81,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     return widget.client;
   }
 
-  Future<void> _contact(Client client, String canal) async {
-    switch (canal) {
-      case 'appel':
-        final ok = await openContactUri(context, telUri(client.telephone), unavailable: 'Numéro de téléphone indisponible');
-        if (ok && mounted) _proposerConsignation('appel', 'Appel');
-      case 'whatsapp':
-        final ok = await openContactUri(
-          context,
-          whatsappUri(client.telephone, message: 'Bonjour ${client.prenom}, '),
-          unavailable: 'Numéro WhatsApp indisponible',
-        );
-        if (ok && mounted) _proposerConsignation('whatsapp', 'Message WhatsApp');
-      case 'email':
-        await openContactUri(context, mailUri(client.email), unavailable: 'Aucune adresse email');
-    }
-  }
-
-  void _proposerConsignation(String type, String sujet) {
-    showCrmSnack(
-      context,
-      'Pensez à consigner cet échange',
-      action: SnackBarAction(
-        label: 'Consigner',
-        onPressed: () => showInteractionDialog(context, clientId: _clientId, type: type, sujet: sujet),
-      ),
-    );
-  }
+  Future<void> _contact(Client client, ContactCanal canal) => contacterEtProposerConsignation(
+        context,
+        contactId: _clientId,
+        telephone: client.telephone,
+        email: client.email,
+        prenom: client.prenom,
+        canal: canal,
+      );
 
   Future<void> _supprimer(Client client) async {
     final ok = await confirmAction(
@@ -147,8 +108,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
-  List<_TimelineEntry> _timeline(List<Interaction> interactions, List<TacheCRM> taches) {
-    final entries = <_TimelineEntry>[];
+  List<TimelineEntry> _timeline(List<Interaction> interactions, List<TacheCRM> taches) {
+    final entries = <TimelineEntry>[];
     for (final i in interactions) {
       final opt = interactionType(i.type);
       if (i.isPipelineUpdate) {
@@ -156,9 +117,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         final stage = pipelineStage((meta['stage'] ?? '').toString());
         final montant = (meta['montant'] is num) ? (meta['montant'] as num).toDouble() : 0.0;
         final note = (meta['note'] ?? '').toString();
-        entries.add(_TimelineEntry(
+        entries.add(TimelineEntry(
           date: i.dateInteraction,
-          kind: _Filtre.pipeline,
+          kind: _Filtre.pipeline.name,
           icon: stage.icon,
           color: stage.color,
           title: 'Affaire passée à « ${stage.label} »',
@@ -167,9 +128,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         ));
         continue;
       }
-      entries.add(_TimelineEntry(
+      entries.add(TimelineEntry(
         date: i.dateInteraction,
-        kind: _Filtre.echanges,
+        kind: _Filtre.echanges.name,
         icon: opt.icon,
         color: opt.color,
         title: i.sujet.isEmpty ? opt.label : '${opt.label} · ${i.sujet}',
@@ -178,9 +139,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ));
     }
     for (final c in _commandes) {
-      entries.add(_TimelineEntry(
+      entries.add(TimelineEntry(
         date: c.createdAt ?? DateTime.now(),
-        kind: _Filtre.commandes,
+        kind: _Filtre.commandes.name,
         icon: Icons.shopping_bag_outlined,
         color: Colors.indigo,
         title: 'Commande de ${formatAmountFcfa(c.montantTotal)}',
@@ -191,9 +152,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ));
     }
     for (final t in taches.where((t) => !isTacheOuverte(t.statut))) {
-      entries.add(_TimelineEntry(
+      entries.add(TimelineEntry(
         date: t.dateEcheance,
-        kind: _Filtre.taches,
+        kind: _Filtre.taches.name,
         icon: t.statut == 'terminee' ? Icons.task_alt : Icons.block,
         color: t.statut == 'terminee' ? Colors.green : Colors.grey,
         title: '${tacheStatut(t.statut).label} · ${t.titre}',
@@ -236,10 +197,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           builder: (context, constraints) {
             final header = [
               _Header(client: client, deal: deal, commandesCount: _commandes.length),
-              _QuickActions(
-                onCall: () => _contact(client, 'appel'),
-                onWhatsapp: () => _contact(client, 'whatsapp'),
-                onEmail: client.email.isEmpty ? null : () => _contact(client, 'email'),
+              ContactQuickActions(
+                onCall: () => _contact(client, ContactCanal.appel),
+                onWhatsapp: () => _contact(client, ContactCanal.whatsapp),
+                onEmail: client.email.isEmpty ? null : () => _contact(client, ContactCanal.email),
                 onNote: () => showInteractionDialog(context, clientId: _clientId),
                 onTask: () => showTacheDialog(context, clientId: _clientId),
               ),
@@ -311,7 +272,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
   List<Widget> _timelineSection(List<Interaction> interactions, List<TacheCRM> taches, bool loading) {
     final all = _timeline(interactions, taches);
-    final entries = _filtre == _Filtre.tout ? all : all.where((e) => e.kind == _filtre).toList();
+    final entries = _filtre == _Filtre.tout ? all : all.where((e) => e.kind == _filtre.name).toList();
     const labels = {
       _Filtre.tout: 'Tout',
       _Filtre.echanges: 'Échanges',
@@ -350,36 +311,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       return widgets;
     }
     if (entries.isEmpty) {
-      widgets.add(const CrmCard(
-        child: Column(
-          children: [
-            Icon(Icons.forum_outlined, size: 40, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('Aucune activité pour le moment', style: TextStyle(fontWeight: FontWeight.w600)),
-            SizedBox(height: 4),
-            Text('Consignez un appel, une visite ou une note pour démarrer l’historique.',
-                textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      ));
+      widgets.add(const EmptyTimeline());
       return widgets;
     }
 
-    String? currentDay;
-    for (var i = 0; i < entries.length; i++) {
-      final e = entries[i];
-      final day = timelineDayLabel(e.date);
-      if (day != currentDay) {
-        currentDay = day;
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 6, left: 4),
-          child: Text(day, style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
-        ));
-      }
-      final last = i == entries.length - 1 || timelineDayLabel(entries[i + 1].date) != day;
-      widgets.add(_TimelineTile(entry: e, isLast: last));
-    }
-    return widgets;
+    return [...widgets, ...buildActivityTimeline(context, entries)];
   }
 
   List<Widget> _relancesSection(List<TacheCRM> taches) {
@@ -489,9 +425,9 @@ class _Header extends StatelessWidget {
           const Divider(height: 24),
           Row(
             children: [
-              _Stat(label: 'CA cumulé', value: formatCompactFcfa(client.chiffreAffairesCumul)),
-              _Stat(label: 'Commandes', value: '$commandesCount'),
-              _Stat(label: 'Dernier contact', value: dernier == null ? 'Jamais' : relativeDay(dernier)),
+              HeaderStat(label: 'CA cumulé', value: formatCompactFcfa(client.chiffreAffairesCumul)),
+              HeaderStat(label: 'Commandes', value: '$commandesCount'),
+              HeaderStat(label: 'Dernier contact', value: dernier == null ? 'Jamais' : relativeDay(dernier)),
             ],
           ),
         ],
@@ -529,158 +465,9 @@ class _ScoreBadge extends StatelessWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  final String label;
-  final String value;
-  const _Stat({required this.label, required this.value});
 
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ],
-      ),
-    );
-  }
-}
 
-class _QuickActions extends StatelessWidget {
-  final VoidCallback onCall;
-  final VoidCallback onWhatsapp;
-  final VoidCallback? onEmail;
-  final VoidCallback onNote;
-  final VoidCallback onTask;
 
-  const _QuickActions({
-    required this.onCall,
-    required this.onWhatsapp,
-    required this.onEmail,
-    required this.onNote,
-    required this.onTask,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          for (final a in [
-            _QuickAction(icon: Icons.call, label: 'Appeler', color: Colors.green, onTap: onCall),
-            _QuickAction(icon: Icons.chat, label: 'WhatsApp', color: Colors.teal, onTap: onWhatsapp),
-            _QuickAction(icon: Icons.mail_outline, label: 'Email', color: Colors.blue, onTap: onEmail),
-            _QuickAction(icon: Icons.sticky_note_2_outlined, label: 'Note', color: Colors.amber, onTap: onNote),
-            _QuickAction(icon: Icons.add_task, label: 'Tâche', color: Colors.indigo, onTap: onTask),
-          ])
-            Expanded(child: a),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final MaterialColor color;
-  final VoidCallback? onTap;
-
-  const _QuickAction({required this.icon, required this.label, required this.color, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Tooltip(
-      message: label,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: enabled ? (isDark ? color.shade800 : color.shade50) : Colors.grey.withValues(alpha: 0.15),
-                child: Icon(icon, color: enabled ? (isDark ? color.shade100 : color.shade700) : Colors.grey),
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(label, style: TextStyle(fontSize: 11, color: enabled ? null : Colors.grey)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TimelineTile extends StatelessWidget {
-  final _TimelineEntry entry;
-  final bool isLast;
-
-  const _TimelineTile({required this.entry, required this.isLast});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 36,
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 15,
-                  backgroundColor: isDark ? entry.color.shade800 : entry.color.shade50,
-                  child: Icon(entry.icon, size: 16, color: isDark ? entry.color.shade100 : entry.color.shade700),
-                ),
-                if (!isLast)
-                  Expanded(child: Container(width: 2, color: scheme.outlineVariant.withValues(alpha: 0.6))),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(entry.title, style: const TextStyle(fontWeight: FontWeight.w600))),
-                      Text(formatHeure(entry.date), style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-                    ],
-                  ),
-                  if ((entry.body ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(entry.body!, style: TextStyle(color: scheme.onSurfaceVariant)),
-                  ],
-                  if ((entry.meta ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text('par ${entry.meta}', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _DealCard extends StatelessWidget {
   final PipelineDeal deal;
@@ -709,10 +496,10 @@ class _DealCard extends StatelessWidget {
             child: LinearProgressIndicator(value: deal.probabilite / 100, minHeight: 6, color: stage.color),
           ),
           const SizedBox(height: 12),
-          _InfoRow(Icons.payments_outlined, 'Montant', deal.montant > 0 ? formatAmountFcfa(deal.montant) : 'Non estimé'),
-          _InfoRow(Icons.flag_circle_outlined, 'Clôture prévue',
+          InfoRow(Icons.payments_outlined, 'Montant', deal.montant > 0 ? formatAmountFcfa(deal.montant) : 'Non estimé'),
+          InfoRow(Icons.flag_circle_outlined, 'Clôture prévue',
               deal.dateCloturePrevue == null ? 'Non définie' : formatDateFr(deal.dateCloturePrevue!)),
-          _InfoRow(Icons.travel_explore, 'Source', deal.sourceLead == 'inconnu' ? 'Inconnue' : deal.sourceLead),
+          InfoRow(Icons.travel_explore, 'Source', deal.sourceLead == 'inconnu' ? 'Inconnue' : deal.sourceLead),
         ],
       ),
     );
@@ -731,41 +518,18 @@ class _InfosCard extends StatelessWidget {
         children: [
           const Text('À propos', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          _InfoRow(Icons.phone_outlined, 'Téléphone', client.telephone.isEmpty ? '—' : client.telephone),
-          _InfoRow(Icons.mail_outline, 'Email', client.email.isEmpty ? '—' : client.email),
-          _InfoRow(Icons.place_outlined, 'Adresse', client.adresse.isEmpty ? '—' : client.adresse),
-          _InfoRow(Icons.work_outline, 'Activité', client.commentaireActivite.isEmpty ? '—' : client.commentaireActivite),
-          if (client.notes.isNotEmpty) _InfoRow(Icons.notes, 'Notes', client.notes),
-          if (client.createdAt != null) _InfoRow(Icons.cake_outlined, 'Client depuis', formatDateLongFr(client.createdAt!)),
+          InfoRow(Icons.phone_outlined, 'Téléphone', client.telephone.isEmpty ? '—' : client.telephone),
+          InfoRow(Icons.mail_outline, 'Email', client.email.isEmpty ? '—' : client.email),
+          InfoRow(Icons.place_outlined, 'Adresse', client.adresse.isEmpty ? '—' : client.adresse),
+          InfoRow(Icons.work_outline, 'Activité', client.commentaireActivite.isEmpty ? '—' : client.commentaireActivite),
+          if (client.notes.isNotEmpty) InfoRow(Icons.notes, 'Notes', client.notes),
+          if (client.createdAt != null) InfoRow(Icons.cake_outlined, 'Client depuis', formatDateLongFr(client.createdAt!)),
         ],
       ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoRow(this.icon, this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: muted),
-          const SizedBox(width: 10),
-          SizedBox(width: 100, child: Text(label, style: TextStyle(color: muted, fontSize: 13))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-        ],
-      ),
-    );
-  }
-}
 
 class _CommandeStatut extends StatelessWidget {
   final String statut;

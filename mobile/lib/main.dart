@@ -18,6 +18,7 @@ import 'providers/reproduction_provider.dart';
 import 'providers/sante_provider.dart';
 import 'providers/cheptel_provider.dart';
 import 'providers/nav_hub_provider.dart';
+import 'providers/nav_order_provider.dart';
 
 void main() {
   runApp(const NamoFarmApp());
@@ -45,6 +46,7 @@ class NamoFarmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SanteProvider()),
         ChangeNotifierProvider(create: (_) => CheptelProvider()),
         ChangeNotifierProvider(create: (_) => NavHubProvider()),
+        ChangeNotifierProvider(create: (_) => NavOrderProvider()..load()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: Consumer<ThemeProvider>(

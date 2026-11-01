@@ -47,7 +47,9 @@ class _HelpScreenState extends State<HelpScreen> {
       _HelpArticle(
         'Naviguer dans l\'application',
         '• Hub : la grille de modules affichée après connexion.\n'
-            '• Barre du bas : accès rapide aux modules, faites-la défiler horizontalement.\n'
+            '• Barre du bas (téléphone) : vos 4 modules favoris et « Menu » pour revenir à la grille.\n'
+            '• Réorganiser : sur le hub, bouton ⇅ en haut à droite. Glissez les modules dans l\'ordre voulu ; '
+            'les 4 premiers vont dans la barre du bas. L\'ordre est mémorisé sur cet appareil.\n'
             '• Bouton « + » en haut à droite d\'un écran : ajoute un nouvel élément (bande, tâche, stock...).\n'
             '• Les historiques sont repliés par défaut : touchez l\'en-tête pour les déplier.',
       ),
@@ -122,17 +124,24 @@ class _HelpScreenState extends State<HelpScreen> {
             'l\'effectif recalculé automatiquement.',
       ),
     ]),
-    _HelpChapter('Stocks', Icons.inventory_2_outlined, Color(0xFF00838F), [
+    _HelpChapter('Achats : stocks et fournisseurs', Icons.shopping_basket_outlined, Color(0xFF00838F), [
       _HelpArticle(
         'Ajouter un stock',
-        'Module Stocks → bouton « + » en haut. Renseignez le produit, la catégorie, '
-            'la quantité, le coût unitaire et le seuil d\'alerte.',
+        'Module Achats → onglet Stocks → bouton « + ». Renseignez le produit, la catégorie, '
+            'la quantité, le coût unitaire, le seuil d\'alerte et le fournisseur.',
       ),
       _HelpArticle(
         'Alertes de stock bas',
         'Quand une quantité passe sous le seuil, une alerte s\'affiche en haut de la liste. '
             'Les entrées de stock (achats) génèrent une sortie de trésorerie ; la '
             'consommation d\'aliment est valorisée dans les coûts, sans mouvement d\'argent.',
+      ),
+      _HelpArticle(
+        'Fiche fournisseur',
+        'Module Achats → onglet Fournisseurs → touchez un fournisseur. Appelez-le ou écrivez-lui sur '
+            'WhatsApp, consignez vos échanges et retrouvez ses réceptions de stock. Les articles dont le '
+            'champ « Fournisseur » contient son entreprise ou son nom y sont listés, avec un bouton '
+            '« Commander » qui prépare le message WhatsApp.',
       ),
     ]),
     _HelpChapter('Todo / Tâches', Icons.notifications_outlined, Color(0xFF283593), [

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'global_dashboard_screen.dart';
 import 'bandes_screen.dart';
-import 'stocks_screen.dart';
 import 'reproduction_screen.dart';
 import 'sante_screen.dart';
 import 'cheptel_screen.dart';
 import 'alertes_screen.dart';
+import 'achats_screen.dart';
 import 'crm_screen.dart';
 import 'finance_screen.dart';
 import 'roadmap_screen.dart';
@@ -16,20 +16,26 @@ import 'help_screen.dart';
 import '../config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/nav_hub_provider.dart';
+import '../providers/nav_order_provider.dart';
 
 class _ModuleItem {
+  /// Identifiant stable (ordre personnalisé enregistré sur l'appareil).
+  final String id;
   final Widget page;
   final NavigationDestination desktopDestination;
   final NavigationDestination mobileDestination;
   final String permission;
+  final List<String> anyPermissions;
   final bool adminOnly;
   final bool alwaysVisible;
 
   const _ModuleItem({
+    required this.id,
     required this.page,
     required this.desktopDestination,
     required this.mobileDestination,
     required this.permission,
+    this.anyPermissions = const [],
     this.adminOnly = false,
     this.alwaysVisible = false,
   });
@@ -43,7 +49,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  String? _currentId;
 
   @override
   void initState() {
@@ -56,72 +62,86 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<_ModuleItem> _modules = const [
     _ModuleItem(
+      id: 'profil',
       page: ProfileScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profil'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profil'),
       permission: 'dashboard:view',
     ),
     _ModuleItem(
+      id: 'dashboard',
       page: GlobalDashboardScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
       permission: 'dashboard:view',
     ),
     _ModuleItem(
+      id: 'bandes',
       page: BandesScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.egg_outlined), selectedIcon: Icon(Icons.egg), label: 'Bandes'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.egg_outlined), selectedIcon: Icon(Icons.egg), label: 'Bandes'),
       permission: 'bandes:view',
     ),
     _ModuleItem(
+      id: 'reproduction',
       page: ReproductionScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Reproduction'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Couvoir'),
       permission: 'reproduction:view',
     ),
     _ModuleItem(
+      id: 'sante',
       page: SanteScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.vaccines_outlined), selectedIcon: Icon(Icons.vaccines), label: 'Santé'),
       permission: 'sante:view',
     ),
     _ModuleItem(
+      id: 'cheptel',
       page: CheptelScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.pets_outlined), selectedIcon: Icon(Icons.pets), label: 'Cheptel'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.pets_outlined), selectedIcon: Icon(Icons.pets), label: 'Cheptel'),
       permission: 'cheptel:view',
     ),
     _ModuleItem(
-      page: StocksScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Stocks'),
-      mobileDestination: NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Stocks'),
+      id: 'achats',
+      page: AchatsScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.shopping_basket_outlined), selectedIcon: Icon(Icons.shopping_basket), label: 'Achats'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.shopping_basket_outlined), selectedIcon: Icon(Icons.shopping_basket), label: 'Achats'),
+      // Visible dès que l'une des feuilles (stocks, fournisseurs) est autorisée.
       permission: 'stocks:view',
+      anyPermissions: AchatsScreen.permissions,
     ),
     _ModuleItem(
+      id: 'todo',
       page: AlertesScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.notifications_outlined), selectedIcon: Icon(Icons.notifications), label: 'Todo list'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.notifications_outlined), selectedIcon: Icon(Icons.notifications), label: 'Todo'),
       permission: 'alertes:view',
     ),
     _ModuleItem(
+      id: 'crm',
       page: CrmScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: 'CRM'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: 'CRM'),
       permission: 'crm:view',
     ),
     _ModuleItem(
+      id: 'finance',
       page: FinanceScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
       permission: 'finance:view',
     ),
     _ModuleItem(
+      id: 'roadmap',
       page: RoadmapScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: 'Roadmap'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: 'Roadmap'),
       permission: 'dashboard:view',
     ),
     _ModuleItem(
+      id: 'config',
       page: ConfigScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Config'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Config'),
@@ -129,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
       adminOnly: true,
     ),
     _ModuleItem(
+      id: 'aide',
       page: HelpScreen(),
       desktopDestination: NavigationDestination(icon: Icon(Icons.help_outline), selectedIcon: Icon(Icons.help), label: 'Aide'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.help_outline), selectedIcon: Icon(Icons.help), label: 'Aide'),
@@ -141,12 +162,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final navHub = context.watch<NavHubProvider>();
+    final navOrder = context.watch<NavOrderProvider>();
     final isWide = MediaQuery.of(context).size.width >= 1000;
-    final accessibleModules = _modules.where((m) {
-      if (m.alwaysVisible) return true;
-      if (m.adminOnly && !auth.isAdmin) return false;
-      return auth.hasPermission(m.permission);
-    }).toList();
+    final accessibleModules = navOrder.sort<_ModuleItem>(
+      _modules.where((m) {
+        if (m.alwaysVisible) return true;
+        if (m.adminOnly && !auth.isAdmin) return false;
+        if (m.anyPermissions.isNotEmpty) return m.anyPermissions.any(auth.hasPermission);
+        return auth.hasPermission(m.permission);
+      }).toList(),
+      (m) => m.id,
+    );
 
     if (accessibleModules.isEmpty) {
       return const Scaffold(body: Center(child: Text('Aucun module autorisé')));
@@ -157,9 +183,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return _buildHub(context, auth, accessibleModules);
     }
 
-    if (_currentIndex >= accessibleModules.length) {
-      _currentIndex = 0;
-    }
+    var currentIndex = accessibleModules.indexWhere((m) => m.id == _currentId);
+    if (currentIndex < 0) currentIndex = 0;
+    final current = accessibleModules[currentIndex];
 
     final destinations = isWide
         ? accessibleModules.map((m) => m.desktopDestination).toList()
@@ -177,8 +203,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       constraints: BoxConstraints(minHeight: constraints.maxHeight),
                       child: IntrinsicHeight(
                         child: NavigationRail(
-                          selectedIndex: _currentIndex,
-                          onDestinationSelected: (index) => setState(() => _currentIndex = index),
+                          selectedIndex: currentIndex,
+                          onDestinationSelected: (index) => setState(() => _currentId = accessibleModules[index].id),
                           labelType: NavigationRailLabelType.all,
                           destinations: destinations
                               .map(
@@ -195,11 +221,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const VerticalDivider(width: 1),
-                Expanded(child: accessibleModules[_currentIndex].page),
+                Expanded(child: KeyedSubtree(key: ValueKey(current.id), child: current.page)),
               ],
             )
-          : accessibleModules[_currentIndex].page,
-      bottomNavigationBar: isWide ? null : _buildBottomNav(accessibleModules),
+          : KeyedSubtree(key: ValueKey(current.id), child: current.page),
+      bottomNavigationBar: isWide ? null : _buildBottomNav(accessibleModules, current),
     );
   }
 
@@ -277,6 +303,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                     ),
                   ),
+                  IconButton(
+                    tooltip: 'Réorganiser le menu',
+                    visualDensity: VisualDensity.compact,
+                    color: Colors.white,
+                    icon: const Icon(Icons.swap_vert),
+                    onPressed: () => _showReorganiser(context, modules),
+                  ),
                 ],
               ),
             ),
@@ -295,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   final m = modules[i];
                   final color = _hubColors[i % _hubColors.length];
                   return _hubTile(context, m.mobileDestination, color, () {
-                    setState(() => _currentIndex = i);
+                    setState(() => _currentId = m.id);
                     context.read<NavHubProvider>().goModule();
                   });
                 },
@@ -361,55 +394,129 @@ class _HomeScreenState extends State<HomeScreen> {
     return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
   }
 
-  Widget _buildBottomNav(List<_ModuleItem> modules) {
-    // Barre de navigation horizontale scrollable : tous les modules sont visibles
-    // en défilant, sans entrée "Plus".
-    final theme = Theme.of(context);
-    return Material(
-      elevation: 8,
-      color: theme.colorScheme.surface,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            itemCount: modules.length,
-            itemBuilder: (context, i) {
-              final selected = _currentIndex == i;
-              final dest = modules[i].mobileDestination;
-              final color = selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
-              return InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _currentIndex = i),
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 68),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: selected ? theme.colorScheme.primary.withValues(alpha: 0.12) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
+  /// Barre du bas (téléphone) : les [kNavFavoris] premiers modules + « Menu » qui ouvre la grille.
+  Widget _buildBottomNav(List<_ModuleItem> modules, _ModuleItem current) {
+    final favoris = modules.take(kNavFavoris).toList();
+    final selected = favoris.indexWhere((m) => m.id == current.id);
+    return NavigationBar(
+      height: 66,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      selectedIndex: selected < 0 ? favoris.length : selected,
+      onDestinationSelected: (i) {
+        if (i == favoris.length) {
+          context.read<NavHubProvider>().goHub();
+        } else {
+          setState(() => _currentId = favoris[i].id);
+        }
+      },
+      destinations: [
+        ...favoris.map((m) => m.mobileDestination),
+        const NavigationDestination(icon: Icon(Icons.apps_outlined), selectedIcon: Icon(Icons.apps), label: 'Menu'),
+      ],
+    );
+  }
+
+  /// Feuille de réorganisation : glisser-déposer, les premiers modules vont dans la barre du bas.
+  void _showReorganiser(BuildContext context, List<_ModuleItem> modules) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _ReorganiserSheet(
+        items: [for (final m in modules) (id: m.id, destination: m.mobileDestination)],
+      ),
+    );
+  }
+}
+
+typedef _ModuleEntry = ({String id, NavigationDestination destination});
+
+class _ReorganiserSheet extends StatefulWidget {
+  final List<_ModuleEntry> items;
+  const _ReorganiserSheet({required this.items});
+
+  @override
+  State<_ReorganiserSheet> createState() => _ReorganiserSheetState();
+}
+
+class _ReorganiserSheetState extends State<_ReorganiserSheet> {
+  late final List<_ModuleEntry> _items = [...widget.items];
+
+  void _save() => context.read<NavOrderProvider>().setOrder(_items.map((e) => e.id).toList());
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.8,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 12, 4),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Réorganiser le menu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconTheme(
-                        data: IconThemeData(color: color, size: 24),
-                        child: selected ? (dest.selectedIcon ?? dest.icon) : dest.icon,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        dest.label,
-                        style: TextStyle(fontSize: 11, color: color, fontWeight: selected ? FontWeight.w700 : FontWeight.w400),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  TextButton(
+                    onPressed: () async {
+                      await context.read<NavOrderProvider>().reset();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    child: const Text('Par défaut'),
                   ),
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Maintenez et glissez pour changer l’ordre. Les $kNavFavoris premiers modules apparaissent dans la barre du bas.',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+            ),
+            Expanded(
+              child: ReorderableListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: _items.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    _items.insert(newIndex, _items.removeAt(oldIndex));
+                  });
+                  _save();
+                },
+                itemBuilder: (context, i) {
+                  final e = _items[i];
+                  final favori = i < kNavFavoris;
+                  return Card(
+                    key: ValueKey(e.id),
+                    elevation: 0,
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    color: favori ? scheme.primaryContainer.withValues(alpha: 0.45) : null,
+                    child: ListTile(
+                      leading: IconTheme(
+                        data: IconThemeData(color: favori ? scheme.primary : scheme.onSurfaceVariant),
+                        child: e.destination.icon,
+                      ),
+                      title: Text(e.destination.label),
+                      subtitle: favori ? const Text('Barre du bas', style: TextStyle(fontSize: 12)) : null,
+                      trailing: ReorderableDragStartListener(
+                        index: i,
+                        child: const Icon(Icons.drag_handle),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Terminé')),
+            ),
+          ],
         ),
       ),
     );

@@ -314,4 +314,5 @@ void main() {
     }
     expect(find.text('Awa Diop Ndiaye'), findsOneWidget);
   });
+
 }

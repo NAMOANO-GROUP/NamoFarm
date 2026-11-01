@@ -141,10 +141,11 @@ class _ClientsTabState extends State<ClientsTab> {
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
+              IconButton.filled(
+                tooltip: 'Nouveau client',
                 onPressed: () => showClientFormDialog(context),
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.person_add_alt_1, size: 18),
-                label: const Text('Nouveau'),
               ),
             ],
           ),

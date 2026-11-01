@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../models/tache_crm.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/crm_provider.dart';
+import '../../utils/contact_launcher.dart';
 import '../../utils/crm_labels.dart';
+import 'interaction_dialog.dart';
 
 /// Nom de l'utilisateur connecté (auteur des interactions, tâches "Mes tâches").
 String currentUserName(BuildContext context) {
@@ -80,4 +82,43 @@ Future<void> deleteTacheWithConfirm(BuildContext context, TacheCRM tache) async 
   if (!ok) return;
   final deleted = await crm.supprimerTache(tache.id!);
   if (context.mounted) showCrmSnack(context, deleted ? 'Tâche supprimée' : 'Suppression impossible');
+}
+
+/// Canal de contact rapide depuis une fiche.
+enum ContactCanal { appel, whatsapp, email }
+
+/// Ouvre l'appel / WhatsApp / l'email, puis propose de consigner l'échange dans le fil d'activité.
+Future<void> contacterEtProposerConsignation(
+  BuildContext context, {
+  required String contactId,
+  required String telephone,
+  String email = '',
+  String prenom = '',
+  required ContactCanal canal,
+}) async {
+  switch (canal) {
+    case ContactCanal.appel:
+      final ok = await openContactUri(context, telUri(telephone), unavailable: 'Numéro de téléphone indisponible');
+      if (ok && context.mounted) _proposerConsignation(context, contactId, 'appel', 'Appel');
+    case ContactCanal.whatsapp:
+      final ok = await openContactUri(
+        context,
+        whatsappUri(telephone, message: prenom.isEmpty ? 'Bonjour, ' : 'Bonjour $prenom, '),
+        unavailable: 'Numéro WhatsApp indisponible',
+      );
+      if (ok && context.mounted) _proposerConsignation(context, contactId, 'whatsapp', 'Message WhatsApp');
+    case ContactCanal.email:
+      await openContactUri(context, mailUri(email), unavailable: 'Aucune adresse email');
+  }
+}
+
+void _proposerConsignation(BuildContext context, String contactId, String type, String sujet) {
+  showCrmSnack(
+    context,
+    'Pensez à consigner cet échange',
+    action: SnackBarAction(
+      label: 'Consigner',
+      onPressed: () => showInteractionDialog(context, clientId: contactId, type: type, sujet: sujet),
+    ),
+  );
 }

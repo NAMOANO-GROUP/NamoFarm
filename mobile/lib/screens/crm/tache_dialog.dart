@@ -64,7 +64,7 @@ class _TacheDialogState extends State<_TacheDialog> {
       final list = data
           .whereType<Map>()
           .map((e) => Client.fromJson(Map<String, dynamic>.from(e)))
-          .where((c) => c.statut != 'fournisseur' && (c.id ?? '').isNotEmpty)
+          .where((c) => (c.id ?? '').isNotEmpty)
           .toList()
         ..sort((a, b) => a.nomComplet.toLowerCase().compareTo(b.nomComplet.toLowerCase()));
       if (mounted) setState(() => _clients = list);
@@ -145,7 +145,10 @@ class _TacheDialogState extends State<_TacheDialog> {
   Widget build(BuildContext context) {
     final clientItems = <DropdownMenuItem<String?>>[
       const DropdownMenuItem<String?>(value: null, child: Text('Aucun client')),
-      ..._clients.map((c) => DropdownMenuItem<String?>(value: c.id, child: Text(c.nomComplet, overflow: TextOverflow.ellipsis))),
+      ..._clients.map((c) => DropdownMenuItem<String?>(
+            value: c.id,
+            child: Text(c.statut == 'fournisseur' ? '${c.nomComplet} (fournisseur)' : c.nomComplet, overflow: TextOverflow.ellipsis),
+          )),
     ];
     final clientValue = clientItems.any((i) => i.value == _clientId) ? _clientId : null;
     final faits = _checklist.where((c) => c.fait).length;
@@ -176,7 +179,7 @@ class _TacheDialogState extends State<_TacheDialog> {
                 isExpanded: true,
                 items: clientItems,
                 onChanged: (v) => setState(() => _clientId = v),
-                decoration: const InputDecoration(labelText: 'Client lié', prefixIcon: Icon(Icons.person_outline)),
+                decoration: const InputDecoration(labelText: 'Contact lié', prefixIcon: Icon(Icons.person_outline)),
               ),
               const SizedBox(height: 8),
               TextField(

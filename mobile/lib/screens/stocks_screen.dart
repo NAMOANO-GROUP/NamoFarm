@@ -10,9 +10,12 @@ import '../widgets/filter_styles.dart';
 import '../widgets/number_field.dart';
 import '../widgets/add_button.dart';
 import '../widgets/app_form.dart';
+import '../widgets/empty_state.dart';
 
 class StocksScreen extends StatefulWidget {
-  const StocksScreen({super.key});
+  /// true quand l'écran est affiché comme onglet d'un autre module (Achats) : pas de barre de titre propre.
+  final bool embedded;
+  const StocksScreen({super.key, this.embedded = false});
 
   @override
   State<StocksScreen> createState() => _StocksScreenState();
@@ -62,26 +65,25 @@ class _StocksScreenState extends State<StocksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: const BrandLogo(),
-        title: const Text('Gestion des Stocks'),
-      ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              leading: const BrandLogo(),
+              title: const Text('Gestion des Stocks'),
+            ),
       body: Consumer<StocksProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
           if (provider.stocks.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Aucun stock', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                  Text('Ajoutez aliments, médicaments, etc.'),
-                ],
-              ),
+            return EmptyState(
+              icon: Icons.inventory_2_outlined,
+              title: 'Aucun stock',
+              subtitle: 'Ajoutez aliments, médicaments, etc.',
+              actionLabel: 'Nouveau stock',
+              actionIcon: Icons.add,
+              onAction: _showAjouterStockDialog,
             );
           }
 
@@ -625,6 +627,7 @@ class _StocksScreenState extends State<StocksScreen> {
             ),
             DropdownButtonFormField<String>(
               initialValue: selectedCategorie,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Catégorie',
                 prefixIcon: Icon(Icons.category_outlined),
@@ -705,6 +708,7 @@ class _StocksScreenState extends State<StocksScreen> {
             ),
             DropdownButtonFormField<String>(
               initialValue: selectedCategorie,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Catégorie',
                 prefixIcon: Icon(Icons.category_outlined),

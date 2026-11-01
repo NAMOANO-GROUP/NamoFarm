@@ -7,7 +7,6 @@ import 'crm/clients_tab.dart';
 import 'crm/crm_dashboard_tab.dart';
 import 'crm/pipeline_tab.dart';
 import 'crm/relances_tab.dart';
-import 'fournisseurs_tab.dart';
 
 /// Module CRM : coquille à onglets. Chaque onglet vit dans `screens/crm/`.
 class CrmScreen extends StatefulWidget {
@@ -18,7 +17,7 @@ class CrmScreen extends StatefulWidget {
 }
 
 class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(length: 6, vsync: this);
+  late final TabController _tabController = TabController(length: 5, vsync: this);
 
   @override
   void initState() {
@@ -58,7 +57,6 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
               text: 'Relances',
             ),
             const Tab(icon: Icon(Icons.shopping_cart_outlined), text: 'Commandes'),
-            const Tab(icon: Icon(Icons.business_outlined), text: 'Fournisseurs'),
           ],
         ),
       ),
@@ -72,7 +70,6 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
           const PipelineTab(),
           const RelancesTab(),
           const CommandesScreen(embedded: true),
-          const FournisseursTab(),
         ],
       ),
     );

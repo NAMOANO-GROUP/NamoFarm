@@ -146,7 +146,8 @@ class _RelancesTabState extends State<RelancesTab> {
               ),
               IconButton.filled(
                 tooltip: 'Nouvelle tâche',
-                icon: const Icon(Icons.add_task),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.add_task, size: 18),
                 onPressed: () => showTacheDialog(context),
               ),
             ],
