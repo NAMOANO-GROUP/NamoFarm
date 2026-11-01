@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Nombre de modules favoris affichés dans la barre du bas (téléphone).
+/// Nombre de modules favoris affichés dans la barre de navigation (bas ou côté).
 const int kNavFavoris = 4;
 
 /// Ordre final des modules : d'abord ceux de l'ordre enregistré (s'ils existent encore),

@@ -13,9 +13,13 @@ class _Admin extends AuthProvider {
   bool get isAdmin => true;
 }
 
-Future<NavOrderProvider> _pumpHome(WidgetTester tester, {Map<String, Object> prefs = const {}}) async {
+Future<NavOrderProvider> _pumpHome(
+  WidgetTester tester, {
+  Map<String, Object> prefs = const {},
+  Size size = const Size(390, 844),
+}) async {
   SharedPreferences.setMockInitialValues(prefs);
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -75,7 +79,7 @@ void main() {
     await tester.tap(find.byTooltip('Réorganiser le menu'));
     await tester.pumpAndSettle();
     expect(find.text('Réorganiser le menu'), findsOneWidget);
-    expect(find.text('Barre du bas'), findsNWidgets(kNavFavoris));
+    expect(find.text('Barre de navigation'), findsNWidgets(kNavFavoris));
     expect(tester.takeException(), isNull);
   });
 
@@ -96,5 +100,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(GridView), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Grand écran : barre latérale avec 4 favoris + Menu', (tester) async {
+    await _pumpHome(
+      tester,
+      prefs: {'nav.moduleOrder': ['aide', 'crm', 'bandes', 'finance']},
+      size: const Size(1400, 900),
+    );
+
+    await tester.tap(find.text('Aide').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(HelpScreen), findsOneWidget);
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.destinations, hasLength(kNavFavoris + 1));
+    expect(rail.selectedIndex, 0);
+    expect(find.descendant(of: find.byType(NavigationRail), matching: find.text('Roadmap')), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+
+    await tester.tap(find.descendant(of: find.byType(NavigationRail), matching: find.text('Menu')));
+    await tester.pumpAndSettle();
+    expect(find.byType(GridView), findsOneWidget);
   });
 }

@@ -47,9 +47,9 @@ class _HelpScreenState extends State<HelpScreen> {
       _HelpArticle(
         'Naviguer dans l\'application',
         '• Hub : la grille de modules affichée après connexion.\n'
-            '• Barre du bas (téléphone) : vos 4 modules favoris et « Menu » pour revenir à la grille.\n'
+            '• Barre de navigation (en bas sur téléphone, à gauche sur grand écran) : vos 4 modules favoris et « Menu » pour revenir à la grille.\n'
             '• Réorganiser : sur le hub, bouton ⇅ en haut à droite. Glissez les modules dans l\'ordre voulu ; '
-            'les 4 premiers vont dans la barre du bas. L\'ordre est mémorisé sur cet appareil.\n'
+            'les 4 premiers vont dans la barre de navigation. L\'ordre est mémorisé sur cet appareil.\n'
             '• Bouton « + » en haut à droite d\'un écran : ajoute un nouvel élément (bande, tâche, stock...).\n'
             '• Les historiques sont repliés par défaut : touchez l\'en-tête pour les déplier.',
       ),

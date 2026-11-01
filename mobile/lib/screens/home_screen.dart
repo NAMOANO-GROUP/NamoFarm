@@ -187,39 +187,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (currentIndex < 0) currentIndex = 0;
     final current = accessibleModules[currentIndex];
 
-    final destinations = isWide
-        ? accessibleModules.map((m) => m.desktopDestination).toList()
-        : accessibleModules.map((m) => m.mobileDestination).toList();
-
     return Scaffold(
       body: isWide
           ? Row(
               children: [
-                // Scrollable rail so all modules stay reachable even when they exceed
-                // the screen height.
-                LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                      child: IntrinsicHeight(
-                        child: NavigationRail(
-                          selectedIndex: currentIndex,
-                          onDestinationSelected: (index) => setState(() => _currentId = accessibleModules[index].id),
-                          labelType: NavigationRailLabelType.all,
-                          destinations: destinations
-                              .map(
-                                (d) => NavigationRailDestination(
-                                  icon: d.icon,
-                                  selectedIcon: d.selectedIcon,
-                                  label: Text(d.label),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                _buildRail(accessibleModules, current),
                 const VerticalDivider(width: 1),
                 Expanded(child: KeyedSubtree(key: ValueKey(current.id), child: current.page)),
               ],
@@ -394,6 +366,32 @@ class _HomeScreenState extends State<HomeScreen> {
     return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
   }
 
+  /// Barre latérale (grand écran) : comme la barre du bas, les favoris + « Menu ».
+  Widget _buildRail(List<_ModuleItem> modules, _ModuleItem current) {
+    final favoris = modules.take(kNavFavoris).toList();
+    final selected = favoris.indexWhere((m) => m.id == current.id);
+    return NavigationRail(
+      selectedIndex: selected < 0 ? favoris.length : selected,
+      labelType: NavigationRailLabelType.all,
+      onDestinationSelected: (i) {
+        if (i == favoris.length) {
+          context.read<NavHubProvider>().goHub();
+        } else {
+          setState(() => _currentId = favoris[i].id);
+        }
+      },
+      destinations: [
+        for (final m in favoris)
+          NavigationRailDestination(
+            icon: m.desktopDestination.icon,
+            selectedIcon: m.desktopDestination.selectedIcon,
+            label: Text(m.desktopDestination.label),
+          ),
+        const NavigationRailDestination(icon: Icon(Icons.apps_outlined), selectedIcon: Icon(Icons.apps), label: Text('Menu')),
+      ],
+    );
+  }
+
   /// Barre du bas (téléphone) : les [kNavFavoris] premiers modules + « Menu » qui ouvre la grille.
   Widget _buildBottomNav(List<_ModuleItem> modules, _ModuleItem current) {
     final favoris = modules.take(kNavFavoris).toList();
@@ -416,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Feuille de réorganisation : glisser-déposer, les premiers modules vont dans la barre du bas.
+  /// Feuille de réorganisation : glisser-déposer, les premiers modules vont dans la barre de navigation.
   void _showReorganiser(BuildContext context, List<_ModuleItem> modules) {
     showModalBottomSheet<void>(
       context: context,
@@ -473,7 +471,7 @@ class _ReorganiserSheetState extends State<_ReorganiserSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
-                'Maintenez et glissez pour changer l’ordre. Les $kNavFavoris premiers modules apparaissent dans la barre du bas.',
+                'Maintenez et glissez pour changer l’ordre. Les $kNavFavoris premiers modules apparaissent dans la barre de navigation.',
                 style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ),
@@ -502,7 +500,7 @@ class _ReorganiserSheetState extends State<_ReorganiserSheet> {
                         child: e.destination.icon,
                       ),
                       title: Text(e.destination.label),
-                      subtitle: favori ? const Text('Barre du bas', style: TextStyle(fontSize: 12)) : null,
+                      subtitle: favori ? const Text('Barre de navigation', style: TextStyle(fontSize: 12)) : null,
                       trailing: ReorderableDragStartListener(
                         index: i,
                         child: const Icon(Icons.drag_handle),
