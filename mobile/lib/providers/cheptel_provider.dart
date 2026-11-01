@@ -11,6 +11,14 @@ class CheptelProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get lastError => _lastError;
 
+  /// Version la plus récente d'un troupeau (rechargée après chaque saisie).
+  Cheptel? cheptelParId(String? id) {
+    for (final c in _cheptels) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
   Future<void> charger() async {
     _isLoading = true;
     _lastError = null;

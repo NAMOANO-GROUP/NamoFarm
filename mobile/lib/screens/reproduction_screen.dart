@@ -1,19 +1,19 @@
-import 'package:flutter/material.dart';
-import '../widgets/brand_logo.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/couvee.dart';
 import '../providers/reproduction_provider.dart';
-import '../widgets/iso_calendar_picker.dart';
-import '../widgets/empty_state.dart';
-import '../widgets/stat_tile.dart';
+import '../utils/couvoir.dart';
+import '../utils/crm_labels.dart';
 import '../widgets/add_button.dart';
-import '../widgets/number_field.dart';
-import '../widgets/async_button.dart';
-import '../utils/number_input.dart';
+import '../widgets/brand_logo.dart';
+import '../widgets/empty_state.dart';
+import 'couvoir/couvee_detail_screen.dart';
+import 'couvoir/couvee_dialogs.dart';
+import 'couvoir/couvee_widgets.dart';
 
+/// Couvoir : couvées en incubation et historique.
 class ReproductionScreen extends StatefulWidget {
   const ReproductionScreen({super.key});
 
@@ -21,210 +21,249 @@ class ReproductionScreen extends StatefulWidget {
   State<ReproductionScreen> createState() => _ReproductionScreenState();
 }
 
-class _ReproductionScreenState extends State<ReproductionScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  static const Map<String, String> _statutLabels = {
-    'en_incubation': 'En incubation',
-    'eclos': 'Éclos',
-    'termine': 'Terminé',
-    'annule': 'Annulé',
-  };
-
+class _ReproductionScreenState extends State<ReproductionScreen> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ReproductionProvider>().charger();
+      if (mounted) context.read<ReproductionProvider>().charger();
     });
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    final provider = context.watch<ReproductionProvider>();
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const BrandLogo(),
+          title: const Text('Couvoir'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: AddButton(tooltip: 'Mise en incubation', icon: Icons.egg_alt, onPressed: () => showMiseEnIncubation(context)),
+            ),
+          ],
+          bottom: TabBar(
+            tabs: [
+              Tab(icon: const Icon(Icons.egg_alt_outlined, size: 20), text: 'En cours (${provider.actives.length})'),
+              Tab(icon: const Icon(Icons.history, size: 20), text: 'Historique (${provider.historique.length})'),
+            ],
+          ),
+        ),
+        body: provider.isLoading && provider.couvees.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  _Liste(provider: provider, couvees: _triees(provider.actives), enCours: true),
+                  _Liste(provider: provider, couvees: provider.historique, enCours: false),
+                ],
+              ),
+      ),
+    );
   }
 
-  String _fmtDate(DateTime? d) => d == null ? '-' : DateFormat('dd/MM/yyyy').format(d);
-  String _fmtPct(double? v) => v == null ? '-' : '${v.toStringAsFixed(1)} %';
+  /// En incubation d'abord (éclosion la plus proche en tête), puis les couvées écloses.
+  List<Couvee> _triees(List<Couvee> couvees) {
+    int cle(Couvee c) {
+      final av = enIncubation(c) ? avancementCouvee(c) : null;
+      return av?.joursRestants ?? 100000;
+    }
+
+    return [...couvees]..sort((a, b) => cle(a).compareTo(cle(b)));
+  }
+}
+
+class _Liste extends StatelessWidget {
+  final ReproductionProvider provider;
+  final List<Couvee> couvees;
+  final bool enCours;
+
+  const _Liste({required this.provider, required this.couvees, required this.enCours});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: const BrandLogo(),
-        title: const Text('Reproduction / Couvoir'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: AddButton(
-              tooltip: 'Mise en incubation',
-              icon: Icons.egg_alt,
-              onPressed: () => _showSetupForm(),
+    return RefreshIndicator(
+      onRefresh: provider.charger,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+        children: [
+          if (provider.lastError != null && provider.lastError!.isNotEmpty)
+            Card(
+              color: Colors.red.withValues(alpha: 0.12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)),
+              ),
             ),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.egg_alt_outlined), text: 'En cours'),
-            Tab(icon: Icon(Icons.history), text: 'Historique'),
-          ],
-        ),
-      ),
-      body: Consumer<ReproductionProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
-          return RefreshIndicator(
-            onRefresh: provider.charger,
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildList(provider, provider.actives, showStats: true),
-                _buildList(provider, provider.historique, showStats: false),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildList(ReproductionProvider provider, List<Couvee> couvees, {required bool showStats}) {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        if (provider.lastError != null && provider.lastError!.isNotEmpty)
-          Card(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.red.shade900.withValues(alpha: 0.30)
-                : Colors.red.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)),
-            ),
-          ),
-        if (showStats) _buildStatsCard(provider),
-        if (showStats) _buildHatchChart(provider.actives),
-        if (couvees.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 40),
-            child: EmptyState(
+          if (enCours) _Resume(resumeCouvoir(provider.couvees)) else _PerformancesHistorique(couvees),
+          const SizedBox(height: 12),
+          if (couvees.isEmpty)
+            EmptyState(
               icon: Icons.egg_alt_outlined,
-              title: 'Aucune couvée',
-              subtitle: 'Mettez des œufs en incubation pour suivre l’éclosion.',
-            ),
-          )
-        else
-          ...couvees.map(_buildCouveeCard),
-      ],
-    );
-  }
-
-  Widget _buildStatsCard(ReproductionProvider provider) {
-    final s = provider.stats;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Synthèse couvoir', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                _stat('Couvées', '${s['totalCouvees'] ?? 0}'),
-                _stat('Œufs incubés', '${s['totalIncubes'] ?? 0}'),
-                _stat('Éclos', '${s['totalEclos'] ?? 0}'),
-                _stat('Taux éclosion', _fmtPct((s['tauxEclosionMoyen'] as num?)?.toDouble())),
-              ],
-            ),
-          ],
-        ),
+              title: enCours ? 'Aucune couvée en cours' : 'Aucune couvée terminée',
+              subtitle: enCours ? 'Mettez des œufs en incubation avec le bouton en haut à droite.' : null,
+            )
+          else
+            for (final c in couvees) _CouveeCarte(c),
+        ],
       ),
     );
   }
+}
 
-  Widget _stat(String label, String value) {
-    return StatChip(label, value);
+class _Resume extends StatelessWidget {
+  final ResumeCouvoir r;
+  const _Resume(this.r);
+
+  @override
+  Widget build(BuildContext context) {
+    final av = r.prochaineAvancement;
+    final tuiles = [
+      ('En incubation', '${r.oeufsEnIncubation}', r.enCours <= 1 ? '${r.enCours} couvée' : '${r.enCours} couvées', Icons.egg_outlined,
+          Colors.amber),
+      (
+        'Prochaine éclosion',
+        av == null ? '—' : (av.joursRestants <= 0 ? 'Maintenant' : 'J-${av.joursRestants}'),
+        av == null ? 'aucune couvée' : '${r.prochaine!.code} · ${formatDateFr(av.eclosionPrevue)}',
+        Icons.egg_alt,
+        av != null && av.enRetard ? Colors.orange : Colors.green,
+      ),
+      (
+        'Taux d’éclosion',
+        r.tauxEclosion12Mois == null ? '—' : '${r.tauxEclosion12Mois!.toStringAsFixed(0)} %',
+        '12 mois · objectif ${objectifEclosionPct.round()} %',
+        Icons.percent,
+        r.tauxEclosion12Mois == null || r.tauxEclosion12Mois! >= objectifEclosionPct ? Colors.teal : Colors.orange,
+      ),
+      ('Poussins', '${r.poussins12Mois}', 'sur 12 mois', Icons.pets, Colors.brown),
+    ];
+    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(builder: (context, cs) {
+      final col = cs.maxWidth >= 640 ? 4 : 2;
+      final w = (cs.maxWidth - (col - 1) * 8) / col;
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final t in tuiles)
+            Container(
+              width: w,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: t.$5.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: t.$5.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(t.$4, color: t.$5, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(t.$1, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(t.$2, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                        ),
+                        Text(t.$3, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    });
   }
+}
 
-  Widget _buildHatchChart(List<Couvee> couvees) {
-    final withRate = couvees.where((c) => c.tauxEclosion != null).toList();
-    if (withRate.isEmpty) return const SizedBox.shrink();
-    final groups = <BarChartGroupData>[];
-    for (var i = 0; i < withRate.length; i++) {
-      groups.add(BarChartGroupData(x: i, barRods: [
-        BarChartRodData(
-          toY: withRate[i].tauxEclosion ?? 0,
-          width: 16,
-          borderRadius: BorderRadius.circular(4),
-          color: Colors.teal,
-        ),
-      ]));
-    }
+/// Taux d'éclosion des dernières couvées terminées, comparé à l'objectif.
+class _PerformancesHistorique extends StatelessWidget {
+  final List<Couvee> couvees;
+  const _PerformancesHistorique(this.couvees);
+
+  @override
+  Widget build(BuildContext context) {
+    final avecTaux = couvees.where((c) => tauxEclosionIncubes(c) != null).take(12).toList().reversed.toList();
+    if (avecTaux.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Taux d\'éclosion par couvée (%)'),
-            const SizedBox(height: 8),
+            const Text('Taux d’éclosion des dernières couvées', style: TextStyle(fontWeight: FontWeight.w700)),
+            Text('Trait : objectif ${objectifEclosionPct.round()} %', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
             SizedBox(
-              height: 180,
+              height: 170,
               child: BarChart(
                 BarChartData(
                   maxY: 100,
-                  gridData: const FlGridData(show: true),
+                  minY: 0,
+                  gridData: const FlGridData(drawVerticalLine: false),
+                  borderData: FlBorderData(show: false),
+                  extraLinesData: ExtraLinesData(horizontalLines: [
+                    HorizontalLine(y: objectifEclosionPct, color: scheme.onSurface.withValues(alpha: 0.6), strokeWidth: 1, dashArray: [4, 4]),
+                  ]),
                   barTouchData: BarTouchData(
-                    enabled: true,
                     touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, gi, rod, ri) {
-                        final i = group.x.toInt();
-                        if (i < 0 || i >= withRate.length) return null;
-                        return BarTooltipItem(
-                          '${withRate[i].code}\n${(withRate[i].tauxEclosion ?? 0).toStringAsFixed(1)} %',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                        );
-                      },
+                      getTooltipItem: (group, _, rod, _) => BarTooltipItem(
+                        '${avecTaux[group.x].code}\n${rod.toY.toStringAsFixed(1)} %',
+                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
                     ),
                   ),
                   titlesData: FlTitlesData(
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     leftTitles: AxisTitles(
-                      axisNameWidget: const Text('%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 36,
-                        getTitlesWidget: (value, meta) {
-                          if (value == meta.min) return const SizedBox.shrink();
-                          return Text('${value.toInt()}%', style: const TextStyle(fontSize: 9));
-                        },
+                        reservedSize: 32,
+                        interval: 25,
+                        getTitlesWidget: (v, _) => Text('${v.toInt()}', style: const TextStyle(fontSize: 9)),
                       ),
                     ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) {
-                          final i = value.toInt();
-                          if (i < 0 || i >= withRate.length) return const SizedBox.shrink();
-                          final label = withRate[i].code;
-                          final short = label.length > 6 ? '${label.substring(0, 6)}…' : label;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(short, style: const TextStyle(fontSize: 10)),
-                          );
+                        reservedSize: 20,
+                        getTitlesWidget: (v, _) {
+                          final i = v.toInt();
+                          if (i < 0 || i >= avecTaux.length) return const SizedBox.shrink();
+                          final code = avecTaux[i].code;
+                          return Text(code.length > 6 ? '${code.substring(0, 6)}…' : code, style: const TextStyle(fontSize: 9));
                         },
                       ),
                     ),
                   ),
-                  barGroups: groups,
+                  barGroups: [
+                    for (var i = 0; i < avecTaux.length; i++)
+                      () {
+                        final t = tauxEclosionIncubes(avecTaux[i])!;
+                        return BarChartGroupData(x: i, barRods: [
+                          BarChartRodData(
+                            toY: t,
+                            width: 14,
+                            borderRadius: BorderRadius.circular(4),
+                            color: t >= objectifEclosionPct ? Colors.green : (t >= objectifEclosionPct - 15 ? Colors.orange : Colors.red),
+                          ),
+                        ]);
+                      }(),
+                  ],
                 ),
               ),
             ),
@@ -233,344 +272,114 @@ class _ReproductionScreenState extends State<ReproductionScreen> with SingleTick
       ),
     );
   }
+}
 
-  Widget _buildCouveeCard(Couvee c) {
+class _CouveeCarte extends StatelessWidget {
+  final Couvee c;
+  const _CouveeCarte(this.c);
+
+  @override
+  Widget build(BuildContext context) {
+    final inc = incubationPour(c.race);
+    final av = enIncubation(c) ? avancementCouvee(c) : null;
+    final alertes = alertesCouvee(c);
+    final statutCouleur = statutCouveeCouleur(c.statut);
+    final te = tauxEclosionIncubes(c);
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ExpansionTile(
-        leading: const CircleAvatar(child: Icon(Icons.egg_alt_outlined)),
-        title: Text(c.code, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${_statutLabels[c.statut] ?? c.statut} • ${c.nbOeufsIncubes} œufs • Écl. ${_fmtPct(c.tauxEclosion)}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (c.race.isNotEmpty) Text('Race: ${c.race}'),
-                Text('Mise en incubation: ${_fmtDate(c.dateMiseIncubation)}'),
-                Text('Éclosion: ${_fmtDate(c.dateEclosion)} • Éclos: ${c.nbEclos ?? '-'} • Viables: ${c.nbPoussinsViables ?? '-'}'),
-                Text('Taux éclosion: ${_fmtPct(c.tauxEclosion)} | Viabilité: ${_fmtPct(c.tauxViabilite)}'),
-                if (c.notes.isNotEmpty) Text('Notes: ${c.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (c.statut == 'en_incubation')
-                      FilledButton.icon(
-                        onPressed: () => _showEclosionForm(c),
-                        icon: const Icon(Icons.egg_alt, size: 18),
-                        label: const Text('Éclosion'),
-                      ),
-                    if (c.statut == 'eclos')
-                      OutlinedButton.icon(
-                        onPressed: () => _cloturer(c),
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('Clôturer'),
-                      ),
-                    OutlinedButton.icon(
-                      onPressed: () => _showForm(couvee: c),
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Modifier'),
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CouveeDetailScreen(couvee: c))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: av != null
+                      ? [Colors.amber.shade800, Colors.amber.shade500]
+                      : [statutCouleur.shade600, statutCouleur.shade400],
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white.withValues(alpha: 0.25),
+                    child: Icon(av != null ? Icons.egg_outlined : Icons.egg_alt, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(c.code,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(
+                          [
+                            if (c.race.isNotEmpty) c.race else inc.espece,
+                            '${c.nbOeufsIncubes} œufs',
+                            if (c.dateMiseIncubation != null) 'le ${formatDateFr(c.dateMiseIncubation!.toLocal())}',
+                          ].join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.92)),
+                        ),
+                      ],
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () => _confirmDelete(c),
-                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                      label: const Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
+                  ),
+                  if (av == null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
+                      child: Text(statutCouveeLibelle(c.statut),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statutCouleur.shade800)),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (av != null) AvancementIncubation(av) else EntonnoirMini(c),
+                  if (av == null && te != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Éclosion ${te.toStringAsFixed(1)} % des œufs',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: te >= objectifEclosionPct ? Colors.green.shade700 : Colors.orange.shade800,
+                      ),
                     ),
                   ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(Couvee c) async {
-    if (c.id == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la couvée'),
-        content: Text('Supprimer "${c.code}" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final done = await context.read<ReproductionProvider>().supprimer(c.id!);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(done ? 'Couvée supprimée' : 'Suppression impossible')),
-    );
-  }
-
-  Future<void> _cloturer(Couvee c) async {
-    if (c.id == null) return;
-    final ok = await context.read<ReproductionProvider>().mettreAJour(c.id!, {'statut': 'termine'});
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Couvée clôturée' : 'Erreur clôture')),
-    );
-  }
-
-  Future<void> _saveStage(
-    String? id,
-    Map<String, dynamic> payload,
-    NavigatorState navigator,
-    ScaffoldMessengerState messenger, {
-    required bool isCreate,
-  }) async {
-    final provider = context.read<ReproductionProvider>();
-    final ok = isCreate ? await provider.creer(payload) : await provider.mettreAJour(id!, payload);
-    if (!mounted) return;
-    navigator.pop();
-    final err = provider.lastError;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? 'Enregistré' : 'Erreur${err != null && err.isNotEmpty ? ': $err' : ''}')),
-    );
-  }
-
-  Widget _dateTile(String label, DateTime? date, VoidCallback onTap) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: Text(_fmtDate(date)),
-      trailing: const Icon(Icons.calendar_today),
-      onTap: onTap,
-    );
-  }
-
-  // Étape 1 — Mise en incubation (création)
-  void _showSetupForm() {
-    final codeCtrl = TextEditingController();
-    final raceCtrl = TextEditingController();
-    final incubesCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
-    DateTime date = DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: const Text('Mise en incubation'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Code / référence *')),
-                TextField(controller: raceCtrl, decoration: const InputDecoration(labelText: 'Race')),
-                NumberField(controller: incubesCtrl, label: 'Œufs mis en incubation *', decimal: false),
-                _dateTile('Date de mise en incubation', date, () async {
-                  final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                  if (picked != null) setDialog(() => date = picked);
-                }),
-                TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final incubes = parseInteger(incubesCtrl.text);
-                if (codeCtrl.text.trim().isEmpty || incubes == null) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Code et nombre d\'œufs obligatoires')));
-                  return;
-                }
-                _saveStage(null, {
-                  'code': codeCtrl.text.trim(),
-                  'race': raceCtrl.text.trim(),
-                  'dateMiseIncubation': date.toIso8601String(),
-                  'nbOeufsIncubes': incubes,
-                  'notes': notesCtrl.text.trim(),
-                }, navigator, messenger, isCreate: true);
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Étape 2 — Éclosion (sortie)
-  void _showEclosionForm(Couvee c) {
-    final eclosCtrl = TextEditingController(text: c.nbEclos?.toString() ?? '');
-    final viablesCtrl = TextEditingController(text: c.nbPoussinsViables?.toString() ?? '');
-    DateTime date = c.dateEclosion ?? DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: Text('Éclosion — ${c.code}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Œufs incubés: ${c.nbOeufsIncubes}'),
-                const SizedBox(height: 8),
-                NumberField(controller: eclosCtrl, label: 'Poussins éclos *', decimal: false),
-                NumberField(controller: viablesCtrl, label: 'Poussins viables', decimal: false),
-                _dateTile('Date d\'éclosion', date, () async {
-                  final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                  if (picked != null) setDialog(() => date = picked);
-                }),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final eclos = parseInteger(eclosCtrl.text);
-                if (eclos == null) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Nombre de poussins éclos obligatoire')));
-                  return;
-                }
-                _saveStage(c.id, {
-                  'nbEclos': eclos,
-                  'nbPoussinsViables': parseInteger(viablesCtrl.text),
-                  'dateEclosion': date.toIso8601String(),
-                  'statut': 'eclos',
-                }, navigator, messenger, isCreate: false);
-              },
-              child: const Text('Enregistrer l\'éclosion'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showForm({Couvee? couvee}) {
-    final isEdit = couvee != null;
-    final codeCtrl = TextEditingController(text: couvee?.code ?? '');
-    final raceCtrl = TextEditingController(text: couvee?.race ?? '');
-    final incubesCtrl = TextEditingController(text: isEdit ? couvee.nbOeufsIncubes.toString() : '');
-    final eclosCtrl = TextEditingController(text: couvee?.nbEclos?.toString() ?? '');
-    final viablesCtrl = TextEditingController(text: couvee?.nbPoussinsViables?.toString() ?? '');
-    final notesCtrl = TextEditingController(text: couvee?.notes ?? '');
-    DateTime dateIncubation = couvee?.dateMiseIncubation ?? DateTime.now();
-    DateTime? dateEclosion = couvee?.dateEclosion;
-    String statut = couvee?.statut ?? 'en_incubation';
-
-    int? parseIntOrNull(String s) => s.trim().isEmpty ? null : parseInteger(s);
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: Text(isEdit ? 'Modifier la couvée' : 'Nouvelle couvée'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Code / référence *')),
-                TextField(controller: raceCtrl, decoration: const InputDecoration(labelText: 'Race')),
-                NumberField(controller: incubesCtrl, label: 'Œufs incubés *', decimal: false),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date mise en incubation'),
-                  subtitle: Text(_fmtDate(dateIncubation)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(
-                      context: dialogContext,
-                      initialDate: dateIncubation,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) setDialog(() => dateIncubation = picked);
-                  },
-                ),
-                const Divider(),
-                const Align(alignment: Alignment.centerLeft, child: Text('Éclosion', style: TextStyle(fontWeight: FontWeight.bold))),
-                NumberField(controller: eclosCtrl, label: 'Poussins éclos', decimal: false),
-                NumberField(controller: viablesCtrl, label: 'Poussins viables', decimal: false),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date éclosion'),
-                  subtitle: Text(_fmtDate(dateEclosion)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showIsoDatePicker(
-                      context: dialogContext,
-                      initialDate: dateEclosion ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) setDialog(() => dateEclosion = picked);
-                  },
-                ),
-                const Divider(),
-                DropdownButtonFormField<String>(
-                  initialValue: statut,
-                  decoration: const InputDecoration(labelText: 'Statut'),
-                  items: _statutLabels.entries
-                      .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                      .toList(),
-                  onChanged: (v) => setDialog(() => statut = v ?? statut),
-                ),
-                TextField(controller: notesCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes')),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            AsyncButton(
-              label: const Text('Enregistrer'),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final provider = context.read<ReproductionProvider>();
-                if (codeCtrl.text.trim().isEmpty || parseIntOrNull(incubesCtrl.text) == null) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Code et nombre d\'œufs incubés obligatoires')));
-                  return;
-                }
-                final payload = <String, dynamic>{
-                  'code': codeCtrl.text.trim(),
-                  'race': raceCtrl.text.trim(),
-                  'dateMiseIncubation': dateIncubation.toIso8601String(),
-                  'nbOeufsIncubes': parseIntOrNull(incubesCtrl.text),
-                  'nbEclos': parseIntOrNull(eclosCtrl.text),
-                  'nbPoussinsViables': parseIntOrNull(viablesCtrl.text),
-                  'dateEclosion': dateEclosion?.toIso8601String(),
-                  'statut': statut,
-                  'notes': notesCtrl.text.trim(),
-                };
-                final ok = isEdit
-                    ? await provider.mettreAJour(couvee.id!, payload)
-                    : await provider.creer(payload);
-                if (!mounted) return;
-                navigator.pop();
-                final err = provider.lastError;
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(ok
-                        ? (isEdit ? 'Couvée modifiée' : 'Couvée créée')
-                        : 'Erreur${err != null && err.isNotEmpty ? ': $err' : ''}'),
-                  ),
-                );
-              },
+                  if (alertes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    AlertesCouveePills(alertes),
+                  ],
+                  if (av != null || c.statut == 'eclos') ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: av != null
+                          ? FilledButton.tonalIcon(
+                              onPressed: () => showSaisieEclosion(context, c),
+                              icon: const Icon(Icons.egg_alt, size: 18),
+                              label: const Text('Saisir l’éclosion'),
+                            )
+                          : OutlinedButton.icon(
+                              onPressed: () => cloturerCouvee(context, c),
+                              icon: const Icon(Icons.check_circle_outline, size: 18),
+                              label: const Text('Clôturer'),
+                            ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

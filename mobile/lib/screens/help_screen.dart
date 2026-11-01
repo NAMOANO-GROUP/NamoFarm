@@ -125,16 +125,24 @@ class _HelpScreenState extends State<HelpScreen> {
             'planifier le vide sanitaire dans la Todo. La bande passe dans l\'onglet Historique (export CSV possible).',
       ),
     ]),
-    _HelpChapter('Reproduction / Couvoir', Icons.egg_alt_outlined, Color(0xFF6A1B9A), [
+    _HelpChapter('Couvoir', Icons.egg_alt_outlined, Color(0xFF6A1B9A), [
       _HelpArticle(
         'Mise en incubation',
-        'Module Reproduction → bouton « + » (Mise en incubation). Indiquez la date et '
-            'le nombre d\'œufs. La date d\'éclosion prévue est calculée automatiquement.',
+        'Module Couvoir → bouton « + ». Indiquez le code, la race ou l\'espèce, le nombre d\'œufs et la date. '
+            'La durée d\'incubation est déduite de l\'espèce (poule 21 j, pintade 27 j, canard 28 j, caille 17 j, '
+            'dinde 28 j, oie 30 j) et la date d\'éclosion prévue est affichée.',
       ),
       _HelpArticle(
-        'Suivre l\'éclosion',
-        'À l\'éclosion, saisissez le nombre de poussins obtenus pour calculer le taux '
-            'd\'éclosion. Les couvées terminées passent dans l\'onglet Historique.',
+        'Suivre les couvées',
+        'En tête : œufs en incubation, prochaine éclosion, taux d\'éclosion et poussins sur 12 mois. Chaque carte '
+            'montre l\'avancement (J12 / 21), le compte à rebours et la prochaine étape (mirage, arrêt du '
+            'retournement). Une couvée non saisie après la date prévue est signalée « Éclosion à saisir ».',
+      ),
+      _HelpArticle(
+        'Fiche couvée',
+        'Touchez une carte : entonnoir des œufs aux poussins avec les pertes à chaque étape, taux d\'éclosion '
+            'et de viabilité comparés aux objectifs (80 % et 95 %), frise des étapes datées et notes. Saisir '
+            'l\'éclosion, clôturer, modifier ou supprimer depuis la fiche.',
       ),
     ]),
     _HelpChapter('Santé / Prophylaxie', Icons.vaccines_outlined, Color(0xFFAD1457), [
@@ -152,15 +160,28 @@ class _HelpScreenState extends State<HelpScreen> {
     ]),
     _HelpChapter('Cheptel', Icons.pets_outlined, Color(0xFFEF6C00), [
       _HelpArticle(
-        'Gérer un cheptel',
-        'Le module Cheptel gère les autres élevages (chèvres, poules locales, pintades...). '
-            'Bouton « + » pour créer un cheptel, puis enregistrez les mouvements : '
-            'naissances, entrées, sorties, décès.',
+        'Troupeaux',
+        'Le Cheptel suit les autres élevages en effectif : chèvres, moutons, poules locales, pintades, lapins, '
+            'porcs, bovins. En tête, le résumé (animaux, naissances et morts sur 30 jours, ventes du mois). '
+            'Chaque carte montre l\'effectif, son évolution sur 30 jours, une mini-courbe et les alertes '
+            '(mortalité en hausse, troupeau à recompter après 90 jours). Bouton « + » pour créer un troupeau.',
       ),
       _HelpArticle(
-        'Journal des mouvements',
-        'Chaque cheptel affiche un journal des mouvements, replié par défaut, avec '
-            'l\'effectif recalculé automatiquement.',
+        'Saisie rapide',
+        'Boutons Naissance, Mort, Vente, Achat et Recompter sur chaque carte et dans la fiche. Réglez le nombre '
+            'avec − et +, indiquez le prix par tête pour une vente ou un achat (le total va dans la Finance), '
+            'choisissez Aujourd\'hui, Hier ou une autre date. L\'effectif après la saisie est affiché.',
+      ),
+      _HelpArticle(
+        'Fiche du troupeau',
+        'Touchez une carte : Aperçu (indicateurs, prix moyen par tête, dernier comptage), Courbe de l\'effectif '
+            'datée, Journal groupé par mois avec filtres, Finances (ventes, achats, solde).',
+      ),
+      _HelpArticle(
+        'Santé et reproduction',
+        'Plan santé : rappels types de l\'espèce (vaccins, déparasitage) à cocher, ajoutés à la Todo. '
+            'Mise à la reproduction ou en couvaison : la date de mise-bas ou d\'éclosion est calculée et trois '
+            'tâches sont créées (préparation, jour J, contrôle des petits).',
       ),
     ]),
     _HelpChapter('Achats : stocks et fournisseurs', Icons.shopping_basket_outlined, Color(0xFF00838F), [

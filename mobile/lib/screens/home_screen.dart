@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _ModuleItem(
       id: 'reproduction',
       page: ReproductionScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Reproduction'),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Couvoir'),
       mobileDestination: NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Couvoir'),
       permission: 'reproduction:view',
     ),

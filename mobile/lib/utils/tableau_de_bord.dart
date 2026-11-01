@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/alerte.dart';
 import '../models/bande.dart';
+import '../models/cheptel.dart';
+import 'cheptel.dart';
 import 'bande_kpis.dart';
 
 /// Période des indicateurs du Tableau de bord.
@@ -125,6 +127,7 @@ List<ElementAujourdhui> elementsAujourdhui({
   List<Alerte> automatiques = const [],
   List<Bande> bandes = const [],
   Map<String, BandeKpis> kpis = const {},
+  List<Cheptel> cheptels = const [],
   DateTime? now,
   int horizonSortieJours = 7,
 }) {
@@ -178,6 +181,26 @@ List<ElementAujourdhui> elementsAujourdhui({
         bandeId: b.id,
       ),
     );
+  }
+
+  for (final c in cheptels) {
+    final k = kpisCheptel(c, now: today);
+    for (final a in k.alertes) {
+      final mortalite = a == AlerteCheptel.mortaliteEnHausse;
+      out.add(
+        ElementAujourdhui(
+          titre: mortalite ? 'Mortalité en hausse : ${c.nom}' : 'Recompter le troupeau : ${c.nom}',
+          detail: mortalite
+              ? '${k.mois.morts} morts en 30 jours sur ${k.effectifIlYa30j} animaux'
+              : 'Aucun comptage depuis plus de $delaiRecomptageJours jours',
+          icon: mortalite ? Icons.heart_broken_outlined : Icons.fact_check_outlined,
+          color: mortalite ? Colors.red : Colors.orange,
+          module: 'cheptel',
+          date: today,
+          urgent: mortalite,
+        ),
+      );
+    }
   }
 
   out.sort((a, b) {

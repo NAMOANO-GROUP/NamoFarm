@@ -4,13 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/alerte.dart';
 import '../models/bande.dart';
+import '../models/cheptel.dart';
 import '../providers/alertes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/bandes_provider.dart';
+import '../providers/cheptel_provider.dart';
 import '../providers/nav_hub_provider.dart';
 import '../services/api_service.dart';
 import '../services/references_service.dart';
 import '../utils/bande_kpis.dart';
+import '../utils/cheptel.dart';
 import '../utils/csv_export.dart';
 import '../utils/tableau_de_bord.dart';
 import '../widgets/brand_logo.dart';
@@ -95,7 +98,9 @@ class _TableauDeBordScreenState extends State<TableauDeBordScreen> {
   Future<void> _charger() async {
     final bandes = _lire<BandesProvider>();
     final alertes = _lire<AlertesProvider>();
+    final cheptel = _lire<CheptelProvider>();
     await Future.wait([
+      if (cheptel != null) cheptel.charger(),
       ReferencesService.charger().then((r) {
         if (mounted) setState(() => _refs = r);
       }),
@@ -202,6 +207,12 @@ class _TableauDeBordScreenState extends State<TableauDeBordScreen> {
     } on ProviderNotFoundException {
       // Écran utilisé hors de l'application complète.
     }
+    List<Cheptel> cheptels = const [];
+    try {
+      cheptels = context.watch<CheptelProvider>().cheptels;
+    } on ProviderNotFoundException {
+      // Idem.
+    }
     try {
       final a = context.watch<AlertesProvider>();
       taches = a.alertes;
@@ -218,6 +229,7 @@ class _TableauDeBordScreenState extends State<TableauDeBordScreen> {
       automatiques: automatiques,
       bandes: bandes,
       kpis: kpis,
+      cheptels: cheptels,
       now: now,
     );
     String prenom = '';
@@ -240,6 +252,8 @@ class _TableauDeBordScreenState extends State<TableauDeBordScreen> {
             charge: _chiffresCharges,
             argentDisponible: _socle?.argentDisponible,
             elevage: resumeElevage(bandes, kpis),
+            cheptel: cheptels.isEmpty ? null : resumeCheptel(cheptels, now: now),
+            onCheptel: () => _ouvrirModule('cheptel'),
             onFinance: () => _ouvrirModule('finance'),
             onBandes: () => _ouvrirModule('bandes'),
           );

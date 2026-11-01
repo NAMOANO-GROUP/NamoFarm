@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
-import '../widgets/brand_logo.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/cheptel.dart';
 import '../providers/cheptel_provider.dart';
+import '../utils/cheptel.dart';
 import '../utils/money_format.dart';
-import '../widgets/iso_calendar_picker.dart';
-import '../widgets/empty_state.dart';
-import '../widgets/stat_tile.dart';
 import '../widgets/add_button.dart';
-import '../widgets/number_field.dart';
-import '../widgets/async_button.dart';
-import '../widgets/app_form.dart';
-import '../utils/number_input.dart';
+import '../widgets/brand_logo.dart';
+import '../widgets/empty_state.dart';
+import 'cheptel/cheptel_detail_screen.dart';
+import 'cheptel/cheptel_dialogs.dart';
+import 'cheptel/cheptel_widgets.dart';
 
+/// Cheptel : troupeaux suivis en effectif (chèvres, moutons, poules locales...).
 class CheptelScreen extends StatefulWidget {
   const CheptelScreen({super.key});
 
@@ -24,53 +21,21 @@ class CheptelScreen extends StatefulWidget {
 }
 
 class _CheptelScreenState extends State<CheptelScreen> {
-  static const Map<String, String> _mvtLabels = {
-    'naissance': 'Naissance / éclosion',
-    'entree': 'Entrée / achat',
-    'mortalite': 'Mortalité',
-    'vente': 'Vente',
-    'sortie': 'Sortie / abattage',
-    'ajustement': 'Ajustement (recomptage)',
-  };
-
-  static const List<String> _especes = ['chevre', 'poule_locale', 'pintade', 'mouton', 'lapin', 'autre'];
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CheptelProvider>().charger();
+      if (mounted) context.read<CheptelProvider>().charger();
     });
   }
 
-  String _fmtDate(DateTime? d) => d == null ? '-' : DateFormat('dd/MM/yyyy').format(d);
-
-  IconData _mvtIcon(String type) {
-    switch (type) {
-      case 'naissance': return Icons.child_care;
-      case 'entree': return Icons.add_circle_outline;
-      case 'mortalite': return Icons.heart_broken;
-      case 'vente': return Icons.sell;
-      case 'sortie': return Icons.logout;
-      default: return Icons.tune;
-    }
-  }
-
-  Color _mvtColor(String type) {
-    switch (type) {
-      case 'naissance':
-      case 'entree': return Colors.green;
-      case 'mortalite': return Colors.red;
-      case 'vente': return Colors.blue;
-      case 'sortie': return Colors.orange;
-      default: return Colors.blueGrey;
-    }
-  }
-
-  bool _isAdd(String type) => type == 'naissance' || type == 'entree';
+  void _ouvrir(Cheptel c) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => CheptelDetailScreen(cheptel: c)));
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<CheptelProvider>();
+    final cheptels = provider.cheptels;
     return Scaffold(
       appBar: AppBar(
         leading: const BrandLogo(),
@@ -78,432 +43,206 @@ class _CheptelScreenState extends State<CheptelScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: AddButton(
-              tooltip: 'Nouveau cheptel',
-              icon: Icons.pets,
-              onPressed: () => _showCheptelForm(),
-            ),
+            child: AddButton(tooltip: 'Nouveau troupeau', icon: Icons.pets, onPressed: () => showTroupeauForm(context)),
           ),
         ],
       ),
-      body: Consumer<CheptelProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
-          return RefreshIndicator(
-            onRefresh: provider.charger,
-            child: ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                if (provider.lastError != null && provider.lastError!.isNotEmpty)
-                  Card(color: Theme.of(context).brightness == Brightness.dark ? Colors.red.shade900.withValues(alpha: 0.30) : Colors.red.shade50, child: Padding(padding: const EdgeInsets.all(12), child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)))),
-                if (provider.cheptels.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
-                    child: EmptyState(
-                      icon: Icons.pets_outlined,
-                      title: 'Aucun cheptel',
-                      subtitle: 'Créez un cheptel (chèvres, poules locales, pintades...) pour commencer.',
+      body: provider.isLoading && cheptels.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: provider.charger,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+                children: [
+                  if (provider.lastError != null && provider.lastError!.isNotEmpty)
+                    Card(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(provider.lastError!, style: const TextStyle(color: Colors.red)),
+                      ),
                     ),
-                  )
-                else
-                  ...provider.cheptels.map(_buildCheptelCard),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCheptelCard(Cheptel c) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Text('${c.effectifActuel}', style: const TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        title: Text(c.nom, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${c.espece.isEmpty ? 'Cheptel' : c.espece} • Effectif: ${c.effectifActuel}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 6,
-                  children: [
-                    _stat('Naissances', '${c.naissances}'),
-                    _stat('Entrées', '${c.entrees}'),
-                    _stat('Mortalité', '${c.morts} (${c.tauxMortalite.toStringAsFixed(1)}%)'),
-                    _stat('Vendus', '${c.ventes}'),
-                    if (c.caVentes > 0) _stat('CA ventes', formatAmountFcfa(c.caVentes)),
+                  if (cheptels.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: EmptyState(
+                        icon: Icons.pets_outlined,
+                        title: 'Aucun troupeau',
+                        subtitle:
+                            'Créez un troupeau (chèvres, moutons, poules locales, pintades...) pour suivre son effectif.',
+                        actionLabel: 'Créer un troupeau',
+                        onAction: () => showTroupeauForm(context),
+                      ),
+                    )
+                  else ...[
+                    _Resume(resumeCheptel(cheptels)),
+                    const SizedBox(height: 12),
+                    for (final c in cheptels) _TroupeauCarte(c, onOpen: () => _ouvrir(c)),
                   ],
-                ),
-                _buildEffectifChart(c),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => _showMouvementForm(c),
-                      icon: const Icon(Icons.playlist_add, size: 18),
-                      label: const Text('Mouvement'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _showCheptelForm(cheptel: c),
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Modifier'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _confirmDeleteCheptel(c),
-                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                      label: const Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                Theme(
-                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    initiallyExpanded: false,
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: EdgeInsets.zero,
-                    title: const Text('Journal des mouvements', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${c.mouvements.length} mouvement(s)', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                    children: [
-                      if (c.mouvements.isEmpty)
-                        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Aucun mouvement', style: TextStyle(color: Colors.grey)))
-                      else
-                        ...c.mouvements.map((m) => _buildMouvementTile(c, m)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stat(String label, String value) {
-    return StatChip(label, value);
-  }
-
-  Widget _buildEffectifChart(Cheptel c) {
-    // Movements come from the API most-recent first; reverse to chronological order
-    // and accumulate the running headcount.
-    final asc = c.mouvements.reversed.toList();
-    if (asc.length < 2) return const SizedBox.shrink();
-    final spots = <FlSpot>[];
-    int eff = 0;
-    for (var i = 0; i < asc.length; i++) {
-      final m = asc[i];
-      if (m.type == 'ajustement') {
-        eff = m.quantite;
-      } else if (m.type == 'naissance' || m.type == 'entree') {
-        eff += m.quantite;
-      } else {
-        eff -= m.quantite;
-      }
-      spots.add(FlSpot(i.toDouble(), eff.toDouble()));
-    }
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Évolution de l\'effectif'),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 180,
-            child: LineChart(
-              LineChartData(
-                minY: 0,
-                gridData: const FlGridData(show: true),
-                lineTouchData: LineTouchData(
-                  enabled: true,
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems: (spots) => spots.map((s) {
-                      final i = s.x.toInt();
-                      final d = (i >= 0 && i < asc.length) ? asc[i].date : null;
-                      return LineTooltipItem(
-                        '${d != null ? _fmtDate(d) : ''}\nEffectif: ${s.y.toInt()}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(
-                    axisNameWidget: const Text('Têtes', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 44,
-                      getTitlesWidget: (value, meta) {
-                        if (value == meta.min) return const SizedBox.shrink();
-                        return Text(value.toInt().toString(), style: const TextStyle(fontSize: 9));
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28,
-                      interval: asc.length > 10 ? (asc.length / 6).ceilToDouble() : 1,
-                      getTitlesWidget: (value, meta) {
-                        final i = value.toInt();
-                        if (i < 0 || i >= asc.length) return const SizedBox.shrink();
-                        final d = asc[i].date;
-                        if (d == null) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(DateFormat('dd/MM').format(d), style: const TextStyle(fontSize: 9)),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: false,
-                    barWidth: 3,
-                    color: Theme.of(context).colorScheme.primary,
-                    dotData: const FlDotData(show: true),
-                  ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
+}
 
-  Widget _buildMouvementTile(Cheptel c, CheptelMouvement m) {
-    final sign = _isAdd(m.type) ? '+' : (m.type == 'ajustement' ? '=' : '−');
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(_mvtIcon(m.type), color: _mvtColor(m.type)),
-      title: Text('${_mvtLabels[m.type] ?? m.type} : $sign${m.quantite}', maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        '${_fmtDate(m.date)}${m.montant > 0 ? ' • ${formatAmountFcfa(m.montant)}' : ''}${m.motif.isNotEmpty ? ' • ${m.motif}' : ''}',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+class _Resume extends StatelessWidget {
+  final ResumeCheptel r;
+  const _Resume(this.r);
+
+  @override
+  Widget build(BuildContext context) {
+    final tuiles = [
+      (
+        'Animaux',
+        '${r.animaux}',
+        r.troupeaux <= 1 ? '${r.troupeaux} troupeau' : '${r.troupeaux} troupeaux',
+        Icons.pets,
+        Colors.brown,
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.close, size: 18),
-        tooltip: 'Supprimer le mouvement',
-        onPressed: () async {
-          if (c.id == null || m.id == null) return;
-          final ok = await context.read<CheptelProvider>().supprimerMouvement(c.id!, m.id!);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Mouvement supprimé' : 'Suppression impossible')));
-        },
+      ('Naissances', '${r.naissances30j}', '30 derniers jours', Icons.child_care, Colors.green),
+      (
+        'Morts',
+        '${r.morts30j}',
+        '30 derniers jours',
+        Icons.heart_broken_outlined,
+        r.morts30j > 0 ? Colors.red : Colors.blueGrey,
       ),
+      (
+        'Vendus',
+        '${r.vendusMois}',
+        r.ventesMois > 0 ? formatCompactFcfa(r.ventesMois) : 'ce mois-ci',
+        Icons.sell_outlined,
+        Colors.blue,
+      ),
+    ];
+    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, cs) {
+        final col = cs.maxWidth >= 640 ? 4 : 2;
+        final w = (cs.maxWidth - (col - 1) * 8) / col;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final t in tuiles)
+              Container(
+                width: w,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: t.$5.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: t.$5.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(t.$4, color: t.$5, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.$1,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                          ),
+                          Text(t.$2, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                          Text(
+                            t.$3,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
+}
 
-  Future<void> _confirmDeleteCheptel(Cheptel c) async {
-    if (c.id == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer le cheptel'),
-        content: Text('Supprimer "${c.nom}" et tout son historique ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Supprimer')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final done = await context.read<CheptelProvider>().supprimerCheptel(c.id!);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done ? 'Cheptel supprimé' : 'Suppression impossible')));
-  }
+class _TroupeauCarte extends StatelessWidget {
+  final Cheptel c;
+  final VoidCallback onOpen;
 
-  void _showCheptelForm({Cheptel? cheptel}) {
-    final isEdit = cheptel != null;
-    final nomCtrl = TextEditingController(text: cheptel?.nom ?? '');
-    final effectifCtrl = TextEditingController();
-    final notesCtrl = TextEditingController(text: cheptel?.notes ?? '');
-    String espece = cheptel?.espece.isNotEmpty == true ? cheptel!.espece : 'chevre';
+  const _TroupeauCarte(this.c, {required this.onOpen});
 
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) => AlertDialog(
-          title: Text(isEdit ? 'Modifier le cheptel' : 'Nouveau cheptel'),
-          content: AppFormBody([
-            TextField(
-              controller: nomCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Nom (ex: Chèvres, Poules locales) *',
-                prefixIcon: Icon(Icons.badge_outlined),
+  @override
+  Widget build(BuildContext context) {
+    final e = especePour(c.espece);
+    final k = kpisCheptel(c);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              decoration: BoxDecoration(gradient: LinearGradient(colors: [e.color.shade700, e.color.shade400])),
+              child: Row(
+                children: [
+                  EspeceAvatar(c.espece, surFonce: true),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.nom,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        Text(e.libelle, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.92))),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white),
+                ],
               ),
             ),
-            DropdownButtonFormField<String>(
-              initialValue: _especes.contains(espece) ? espece : 'autre',
-              decoration: const InputDecoration(
-                labelText: 'Espèce',
-                prefixIcon: Icon(Icons.pets_outlined),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${c.effectifActuel}',
+                              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+                            ),
+                            Text('animaux', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            const SizedBox(height: 2),
+                            EvolutionCheptel(k.evolution30j),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 130, height: 56, child: CourbeEffectif(c, mini: true, couleur: e.color)),
+                    ],
+                  ),
+                  if (k.alertes.isNotEmpty) ...[const SizedBox(height: 8), AlertesCheptelPills(k.alertes)],
+                  const SizedBox(height: 10),
+                  ActionsRapidesCheptel(c),
+                ],
               ),
-              items: _especes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: (v) => setDialog(() => espece = v ?? espece),
-            ),
-            if (!isEdit)
-              NumberField(controller: effectifCtrl, label: 'Effectif initial (optionnel)', decimal: false, prefixIcon: Icons.groups_outlined),
-            TextField(
-              controller: notesCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                prefixIcon: Icon(Icons.notes_outlined),
-              ),
-            ),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            AsyncButton(
-              label: const Text('Enregistrer'),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final provider = context.read<CheptelProvider>();
-                if (nomCtrl.text.trim().isEmpty) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Le nom est obligatoire')));
-                  return;
-                }
-                final ok = isEdit
-                    ? await provider.mettreAJourCheptel(cheptel.id!, {
-                        'nom': nomCtrl.text.trim(),
-                        'espece': espece,
-                        'notes': notesCtrl.text.trim(),
-                      })
-                    : await provider.creerCheptel({
-                        'nom': nomCtrl.text.trim(),
-                        'espece': espece,
-                        'effectifInitial': parseInteger(effectifCtrl.text) ?? 0,
-                        'notes': notesCtrl.text.trim(),
-                      });
-                if (!mounted) return;
-                navigator.pop();
-                messenger.showSnackBar(SnackBar(content: Text(ok ? 'Enregistré' : 'Erreur: ${provider.lastError ?? ''}')));
-              },
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showMouvementForm(Cheptel c) {
-    String type = 'naissance';
-    final qteCtrl = TextEditingController();
-    final prixUnitaireCtrl = TextEditingController();
-    final motifCtrl = TextEditingController();
-    DateTime date = DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialog) {
-          final qtePreview = parseInteger(qteCtrl.text) ?? 0;
-          final prixPreview = parseAmount(prixUnitaireCtrl.text) ?? 0;
-          final totalPreview = qtePreview * prixPreview;
-          return AlertDialog(
-          title: Text('Mouvement — ${c.nom}'),
-          content: AppFormBody([
-            Text('Effectif actuel: ${c.effectifActuel}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            DropdownButtonFormField<String>(
-              initialValue: type,
-              decoration: const InputDecoration(
-                labelText: 'Type de mouvement',
-                prefixIcon: Icon(Icons.swap_vert_outlined),
-              ),
-              items: _mvtLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-              onChanged: (v) => setDialog(() => type = v ?? type),
-            ),
-            NumberField(
-              controller: qteCtrl,
-              label: type == 'ajustement' ? 'Nouvel effectif *' : 'Quantité *',
-              decimal: false,
-              prefixIcon: Icons.numbers,
-            ),
-            if (type == 'vente' || type == 'entree') ...[
-              NumberField(
-                controller: prixUnitaireCtrl,
-                label: 'Prix unitaire (FCFA)',
-                prefixIcon: Icons.payments_outlined,
-              ),
-              if (qtePreview > 0 && prixPreview > 0)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Total: ${formatAmountFcfa(totalPreview)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-            ],
-            FormDateTile(
-              label: 'Date',
-              value: _fmtDate(date),
-              onTap: () async {
-                final picked = await showIsoDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                if (picked != null) setDialog(() => date = picked);
-              },
-            ),
-            TextField(
-              controller: motifCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Motif / commentaire',
-                prefixIcon: Icon(Icons.notes_outlined),
-              ),
-            ),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
-            AsyncButton(
-              label: const Text('Enregistrer'),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-                final provider = context.read<CheptelProvider>();
-                final qte = parseInteger(qteCtrl.text);
-                if (qte == null || qte < 0) {
-                  messenger.showSnackBar(const SnackBar(content: Text('Quantité invalide')));
-                  return;
-                }
-                final prixUnitaire = parseAmount(prixUnitaireCtrl.text) ?? 0;
-                final montantTotal = qte * prixUnitaire;
-                final ok = await provider.ajouterMouvement(c.id!, {
-                  'type': type,
-                  'quantite': qte,
-                  'montant': montantTotal,
-                  'date': date.toIso8601String(),
-                  'motif': motifCtrl.text.trim(),
-                });
-                if (!mounted) return;
-                navigator.pop();
-                messenger.showSnackBar(SnackBar(content: Text(ok ? 'Mouvement enregistré' : 'Erreur: ${provider.lastError ?? ''}')));
-              },
-            ),
-          ],
-        );
-        },
       ),
     );
   }

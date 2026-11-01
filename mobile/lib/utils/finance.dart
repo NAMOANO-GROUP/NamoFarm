@@ -38,8 +38,14 @@ const posteAchatStock = '__achat_stock';
 
 const _posteAchatStock = FinancePoste(posteAchatStock, 'Achats de stock', Icons.inventory_outlined, Colors.brown);
 
+/// Clé de regroupement des achats d'animaux du Cheptel.
+const posteAchatCheptel = '__achat_cheptel';
+
+const _posteAchatCheptel = FinancePoste(posteAchatCheptel, 'Achats d’animaux', Icons.pets, Colors.teal);
+
 FinancePoste postePour(String valeur) {
   if (valeur == posteAchatStock) return _posteAchatStock;
+  if (valeur == posteAchatCheptel) return _posteAchatCheptel;
   final v = valeur.trim().toLowerCase();
   for (final p in postesDepense) {
     if (p.valeur.toLowerCase() == v) return p;
@@ -70,6 +76,8 @@ const sourcesMouvement = <String, String>{
   'vente_commande_payee': 'Vente',
   'stock_entree': 'Achat de stock',
   'stock_sortie': 'Sortie de stock',
+  'vente_cheptel': 'Vente d’animaux',
+  'achat_cheptel': 'Achat d’animaux',
   'correction': 'Correction',
 };
 
@@ -139,6 +147,7 @@ class Mouvement {
   /// Clé de poste pour les sorties (type saisi, ou « Achats de stock »).
   String get posteCle {
     if (source == 'stock_entree') return posteAchatStock;
+    if (source == 'achat_cheptel') return posteAchatCheptel;
     if (estDepense) return type.trim().isEmpty ? 'Divers' : type.trim();
     return type.trim().isNotEmpty ? type.trim() : source;
   }
@@ -147,19 +156,20 @@ class Mouvement {
 
   /// Titre affiché : poste pour une dépense, origine sinon.
   String get libelle {
-    if (estDepense || source == 'stock_entree') return poste.libelle;
+    if (estDepense || source == 'stock_entree' || source == 'achat_cheptel') return poste.libelle;
     return sourceLibelle(source);
   }
 
   IconData get icon {
-    if (estDepense || source == 'stock_entree') return poste.icon;
+    if (estDepense || source == 'stock_entree' || source == 'achat_cheptel') return poste.icon;
+    if (source == 'vente_cheptel') return Icons.pets;
     if (source == 'approvisionnement') return Icons.savings_outlined;
     if (source.startsWith('vente')) return Icons.point_of_sale;
     return entree ? Icons.call_received : Icons.call_made;
   }
 
   MaterialColor get color {
-    if (estDepense || source == 'stock_entree') return poste.color;
+    if (estDepense || source == 'stock_entree' || source == 'achat_cheptel') return poste.color;
     return entree ? Colors.green : Colors.red;
   }
 }
@@ -372,6 +382,7 @@ const originesFiltre = <String, List<String>>{
   'Apports en caisse': ['approvisionnement'],
   'Ventes': ['vente', 'vente_commande_payee'],
   'Achats de stock': ['stock_entree'],
+  'Cheptel': ['vente_cheptel', 'achat_cheptel'],
   'Autres': ['stock_sortie', 'correction'],
 };
 

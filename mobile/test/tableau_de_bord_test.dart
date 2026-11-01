@@ -307,8 +307,11 @@ void main() {
       expect(find.text('▼ 20 %'), findsOneWidget, reason: 'dépenses en baisse : bonne nouvelle');
       expect(source.demandes, hasLength(2));
 
+      await tester.tap(find.byTooltip('Période'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Cette année'));
       await tester.pumpAndSettle();
+      expect(find.text('Cette année'), findsOneWidget, reason: 'période affichée dans la liste de choix');
       expect(source.demandes, hasLength(4));
       expect(source.demandes[2].from, DateTime(DateTime.now().year, 1, 1));
 

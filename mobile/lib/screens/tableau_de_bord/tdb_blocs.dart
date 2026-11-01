@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/bande.dart';
 import '../../utils/bande_kpis.dart';
+import '../../utils/cheptel.dart';
 import '../../utils/finance.dart' show fcfa;
 import '../../utils/money_format.dart';
 import '../../utils/tableau_de_bord.dart';
@@ -146,8 +147,10 @@ class IndicateursBloc extends StatelessWidget {
   final bool charge;
   final double? argentDisponible;
   final ResumeElevage elevage;
+  final ResumeCheptel? cheptel;
   final VoidCallback onFinance;
   final VoidCallback onBandes;
+  final VoidCallback? onCheptel;
 
   const IndicateursBloc({
     super.key,
@@ -158,8 +161,10 @@ class IndicateursBloc extends StatelessWidget {
     required this.charge,
     required this.argentDisponible,
     required this.elevage,
+    this.cheptel,
     required this.onFinance,
     required this.onBandes,
+    this.onCheptel,
   });
 
   @override
@@ -237,28 +242,33 @@ class IndicateursBloc extends StatelessWidget {
         legende: e.nbAlertes > 0 ? 'à vérifier' : 'tout va bien',
         onTap: onBandes,
       ),
+      if (cheptel != null) ...[
+        _Indicateur(
+          label: 'Cheptel',
+          valeur: fmtEntier(cheptel!.animaux),
+          icon: Icons.pets,
+          color: Colors.brown,
+          legende: cheptel!.troupeaux <= 1 ? '${cheptel!.troupeaux} troupeau' : '${cheptel!.troupeaux} troupeaux',
+          onTap: onCheptel,
+        ),
+        _Indicateur(
+          label: 'Cheptel sur 30 j',
+          valeur: '+${cheptel!.naissances30j} / −${cheptel!.morts30j}',
+          icon: Icons.child_care,
+          color: cheptel!.morts30j > cheptel!.naissances30j ? Colors.orange : Colors.green,
+          legende: 'naissances / morts',
+          onTap: onCheptel,
+        ),
+      ],
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Entete(BlocTdb.indicateurs),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final per in PeriodeTdb.values)
-              ChoiceChip(
-                label: Text(periodeTdbLibelles[per]!),
-                selected: per == periode,
-                visualDensity: VisualDensity.compact,
-                onSelected: (_) => onPeriode(per),
-              ),
-          ],
-        ),
+        _Entete(BlocTdb.indicateurs, action: _ChoixPeriode(periode: periode, onPeriode: onPeriode)),
         if (periodeTdbComparaison[periode]!.isNotEmpty && a != null)
           Padding(
-            padding: const EdgeInsets.only(top: 6, left: 2),
+            padding: const EdgeInsets.only(left: 2),
             child: Text(
               'Évolution ${periodeTdbComparaison[periode]}',
               style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -278,6 +288,40 @@ class IndicateursBloc extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Liste de choix de la période (compacte, dans l'en-tête du bloc).
+class _ChoixPeriode extends StatelessWidget {
+  final PeriodeTdb periode;
+  final ValueChanged<PeriodeTdb> onPeriode;
+
+  const _ChoixPeriode({required this.periode, required this.onPeriode});
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<PeriodeTdb>(
+        tooltip: 'Période',
+        initialValue: periode,
+        onSelected: onPeriode,
+        itemBuilder: (_) => [
+          for (final p in PeriodeTdb.values) CheckedPopupMenuItem(value: p, checked: p == periode, child: Text(periodeTdbLibelles[p]!)),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.date_range_outlined, size: 16),
+              const SizedBox(width: 6),
+              Text(periodeTdbLibelles[periode]!, style: const TextStyle(fontWeight: FontWeight.w600)),
+              const Icon(Icons.arrow_drop_down, size: 20),
+            ],
+          ),
+        ),
+      );
 }
 
 class _Grille extends StatelessWidget {

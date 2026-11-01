@@ -246,8 +246,6 @@ class _RelancesTabState extends State<RelancesTab> {
   Widget _empty() => EmptyState(
         icon: Icons.task_alt,
         title: _mesTaches ? 'Aucune tâche ne vous est assignée' : 'Aucune relance pour le moment',
-        subtitle: 'Planifiez vos appels, visites et relances commerciales.',
-        actionLabel: 'Nouvelle tâche',
-        onAction: () => showTacheDialog(context),
+        subtitle: 'Planifiez vos appels, visites et relances commerciales avec le bouton « + » en haut.',
       );
 }
