@@ -116,8 +116,9 @@ class _ConfigScreenState extends State<ConfigScreen>
   Widget _usersTab() {
     return Consumer<AdminProvider>(
       builder: (context, admin, _) {
-        if (admin.isLoading)
+        if (admin.isLoading) {
           return const Center(child: CircularProgressIndicator());
+        }
 
         return Column(
           children: [
@@ -188,11 +189,12 @@ class _ConfigScreenState extends State<ConfigScreen>
                   IconButton(
                     tooltip: 'Réinitialiser mot de passe',
                     onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final temp = await context
                           .read<AdminProvider>()
                           .resetPassword(userId);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      if (!mounted) return;
+                      messenger.showSnackBar(
                         SnackBar(
                             content: Text(temp == null
                                 ? 'Echec reset'
@@ -219,11 +221,12 @@ class _ConfigScreenState extends State<ConfigScreen>
                 PopupMenuButton<String>(
                   onSelected: (value) async {
                     if (value == 'reset') {
+                      final messenger = ScaffoldMessenger.of(context);
                       final temp = await context
                           .read<AdminProvider>()
                           .resetPassword(userId);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      if (!mounted) return;
+                      messenger.showSnackBar(
                         SnackBar(
                             content: Text(temp == null
                                 ? 'Echec reset'
@@ -451,8 +454,9 @@ class _ConfigScreenState extends State<ConfigScreen>
   Widget _auditTab() {
     return Consumer<AdminProvider>(
       builder: (context, admin, _) {
-        if (admin.isLoading)
+        if (admin.isLoading) {
           return const Center(child: CircularProgressIndicator());
+        }
         return Column(
           children: [
             Padding(

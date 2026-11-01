@@ -334,7 +334,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Tache active longue'), findsOneWidget);
-    expect(find.text('Tâche faite'), findsOneWidget);
+    expect(find.byTooltip('Marquer comme faite'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -413,9 +413,10 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: RoadmapScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Créez votre premier planning'), findsOneWidget);
+    expect(find.text('Aucun planning — créez-en un avec +'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Nouveau planning'));
+    // Le bouton existe dans l'AppBar et dans la barre compacte.
+    await tester.tap(find.byTooltip('Nouveau planning').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Nouveau planning macro'), findsOneWidget);
@@ -425,7 +426,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Planning Test UI'), findsWidgets);
-    expect(find.textContaining('Macro planning mensuel'), findsOneWidget);
+    expect(find.textContaining('Macro mensuel'), findsOneWidget);
     expect(find.byTooltip('Ajouter tâche, sous-tâche, jalon ou date clé'), findsOneWidget);
     expect(find.byTooltip('Modifier période du planning'), findsOneWidget);
     expect(find.byTooltip('Modifier tâche, sous-tâche, jalon ou date clé'), findsOneWidget);
@@ -455,7 +456,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Alimentation - Cycle test'), findsOneWidget);
-    expect(find.text('13/07/2026'), findsOneWidget);
+    // L'écran initialise la date sur aujourd'hui.
+    final today = DateTime.now();
+    String fmt(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    expect(find.text(fmt(today)), findsOneWidget);
 
     await tester.tap(find.text('Date du suivi'));
     await tester.pumpAndSettle();
@@ -465,7 +470,7 @@ void main() {
     await tester.tap(find.text('Valider'));
     await tester.pumpAndSettle();
 
-    expect(find.text('15/07/2026'), findsOneWidget);
+    expect(find.text(fmt(DateTime(today.year, today.month, 15))), findsOneWidget);
     expect(find.text('Enregistrer le suivi alimentation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

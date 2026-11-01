@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 children: [
                   Image.asset('assets/logo/namofarm.png', height: 30,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink()),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(

@@ -26,7 +26,6 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _bandes = [];
-  Map<String, dynamic> _totaux = {};
   Map<String, dynamic> _global = {}; // Totaux ferme-wide (toutes ventes/depenses, all-time).
 
   int? _filtreAnnee; // null = toutes
@@ -65,7 +64,6 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
       if (!mounted) return;
       setState(() {
         _bandes = bandes;
-        _totaux = Map<String, dynamic>.from(data['totaux'] ?? {});
         _global = global;
         _loading = false;
       });
@@ -122,8 +120,9 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () async {
+                final dashboard = context.read<DashboardProvider>();
                 await _chargerAnalytique();
-                if (mounted) await context.read<DashboardProvider>().chargerDashboards();
+                if (mounted) await dashboard.chargerDashboards();
               },
               child: ListView(
                 padding: const EdgeInsets.all(12),
@@ -151,7 +150,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
                   const SizedBox(height: 20),
                   _sectionTitle('CRM & Commercial', Icons.people_outline),
                   const SizedBox(height: 8),
-                  Consumer<DashboardProvider>(builder: (_, provider, __) => _crmBloc(provider)),
+                  Consumer<DashboardProvider>(builder: (_, provider, _) => _crmBloc(provider)),
                   const SizedBox(height: 20),
                   _sectionTitle('Totaux globaux', Icons.summarize_outlined),
                   const SizedBox(height: 8),
@@ -227,7 +226,7 @@ class _GlobalDashboardScreenState extends State<GlobalDashboardScreen> {
             shrinkWrap: true,
             padding: EdgeInsets.zero,
             itemCount: bandes.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (_, i) => _bandeTile(bandes[i]),
           ),
         ),

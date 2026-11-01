@@ -363,20 +363,23 @@ class _AlertesScreenState extends State<AlertesScreen> {
                 Container(width: 4, color: prioriteColor),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: (allowComplete && alerte.id != null)
-                        ? () => context.read<AlertesProvider>().marquerFaite(alerte)
-                        : null,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: done ? Colors.green : Colors.transparent,
-                        border: Border.all(color: done ? Colors.green : prioriteColor, width: 2),
+                  child: Tooltip(
+                    message: done ? 'Tâche faite' : 'Marquer comme faite',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: (allowComplete && alerte.id != null)
+                          ? () => context.read<AlertesProvider>().marquerFaite(alerte)
+                          : null,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: done ? Colors.green : Colors.transparent,
+                          border: Border.all(color: done ? Colors.green : prioriteColor, width: 2),
+                        ),
+                        child: done ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
                       ),
-                      child: done ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
                     ),
                   ),
                 ),
