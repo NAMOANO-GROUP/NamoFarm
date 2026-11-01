@@ -41,11 +41,7 @@ Base existante : exécuter `scripts/sql/add_alertes_planner.sql` (sans cette mig
 
 Routes sous `/api/finance` (`routes/finance.js`).
 
-- `GET /budgets` / `PUT /budgets` : budget mensuel par poste de dépense (`{ budgets: { "Alimentation": 500000 } }`,
-  0 retire le budget). `GET` renvoie `disponible: false` tant que la table n'existe pas.
 - `GET /mouvements` et `/mouvements/export.csv` : `dateFrom` / `dateTo` envoyés avec fuseau (ex. `...Z`) sont pris tels
   quels ; sans fuseau, début / fin de journée côté serveur (`services/finance_dates.js`).
-
-Base existante : exécuter `scripts/sql/add_finance_budgets.sql` pour activer l'onglet Budget.
 
 Tests : `npm test`.

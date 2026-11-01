@@ -12,9 +12,6 @@ AuthProvider? _auth(BuildContext context) {
   }
 }
 
-/// Droit de saisir ou modifier des budgets (finance.write).
-bool peutEcrireFinance(BuildContext context) => _auth(context)?.hasPermission('finance.write') ?? false;
-
 /// Modification et suppression d'un mouvement : réservées aux administrateurs.
 bool estAdminFinance(BuildContext context) {
   final auth = _auth(context);

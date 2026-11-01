@@ -225,29 +225,6 @@ List<MapEntry<String, double>> depensesParPoste(List<Mouvement> mvts, int annee,
 /// Variation en % de [actuel] par rapport à [precedent] (null si pas de référence).
 double? variationPct(double actuel, double precedent) => precedent <= 0 ? null : (actuel - precedent) / precedent * 100;
 
-/// Utilisation d'un budget mensuel.
-class UsageBudget {
-  final String poste;
-  final double budget;
-  final double depense;
-
-  const UsageBudget(this.poste, this.budget, this.depense);
-
-  double get ratio => budget <= 0 ? 0 : depense / budget;
-  double get reste => budget - depense;
-  bool get alerte => ratio >= 0.8;
-  bool get depasse => ratio > 1;
-}
-
-List<UsageBudget> usageBudgets(Map<String, double> budgets, List<Mouvement> mvts, {DateTime? now}) {
-  final today = now ?? DateTime.now();
-  final depenses = {for (final e in depensesParPoste(mvts, today.year, today.month)) e.key: e.value};
-  return [
-    for (final e in budgets.entries)
-      if (e.value > 0) UsageBudget(e.key, e.value, depenses[e.key] ?? 0),
-  ]..sort((a, b) => b.ratio.compareTo(a.ratio));
-}
-
 /// Conseil affiché sur l'accueil Finance, en phrase simple.
 class ConseilFinance {
   final String texte;
@@ -274,12 +251,11 @@ String montantSaisie(double v) {
 /// Montant lisible en FCFA (« 12 500 FCFA »).
 String fcfa(double v) => '${montantSaisie(v)} FCFA';
 
-/// Conseils en langage simple à partir des mouvements, de la projection, des budgets et des bandes.
+/// Conseils en langage simple à partir des mouvements, de la projection et des bandes.
 List<ConseilFinance> conseilsFinance({
   required List<Mouvement> mouvements,
   DateTime? now,
   double? soldeDans3Mois,
-  Map<String, double> budgets = const {},
   List<Map<String, dynamic>> bandes = const [],
 }) {
   final today = now ?? DateTime.now();
@@ -311,13 +287,6 @@ List<ConseilFinance> conseilsFinance({
     }
   }
   if (hausse != null) out.add(hausse);
-
-  for (final u in usageBudgets(budgets, mouvements, now: today).where((u) => u.alerte)) {
-    final nom = postePour(u.poste).libelle;
-    out.add(u.depasse
-        ? ConseilFinance('Budget $nom dépassé de ${fcfa(-u.reste)} ce mois-ci.', Icons.error_outline, Colors.red)
-        : ConseilFinance('Budget $nom utilisé à ${(u.ratio * 100).round()} % ce mois-ci.', Icons.pie_chart_outline, Colors.orange));
-  }
 
   if (soldeDans3Mois != null) {
     out.add(soldeDans3Mois < 0

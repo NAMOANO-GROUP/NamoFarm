@@ -208,16 +208,6 @@ create table if not exists public.crm_taches (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.finance_budgets (
-  id uuid primary key default gen_random_uuid(),
-  company_id uuid not null references public.entreprises(id) on delete cascade,
-  poste text not null,
-  montant_mensuel numeric(14,2) not null default 0 check (montant_mensuel >= 0),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (company_id, poste)
-);
-
 create index if not exists idx_profiles_company_id on public.profiles(company_id);
 create index if not exists idx_clients_company_id on public.clients(company_id);
 create index if not exists idx_commandes_company_id on public.commandes(company_id);
@@ -232,7 +222,6 @@ create index if not exists idx_alertes_date_echeance on public.alertes(date_eche
 create index if not exists idx_crm_interactions_company_id on public.crm_interactions(company_id);
 create index if not exists idx_crm_taches_company_id on public.crm_taches(company_id);
 create index if not exists idx_crm_taches_date_echeance on public.crm_taches(date_echeance);
-create index if not exists idx_finance_budgets_company_id on public.finance_budgets(company_id);
 
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
@@ -243,7 +232,6 @@ alter table public.bandes enable row level security;
 alter table public.alertes enable row level security;
 alter table public.crm_interactions enable row level security;
 alter table public.crm_taches enable row level security;
-alter table public.finance_budgets enable row level security;
 
 -- Users can only access rows from their own company.
 drop policy if exists profiles_select_own_company on public.profiles;
@@ -318,14 +306,6 @@ for all using (
 
 drop policy if exists crm_taches_all_own_company on public.crm_taches;
 create policy crm_taches_all_own_company on public.crm_taches
-for all using (
-  company_id = (select p.company_id from public.profiles p where p.id = auth.uid())
-) with check (
-  company_id = (select p.company_id from public.profiles p where p.id = auth.uid())
-);
-
-drop policy if exists finance_budgets_all_own_company on public.finance_budgets;
-create policy finance_budgets_all_own_company on public.finance_budgets
 for all using (
   company_id = (select p.company_id from public.profiles p where p.id = auth.uid())
 ) with check (

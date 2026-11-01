@@ -20,20 +20,19 @@ Map<String, dynamic> _mvt({
   required DateTime date,
   String bandeId = '',
   String commentaire = '',
-}) =>
-    {
-      '_id': id,
-      'nature': nature,
-      'source': source,
-      'type': type,
-      'categorie': categorie,
-      'montant': montant,
-      'date': date.toUtc().toIso8601String(),
-      'quiPrenom': 'Awa',
-      'quiNom': 'Diop',
-      'bandeId': bandeId,
-      'commentaire': commentaire,
-    };
+}) => {
+  '_id': id,
+  'nature': nature,
+  'source': source,
+  'type': type,
+  'categorie': categorie,
+  'montant': montant,
+  'date': date.toUtc().toIso8601String(),
+  'quiPrenom': 'Awa',
+  'quiNom': 'Diop',
+  'bandeId': bandeId,
+  'commentaire': commentaire,
+};
 
 class _Auth extends AuthProvider {
   @override
@@ -45,23 +44,13 @@ class _Auth extends AuthProvider {
 }
 
 class _FakeFinance extends FinanceProvider {
-  _FakeFinance({
-    this.raw = const [],
-    Map<String, double> budgets = const {},
-    this.disponibles = true,
-    this.erreurBudgets = false,
-    this.analytique = const [],
-  }) : _budgets = {...budgets};
+  _FakeFinance({this.raw = const [], this.analytique = const []});
 
   final List<Map<String, dynamic>> raw;
   final double soldeCaisse = 250000;
-  Map<String, double> _budgets;
-  final bool disponibles;
-  final bool erreurBudgets;
   final List<Map<String, dynamic>> analytique;
   final List<Map<String, dynamic>> depenses = [];
   final List<Map<String, dynamic>> apports = [];
-  Map<String, double>? budgetsEnregistres;
   List<String>? sourcesDemandees;
 
   @override
@@ -77,16 +66,10 @@ class _FakeFinance extends FinanceProvider {
   @override
   List<Map<String, dynamic>> get analytiqueBandes => analytique;
   @override
-  Map<String, double> get budgets => _budgets;
-  @override
-  bool get budgetsDisponibles => disponibles;
-  @override
-  bool get budgetsErreur => erreurBudgets;
-  @override
   List<Map<String, dynamic>> get bandes => const [
-        {'_id': 'b1', 'nom': 'Bande B12', 'statut': 'ouverte'},
-        {'_id': 'b0', 'nom': 'Bande B11', 'statut': 'fermee'},
-      ];
+    {'_id': 'b1', 'nom': 'Bande B12', 'statut': 'ouverte'},
+    {'_id': 'b0', 'nom': 'Bande B11', 'statut': 'fermee'},
+  ];
   @override
   double? get soldeDans3Mois => -50000;
 
@@ -110,23 +93,15 @@ class _FakeFinance extends FinanceProvider {
     apports.add(payload);
     return true;
   }
-
-  @override
-  Future<bool> enregistrerBudgets(Map<String, double> budgets) async {
-    budgetsEnregistres = budgets;
-    _budgets = {for (final e in budgets.entries) if (e.value > 0) e.key: e.value};
-    notifyListeners();
-    return true;
-  }
 }
 
 Widget _app(FinanceProvider finance) => MultiProvider(
-      providers: [
-        ChangeNotifierProvider<AuthProvider>(create: (_) => _Auth()),
-        ChangeNotifierProvider<FinanceProvider>.value(value: finance),
-      ],
-      child: const MaterialApp(home: FinanceScreen()),
-    );
+  providers: [
+    ChangeNotifierProvider<AuthProvider>(create: (_) => _Auth()),
+    ChangeNotifierProvider<FinanceProvider>.value(value: finance),
+  ],
+  child: const MaterialApp(home: FinanceScreen()),
+);
 
 void _telephone(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
@@ -148,7 +123,14 @@ void main() {
       _mvt(id: '2', type: 'Transport', montant: 10000, date: DateTime(2026, 3, 5)),
       _mvt(id: '3', nature: 'entree', source: 'vente', type: '', montant: 100000, date: DateTime(2026, 3, 6)),
       _mvt(id: '4', montant: 60000, date: DateTime(2026, 2, 10)),
-      _mvt(id: '5', nature: 'entree', source: 'approvisionnement', type: '', montant: 300000, date: DateTime(2026, 2, 1)),
+      _mvt(
+        id: '5',
+        nature: 'entree',
+        source: 'approvisionnement',
+        type: '',
+        montant: 300000,
+        date: DateTime(2026, 2, 1),
+      ),
       _mvt(id: '6', source: 'stock_entree', type: 'Aliment démarrage', montant: 5000, date: DateTime(2026, 3, 7)),
     ]);
 
@@ -184,22 +166,11 @@ void main() {
       expect(variationPct(10, 0), isNull);
     });
 
-    test('budgets : alerte à 80 %, dépassement au-delà de 100 %', () {
-      final u = usageBudgets({'Alimentation': 100000, 'Transport': 12000, 'Divers': 0}, mvts, now: now);
-      expect(u.length, 2);
-      expect(u.first.poste, 'Alimentation');
-      expect(u.first.depasse, isTrue);
-      expect(u.first.reste, -20000);
-      expect(u[1].alerte, isTrue);
-      expect(u[1].depasse, isFalse);
-    });
-
     test('conseils en phrases simples', () {
       final c = conseilsFinance(
         mouvements: mvts,
         now: now,
         soldeDans3Mois: -15000,
-        budgets: {'Alimentation': 100000},
         bandes: [
           {'bandeNom': 'B9', 'statut': 'fermee', 'margeNette': -42000},
           {'bandeNom': 'B10', 'statut': 'ouverte', 'margeNette': -1000},
@@ -207,7 +178,6 @@ void main() {
       ).map((e) => e.texte).toList();
       expect(c, contains('Ce mois-ci, vous avez dépensé 35 000 FCFA de plus que vous n’avez encaissé.'));
       expect(c, contains('Vous avez dépensé 100 % de plus en aliment qu’en février.'));
-      expect(c, contains('Budget Aliment dépassé de 20 000 FCFA ce mois-ci.'));
       expect(c, contains('Dans 3 mois, si rien ne change, votre solde serait négatif : -15 000 FCFA.'));
       expect(c, contains('La bande B9 s’est terminée en perte (-42 000 FCFA).'));
     });
@@ -234,9 +204,22 @@ void main() {
     });
 
     test('répartition des coûts : 6 postes, somme de plusieurs bandes', () {
-      final b = {'coutPoussins': 100, 'prophylaxie': 20, 'coutAliment': 300, 'coutFixe': 10, 'coutAmortissement': 5, 'autresDepenses': 15};
-      expect(postesCoutBande(b).map((p) => p.$1),
-          ['Prix des poussins', 'Prophylaxie', 'Alimentation', 'Coût fixe', 'Amortissement', 'Autres']);
+      final b = {
+        'coutPoussins': 100,
+        'prophylaxie': 20,
+        'coutAliment': 300,
+        'coutFixe': 10,
+        'coutAmortissement': 5,
+        'autresDepenses': 15,
+      };
+      expect(postesCoutBande(b).map((p) => p.$1), [
+        'Prix des poussins',
+        'Prophylaxie',
+        'Alimentation',
+        'Coût fixe',
+        'Amortissement',
+        'Autres',
+      ]);
       expect(postesCoutBandes([b, b]).map((p) => p.$2), [200, 40, 600, 20, 10, 30]);
       // Sans « autresDepenses » : dépenses manuelles moins prophylaxie et poussins.
       expect(postesCoutBande({'depenses': 150, 'prophylaxie': 20, 'coutPoussins': 100}).last.$2, 30);
@@ -273,10 +256,12 @@ void main() {
 
     testWidgets('Accueil sur téléphone : solde, mois en cours, conseils et postes', (tester) async {
       _telephone(tester);
-      final finance = _FakeFinance(raw: [
-        _mvt(id: '1', montant: 80000, date: _ilYa(0)),
-        _mvt(id: '2', nature: 'entree', source: 'approvisionnement', type: '', montant: 150000, date: _ilYa(0)),
-      ]);
+      final finance = _FakeFinance(
+        raw: [
+          _mvt(id: '1', montant: 80000, date: _ilYa(0)),
+          _mvt(id: '2', nature: 'entree', source: 'approvisionnement', type: '', montant: 150000, date: _ilYa(0)),
+        ],
+      );
       await tester.pumpWidget(_app(finance));
       await tester.pumpAndSettle();
 
@@ -284,7 +269,11 @@ void main() {
       expect(find.text('Argent disponible'), findsOneWidget);
       expect(find.textContaining('Ce mois-ci, vous avez encaissé 70 000 FCFA'), findsOneWidget);
       expect(find.textContaining('solde serait négatif'), findsOneWidget);
-      await tester.dragUntilVisible(find.text('Où part l’argent ce mois-ci'), find.byType(ListView).first, const Offset(0, -200));
+      await tester.dragUntilVisible(
+        find.text('Où part l’argent ce mois-ci'),
+        find.byType(ListView).first,
+        const Offset(0, -200),
+      );
       expect(find.text('Aliment'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -295,7 +284,7 @@ void main() {
       await tester.pumpWidget(_app(finance));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('finance-ajouter')));
+      await tester.tap(find.text('Dépense'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('operation-montant')), '12500');
       await tester.tap(find.byKey(const Key('operation-enregistrer')));
@@ -322,7 +311,8 @@ void main() {
       expect(p['bandeId'], 'b1');
       expect(p['quiPrenom'], 'Moussa');
       expect(p['quiNom'], 'Sow');
-      expect(find.text('Opération enregistrée'), findsOneWidget);
+      expect(find.text('Dépense enregistrée'), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -343,11 +333,13 @@ void main() {
 
     testWidgets('Mouvements : groupés par jour, recherche, filtres et fiche détail', (tester) async {
       _telephone(tester);
-      final finance = _FakeFinance(raw: [
-        _mvt(id: '1', montant: 80000, date: _ilYa(0), bandeId: 'b1'),
-        _mvt(id: '2', type: 'Transport', montant: 3000, date: _ilYa(1)),
-        _mvt(id: '3', nature: 'entree', source: 'vente', type: '', montant: 90000, date: _ilYa(1, heure: 16)),
-      ]);
+      final finance = _FakeFinance(
+        raw: [
+          _mvt(id: '1', montant: 80000, date: _ilYa(0), bandeId: 'b1'),
+          _mvt(id: '2', type: 'Transport', montant: 3000, date: _ilYa(1)),
+          _mvt(id: '3', nature: 'entree', source: 'vente', type: '', montant: 90000, date: _ilYa(1, heure: 16)),
+        ],
+      );
       await tester.pumpWidget(_app(finance));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Mouvements'));
@@ -381,56 +373,11 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Budget : barres, dépassement et modification', (tester) async {
-      _telephone(tester);
-      final finance = _FakeFinance(
-        raw: [_mvt(id: '1', montant: 120000, date: _ilYa(0)), _mvt(id: '2', type: 'Transport', montant: 5000, date: _ilYa(0))],
-        budgets: {'Alimentation': 100000},
-      );
-      await tester.pumpWidget(_app(finance));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Budget').last);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Dépassé de 20 000 FCFA'), findsWidgets);
-      expect(find.text('120 %'), findsOneWidget);
-      expect(find.text('Dépenses sans budget ce mois-ci'), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Modifier les budgets'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextField, 'Transport'), '10000');
-      await tester.tap(find.text('Enregistrer les budgets'));
-      await tester.pumpAndSettle();
-      expect(finance.budgetsEnregistres?['Transport'], 10000);
-      expect(finance.budgetsEnregistres?['Alimentation'], 100000);
-      expect(find.text('50 %'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('Budget indisponible tant que la migration n’est pas faite', (tester) async {
-      final finance = _FakeFinance(disponibles: false);
-      await tester.pumpWidget(_app(finance));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Budget').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Budgets pas encore activés'), findsOneWidget);
-    });
-
-    testWidgets('Budgets non chargés : pas de modification proposée', (tester) async {
-      final finance = _FakeFinance(erreurBudgets: true, budgets: {'Alimentation': 100000});
-      await tester.pumpWidget(_app(finance));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Budget').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Budgets non chargés'), findsOneWidget);
-      expect(find.text('Réessayer'), findsOneWidget);
-      expect(find.byTooltip('Modifier les budgets'), findsNothing);
-      expect(find.text('Définir mes budgets'), findsNothing);
-    });
-
     testWidgets('Refaire une dépense d’une bande fermée : enregistrée sans bande', (tester) async {
       _telephone(tester);
-      final finance = _FakeFinance(raw: [_mvt(id: '1', montant: 40000, date: _ilYa(2), bandeId: 'b0', categorie: 'AGRICOLE')]);
+      final finance = _FakeFinance(
+        raw: [_mvt(id: '1', montant: 40000, date: _ilYa(2), bandeId: 'b0', categorie: 'AGRICOLE')],
+      );
       await tester.pumpWidget(_app(finance));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Mouvements'));
@@ -454,22 +401,31 @@ void main() {
 
     testWidgets('Par bande : résultat, prix minimum et bandes terminées', (tester) async {
       _telephone(tester);
-      final finance = _FakeFinance(analytique: [
-        {
-          'bandeId': 'b1',
-          'bandeNom': 'Bande B12',
-          'statut': 'ouverte',
-          'coutTotal': 900000,
-          'revenus': 0,
-          'margeNette': -900000,
-          'coutParKg': 1100,
-          'coutPoussins': 300000,
-          'coutAliment': 600000,
-          'seuilRentabiliteParSujet': 1850,
-          'effectifVivant': 486,
-        },
-        {'bandeId': 'b0', 'bandeNom': 'Bande B11', 'statut': 'fermee', 'coutTotal': 800000, 'revenus': 950000, 'margeNette': 150000},
-      ]);
+      final finance = _FakeFinance(
+        analytique: [
+          {
+            'bandeId': 'b1',
+            'bandeNom': 'Bande B12',
+            'statut': 'ouverte',
+            'coutTotal': 900000,
+            'revenus': 0,
+            'margeNette': -900000,
+            'coutParKg': 1100,
+            'coutPoussins': 300000,
+            'coutAliment': 600000,
+            'seuilRentabiliteParSujet': 1850,
+            'effectifVivant': 486,
+          },
+          {
+            'bandeId': 'b0',
+            'bandeNom': 'Bande B11',
+            'statut': 'fermee',
+            'coutTotal': 800000,
+            'revenus': 950000,
+            'margeNette': 150000,
+          },
+        ],
+      );
       await tester.pumpWidget(_app(finance));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Par bande'));
@@ -491,18 +447,22 @@ void main() {
 
     testWidgets('Bilan de bande : camembert de répartition des coûts', (tester) async {
       _telephone(tester);
-      await tester.pumpWidget(const MaterialApp(
-        home: BandeBilanScreen(bande: {
-          'bandeNom': 'B-001',
-          'coutTotal': 432914,
-          'coutPoussins': 150000,
-          'prophylaxie': 30000,
-          'coutAliment': 200000,
-          'coutFixe': 20000,
-          'coutAmortissement': 10000,
-          'autresDepenses': 22914,
-        }),
-      ));
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: BandeBilanScreen(
+            bande: {
+              'bandeNom': 'B-001',
+              'coutTotal': 432914,
+              'coutPoussins': 150000,
+              'prophylaxie': 30000,
+              'coutAliment': 200000,
+              'coutFixe': 20000,
+              'coutAmortissement': 10000,
+              'autresDepenses': 22914,
+            },
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       await tester.dragUntilVisible(find.text('Autres'), find.byType(ListView), const Offset(0, -200));
       for (final l in ['Prix des poussins', 'Prophylaxie', 'Alimentation', 'Coût fixe', 'Amortissement', 'Autres']) {

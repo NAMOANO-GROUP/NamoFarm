@@ -11,10 +11,7 @@ import 'operation_sheet.dart';
 
 /// Accueil Finance : « Où en est mon argent ? » en un coup d'œil.
 class FinanceAccueilTab extends StatelessWidget {
-  /// Ouvre un autre onglet (ex. Budget depuis « Où part l'argent »).
-  final ValueChanged<int>? onOuvrirOnglet;
-
-  const FinanceAccueilTab({super.key, this.onOuvrirOnglet});
+  const FinanceAccueilTab({super.key});
 
   Future<void> _saisir(BuildContext context, {required bool entree}) async {
     final ok = await showOperationSheet(context, entree: entree);
@@ -38,7 +35,6 @@ class FinanceAccueilTab extends StatelessWidget {
       mouvements: mvts,
       now: now,
       soldeDans3Mois: provider.soldeDans3Mois,
-      budgets: provider.budgets,
       bandes: provider.analytiqueBandes,
     );
     final solde = ((provider.solde['soldeCaisse'] ?? 0) as num).toDouble();
@@ -124,13 +120,13 @@ class FinanceAccueilTab extends StatelessWidget {
                 Expanded(child: _GraphiqueMois(mois: mois)),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _OuPartArgent(postes: postes, total: ce.sorties, onBudget: () => onOuvrirOnglet?.call(3)),
+                  child: _OuPartArgent(postes: postes, total: ce.sorties),
                 ),
               ],
             )
           else ...[
             _GraphiqueMois(mois: mois),
-            _OuPartArgent(postes: postes, total: ce.sorties, onBudget: () => onOuvrirOnglet?.call(3)),
+            _OuPartArgent(postes: postes, total: ce.sorties),
           ],
         ],
       ),
@@ -389,9 +385,8 @@ class _Legende extends StatelessWidget {
 class _OuPartArgent extends StatelessWidget {
   final List<MapEntry<String, double>> postes;
   final double total;
-  final VoidCallback onBudget;
 
-  const _OuPartArgent({required this.postes, required this.total, required this.onBudget});
+  const _OuPartArgent({required this.postes, required this.total});
 
   @override
   Widget build(BuildContext context) {
@@ -400,13 +395,9 @@ class _OuPartArgent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text('Où part l’argent ce mois-ci', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-              TextButton(onPressed: onBudget, child: const Text('Budget')),
-            ],
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text('Où part l’argent ce mois-ci', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
           if (top.isEmpty)
             const Padding(

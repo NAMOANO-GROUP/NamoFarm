@@ -19,16 +19,13 @@ class FinanceProvider with ChangeNotifier {
   Map<String, dynamic> _projectionTresorerie = {};
   Map<String, dynamic> _depensesParCategorie = {};
 
-  // Accueil Finance (6 derniers mois), bandes et budgets.
+  // Accueil Finance (6 derniers mois) et bandes.
   bool _accueilLoading = false;
   bool _accueilCharge = false;
   List<Mouvement> _mouvementsRecents = [];
   List<Map<String, dynamic>> _analytiqueBandes = [];
   Map<String, dynamic> _analytiqueTotaux = {};
   List<Map<String, dynamic>> _bandes = [];
-  Map<String, double> _budgets = {};
-  bool _budgetsDisponibles = true;
-  bool _budgetsErreur = false;
   bool _soldeErreur = false;
   bool _mouvementsErreur = false;
   bool _accueilTronque = false;
@@ -58,11 +55,6 @@ class FinanceProvider with ChangeNotifier {
   List<Map<String, dynamic>> get bandes => _bandes;
   List<Map<String, dynamic>> get bandesOuvertes =>
       bandes.where((b) => (b['statut'] ?? 'ouverte').toString() != 'fermee').toList();
-  Map<String, double> get budgets => _budgets;
-  bool get budgetsDisponibles => _budgetsDisponibles;
-
-  /// Budgets non chargés (réseau) : ne pas proposer de les modifier, l'enregistrement remplacerait tout.
-  bool get budgetsErreur => _budgetsErreur;
   bool get soldeErreur => _soldeErreur;
   bool get mouvementsErreur => _mouvementsErreur;
 
@@ -111,7 +103,6 @@ class FinanceProvider with ChangeNotifier {
       essai(ApiService.getSoldeTresorerie),
       essai(() => ApiService.getProjectionTresorerie(months: 3)),
       essai(ApiService.getComptabiliteAnalytique),
-      essai(ApiService.getBudgetsFinance),
       essai(ApiService.getBandesActives),
       essai(ApiService.getBandesHistorique),
       for (final m in mois)
@@ -139,17 +130,15 @@ class FinanceProvider with ChangeNotifier {
           .toList();
       _analytiqueTotaux = a['totaux'] is Map ? Map<String, dynamic>.from(a['totaux'] as Map) : {};
     }
-    _budgetsErreur = results[3] is! Map;
-    if (results[3] is Map) _appliquerBudgets(results[3] as Map);
-    if (results[4] is List || results[5] is List) {
+    if (results[3] is List || results[4] is List) {
       final vus = <String>{};
-      _bandes = [...(results[4] as List? ?? const []), ...(results[5] as List? ?? const [])]
+      _bandes = [...(results[3] as List? ?? const []), ...(results[4] as List? ?? const [])]
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .where((b) => vus.add((b['_id'] ?? b['id'] ?? '').toString()))
           .toList();
     }
-    final pages = results.sublist(6);
+    final pages = results.sublist(5);
     _mouvementsErreur = pages.any((r) => r is! List);
     if (!_mouvementsErreur) {
       _mouvementsRecents = [for (final r in pages) ...parseMouvements(r as List)];
@@ -158,28 +147,6 @@ class FinanceProvider with ChangeNotifier {
     _accueilLoading = false;
     _accueilCharge = true;
     notifyListeners();
-  }
-
-  void _appliquerBudgets(Map data) {
-    _budgetsDisponibles = data['disponible'] != false;
-    _budgets = {
-      for (final b in (data['budgets'] as List? ?? const []).whereType<Map>())
-        if ((b['poste'] ?? '').toString().isNotEmpty) (b['poste']).toString(): _d(b['montantMensuel']),
-    };
-  }
-
-  Future<bool> enregistrerBudgets(Map<String, double> budgets) async {
-    try {
-      _lastError = null;
-      final data = await ApiService.enregistrerBudgetsFinance(budgets);
-      _appliquerBudgets({'disponible': true, ...data});
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _lastError = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
-      return false;
-    }
   }
 
   /// Applique d'un coup les filtres du journal (un seul rechargement).

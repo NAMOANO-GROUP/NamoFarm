@@ -219,7 +219,7 @@ class _HelpScreenState extends State<HelpScreen> {
       ),
       _HelpArticle(
         'Saisir une dépense ou une entrée d\'argent',
-        'Bouton « + » en haut à droite, ou boutons Dépense / Entrée d\'argent de l\'accueil. '
+        'Boutons Dépense / Entrée d\'argent de l\'accueil. '
             'Tapez le montant, touchez le poste (Aliment, Salaires…), choisissez la bande si besoin, '
             'puis Enregistrer. « Refaire » reprend une dépense récente en un geste. '
             'Les ventes arrivent automatiquement depuis les commandes payées.',
@@ -235,11 +235,6 @@ class _HelpScreenState extends State<HelpScreen> {
         'Résultat de chaque bande (dépensé, vendu, coût au kg) et prix minimum de vente par '
             'sujet pour ne pas perdre d\'argent. L\'icône de réglage ouvre les coûts fixes et '
             'amortissements.',
-      ),
-      _HelpArticle(
-        'Budget',
-        'Fixez un plafond mensuel par poste : la barre devient orange à 80 % et rouge en cas '
-            'de dépassement, et l\'accueil vous prévient.',
       ),
     ]),
     _HelpChapter('Configuration (Admin)', Icons.settings_outlined, Color(0xFF37474F), [

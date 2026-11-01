@@ -2,7 +2,6 @@ const express = require('express');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
 const { requirePermission, requireAdmin } = require('../middleware/auth');
-const { normalizeBudgets, isMissingTableError } = require('../services/finance_budgets');
 const { parseBorneDate } = require('../services/finance_dates');
 
 const router = express.Router();
@@ -876,63 +875,6 @@ router.get('/solde', requirePermission('finance.read'), async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
-  }
-});
-
-// Agrégation des dépenses (sorties) par catégorie, pour l'histogramme finance.
-router.get('/budgets', requirePermission('finance.read'), async (req, res) => {
-  try {
-    const api = getAdminClient();
-    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
-    const result = await api.from('finance_budgets').select('poste,montant_mensuel').eq('company_id', companyId);
-    if (result.error) {
-      // Migration add_finance_budgets.sql pas encore exécutée : pas de budget, sans bloquer l'écran.
-      if (isMissingTableError(result.error)) return res.json({ disponible: false, budgets: [] });
-      return res.status(500).json({ message: result.error.message });
-    }
-    return res.json({
-      disponible: true,
-      budgets: (result.data || []).map((b) => ({ poste: b.poste, montantMensuel: Number(b.montant_mensuel || 0) })),
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-});
-
-// Enregistre les budgets de l'entreprise : met à jour ou crée les postes envoyés,
-// puis retire ceux mis à 0 ou absents. Jamais de suppression avant l'écriture réussie.
-router.put('/budgets', requirePermission('finance.write'), async (req, res) => {
-  try {
-    const api = getAdminClient();
-    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
-    const budgets = normalizeBudgets(req.body?.budgets);
-
-    const existing = await api.from('finance_budgets').select('poste').eq('company_id', companyId);
-    if (existing.error) {
-      if (isMissingTableError(existing.error)) {
-        return res.status(409).json({ message: 'Budgets indisponibles : exécutez la migration add_finance_budgets.sql.' });
-      }
-      return res.status(400).json({ message: existing.error.message });
-    }
-
-    const now = new Date().toISOString();
-    const rows = budgets
-      .filter((b) => b.montantMensuel > 0)
-      .map((b) => ({ company_id: companyId, poste: b.poste, montant_mensuel: b.montantMensuel, updated_at: now }));
-    if (rows.length) {
-      const saved = await api.from('finance_budgets').upsert(rows, { onConflict: 'company_id,poste' });
-      if (saved.error) return res.status(400).json({ message: saved.error.message });
-    }
-
-    const gardes = new Set(rows.map((r) => r.poste));
-    const aRetirer = (existing.data || []).map((r) => r.poste).filter((poste) => !gardes.has(poste));
-    if (aRetirer.length) {
-      const removed = await api.from('finance_budgets').delete().eq('company_id', companyId).in('poste', aRetirer);
-      if (removed.error) return res.status(400).json({ message: removed.error.message });
-    }
-    return res.json({ disponible: true, budgets: rows.map((r) => ({ poste: r.poste, montantMensuel: r.montant_mensuel })) });
-  } catch (err) {
-    return res.status(400).json({ message: err.message });
   }
 });
 
