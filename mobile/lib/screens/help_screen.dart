@@ -233,8 +233,8 @@ class _HelpScreenState extends State<HelpScreen> {
       _HelpArticle(
         'Par bande',
         'Résultat de chaque bande (dépensé, vendu, coût au kg) et prix minimum de vente par '
-            'sujet pour ne pas perdre d\'argent. L\'icône de réglage ouvre les coûts fixes et '
-            'amortissements.',
+            'sujet pour ne pas perdre d\'argent. Le bouton « Coût fixe & amortissement » de chaque '
+            'bande permet de saisir ces montants par sujet.',
       ),
     ]),
     _HelpChapter('Configuration (Admin)', Icons.settings_outlined, Color(0xFF37474F), [

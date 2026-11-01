@@ -1,4 +1,5 @@
 const test = require('node:test');
+const { dureesParType } = require('../config/default_references');
 const assert = require('node:assert/strict');
 const {
   computeScore,
@@ -101,6 +102,23 @@ test('bandeExitSuggestions cible les acheteurs du même type de volaille', () =>
   assert.equal(out[0].clientId, 'c1');
   assert.equal(out[0].kind, 'sortie_bande');
   assert.match(out[0].raison, /5 j/);
+});
+
+test('bandeExitSuggestions utilise la durée de la Configuration pour le type', () => {
+  const bandes = [
+    { id: 'b1', nom: 'B1', statut: 'ouverte', type_volaille: 'poulet_local_ameliore', date_ouverture: daysAgo(40), duree_elevage_jours: 45 },
+  ];
+  const clients = [{ id: 'c1', prenom: 'Awa' }];
+  const commandes = [{ client_id: 'c1', bande_snapshot: { typeVolaille: 'poulet_local_ameliore' }, statut: 'payee', montant_total: 1000 }];
+  assert.equal(bandeExitSuggestions({ bandes, clients, commandes, now: NOW }).length, 1);
+  // 90 j dans la Configuration : sortie dans 50 j, hors de l'horizon de 14 j.
+  assert.equal(bandeExitSuggestions({ bandes, clients, commandes, now: NOW, dureesParType: { poulet_local_ameliore: 90 } }).length, 0);
+});
+
+test('dureesParType complète la configuration avec les valeurs par défaut', () => {
+  const d = dureesParType({ poulet_local_ameliore: { dureeJours: 100 } });
+  assert.equal(d.poulet_local_ameliore, 100);
+  assert.equal(d.poulet_ameliore_45j, 45);
 });
 
 test('dormantSuggestions ne retient que les clients actifs sans contact récent', () => {

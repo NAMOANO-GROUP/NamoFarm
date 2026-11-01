@@ -202,6 +202,7 @@ function bandeExitSuggestions({
   now = new Date(),
   horizonDays = 14,
   maxClientsPerBande = 5,
+  dureesParType = {},
 }) {
   const bandeById = new Map(bandes.map((b) => [String(b.id), b]));
   const clientById = new Map(clients.map((c) => [String(c.id), c]));
@@ -211,7 +212,9 @@ function bandeExitSuggestions({
     if (readStatus(bande) !== 'ouverte') continue;
     const ouverture = toDate(bande.date_ouverture);
     if (!ouverture) continue;
-    const sortie = new Date(ouverture.getTime() + (Number(bande.duree_elevage_jours) || 45) * DAY_MS);
+    // Durée du type de volaille (Config → Paramètres), sinon celle enregistrée sur la bande.
+    const duree = Number(dureesParType[bande.type_volaille]) || Number(bande.duree_elevage_jours) || 45;
+    const sortie = new Date(ouverture.getTime() + duree * DAY_MS);
     const daysUntil = daysBetween(now, sortie);
     if (daysUntil < 0 || daysUntil > horizonDays) continue;
 
@@ -279,10 +282,10 @@ function dormantSuggestions({
 }
 
 /** Combine toutes les suggestions, un client n'apparaissant qu'une fois par type. */
-function buildSuggestions({ clients = [], commandes = [], bandes = [], taches = [], lastInteractionByClient = new Map(), now = new Date(), limit = 20 }) {
+function buildSuggestions({ clients = [], commandes = [], bandes = [], taches = [], lastInteractionByClient = new Map(), now = new Date(), limit = 20, dureesParType = {} }) {
   const excludedClientIds = clientsWithOpenTask(taches);
   const all = [
-    ...bandeExitSuggestions({ bandes, clients, commandes, excludedClientIds, now }),
+    ...bandeExitSuggestions({ bandes, clients, commandes, excludedClientIds, now, dureesParType }),
     ...reorderSuggestions({ clients, commandes, excludedClientIds, now }),
     ...dormantSuggestions({ clients, commandes, lastInteractionByClient, excludedClientIds, now }),
   ];

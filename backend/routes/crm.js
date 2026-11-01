@@ -1,4 +1,5 @@
 const express = require('express');
+const { chargerReferences, dureesParType } = require('../config/default_references');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
 const { requirePermission, requireAdmin } = require('../middleware/auth');
@@ -613,13 +614,14 @@ router.get('/suggestions', requirePermission('crm.tache.read'), async (req, res)
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
 
-    const [clientsRes, commandesRes, bandesRes, tachesRes, interactionsRes] = await Promise.all([
+    const [clientsRes, commandesRes, bandesRes, tachesRes, interactionsRes, references] = await Promise.all([
       api.from('clients').select('*').eq('company_id', companyId),
       getCommandesCompat(api, companyId, '*'),
       api.from('bandes').select('id,nom,statut,type_volaille,date_ouverture,duree_elevage_jours').eq('company_id', companyId),
       api.from('crm_taches').select('client_id,statut').eq('company_id', companyId),
       api.from('crm_interactions').select('client_id,type,date_interaction').eq('company_id', companyId)
         .order('date_interaction', { ascending: false }),
+      chargerReferences(api),
     ]);
     for (const r of [clientsRes, commandesRes, tachesRes, interactionsRes]) {
       if (r.error) return res.status(500).json({ message: r.error.message });
@@ -638,6 +640,7 @@ router.get('/suggestions', requirePermission('crm.tache.read'), async (req, res)
       commandes: commandesRes.data || [],
       // Les bandes sont facultatives : une erreur ne doit pas bloquer les autres suggestions.
       bandes: bandesRes.error ? [] : (bandesRes.data || []),
+      dureesParType: dureesParType(references),
       taches: tachesRes.data || [],
       lastInteractionByClient,
       now: new Date(),

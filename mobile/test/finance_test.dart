@@ -411,6 +411,8 @@ void main() {
             'revenus': 0,
             'margeNette': -900000,
             'coutParKg': 1100,
+          'coutFixeParSujet': 50,
+          'amortissementParSujet': 20,
             'coutPoussins': 300000,
             'coutAliment': 600000,
             'seuilRentabiliteParSujet': 1850,
@@ -437,11 +439,23 @@ void main() {
       expect(find.text('1 100 FCFA'), findsOneWidget);
 
       expect(find.text('Coûts des bandes en cours'), findsOneWidget);
+      expect(find.text('Coût fixe 50 FCFA · Amort. 20 FCFA / sujet'), findsOneWidget);
+      await tester.ensureVisible(find.text('Coût fixe 50 FCFA · Amort. 20 FCFA / sujet'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Coût fixe 50 FCFA · Amort. 20 FCFA / sujet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Coût fixe & amortissement · Bande B12'), findsOneWidget);
+      expect(tester.widget<TextField>(find.widgetWithText(TextField, 'Coût fixe / sujet')).controller!.text, '50');
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
 
+      await tester.drag(find.byType(ListView).first, const Offset(0, 3000));
+      await tester.pumpAndSettle();
       await tester.tap(find.textContaining('Terminées'));
       await tester.pumpAndSettle();
       expect(find.text('Bande B11'), findsOneWidget);
       expect(find.text('Terminée avec un bénéfice'), findsOneWidget);
+      expect(find.text('Ajouter coût fixe & amortissement'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

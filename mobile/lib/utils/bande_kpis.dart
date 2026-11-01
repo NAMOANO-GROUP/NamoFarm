@@ -206,7 +206,9 @@ BandeKpis computeBandeKpis(Bande b, ReferenceType ref, {DateTime? now}) {
   final active = b.dateFermeture == null && b.statut != 'fermee';
   final fin = b.dateFermeture ?? today;
   final age = _joursEntre(b.dateOuverture, fin).clamp(0, 100000);
-  final duree = b.dureeElevageJours > 0 ? b.dureeElevageJours : ref.dureeJours;
+  // La durée vient de Config → Paramètres (référence du type) ; la valeur de la bande
+  // (45 j enregistrés par défaut à la création) ne sert qu'en secours.
+  final duree = ref.dureeJours > 0 ? ref.dureeJours : b.dureeElevageJours;
   final initial = b.nombreInitial;
   final effectif = b.nombreActuel;
   final viabilite = initial > 0 ? effectif / initial * 100 : 0.0;

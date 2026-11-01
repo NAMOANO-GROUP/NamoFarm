@@ -203,6 +203,12 @@ void main() {
       expect(k.ageJours, 28);
       expect(k.dureeJours, 45);
       expect(k.joursRestants, 17);
+
+      // La durée de Config → Paramètres prime sur les 45 j enregistrés par défaut sur la bande.
+      const ref90 = ReferenceType(dureeJours: 90, poidsFinalG: 1500, consoTotaleKgParTete: 5.5);
+      final local = computeBandeKpis(b, ref90, now: now);
+      expect(local.dureeJours, 90);
+      expect(local.joursRestants, 62);
       expect(k.dateSortiePrevue, DateTime(2026, 11, 15));
       expect(k.viabilitePct, closeTo(97, 0.001));
       expect(k.mortalitePct, closeTo(3, 0.001));

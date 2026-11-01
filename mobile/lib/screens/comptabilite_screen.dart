@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/money_format.dart';
 import '../widgets/repartition_couts_chart.dart';
+import 'finance/couts_bande_dialog.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/stat_tile.dart';
 
@@ -123,7 +124,19 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
           child: Icon(marge >= 0 ? Icons.trending_up : Icons.trending_down,
               color: isDark ? (marge >= 0 ? Colors.green.shade300 : Colors.red.shade300) : (marge >= 0 ? Colors.green.shade700 : Colors.red)),
         ),
-        title: Text((b['bandeNom'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text((b['bandeNom'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            IconButton(
+              tooltip: 'Coût fixe & amortissement',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _showCoutsForm(b),
+              icon: const Icon(Icons.tune, size: 20),
+            ),
+          ],
+        ),
         subtitle: Text(
           'Marge: ${formatAmountFcfa(marge)} • Coût/sujet: ${formatAmountFcfa(_n(b['coutParSujet']))}',
           maxLines: 2,
@@ -221,57 +234,6 @@ class _ComptabiliteScreenState extends State<ComptabiliteScreen> {
   }
 
   Future<void> _showCoutsForm(Map<String, dynamic> b) async {
-    final bandeId = (b['bandeId'] ?? '').toString();
-    if (bandeId.isEmpty) return;
-    final coutFixeCtrl = TextEditingController(text: _n(b['coutFixeParSujet']) == 0 ? '' : _n(b['coutFixeParSujet']).toString());
-    final amortCtrl = TextEditingController(text: _n(b['amortissementParSujet']) == 0 ? '' : _n(b['amortissementParSujet']).toString());
-    final effectif = _n(b['effectifVivant']);
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Coût Fixe & Amortissement'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Montants par sujet (appliqués à ${effectif.toStringAsFixed(0)} sujets).',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: coutFixeCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Coût Fixe / sujet (FCFA)'),
-              ),
-              TextField(
-                controller: amortCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Amortissement / sujet (FCFA)'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Enregistrer')),
-        ],
-      ),
-    );
-
-    if (ok != true || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ApiService.mettreAJourBande(bandeId, {
-        'coutFixeParSujet': double.tryParse(coutFixeCtrl.text.trim().replaceAll(',', '.')) ?? 0,
-        'amortissementParSujet': double.tryParse(amortCtrl.text.trim().replaceAll(',', '.')) ?? 0,
-      });
-      if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Coûts mis à jour')));
-      await _charger();
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Erreur: ${e.toString().replaceFirst('Exception: ', '')}')));
-    }
+    if (await modifierCoutsBande(context, b)) await _charger();
   }
 }

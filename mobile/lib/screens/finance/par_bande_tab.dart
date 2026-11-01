@@ -7,7 +7,7 @@ import '../../widgets/crm/crm_widgets.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/repartition_couts_chart.dart';
 import '../bande_bilan_screen.dart';
-import '../comptabilite_screen.dart';
+import 'couts_bande_dialog.dart';
 
 double _n(dynamic v) => v is num ? v.toDouble() : double.tryParse('${v ?? ''}') ?? 0;
 
@@ -53,13 +53,6 @@ class _ParBandeTabState extends State<ParBandeTab> {
                   selected: {_terminees},
                   onSelectionChanged: (s) => setState(() => _terminees = s.first),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.outlined(
-                tooltip: 'Coûts fixes et amortissements',
-                onPressed: () =>
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ComptabiliteScreen())),
-                icon: const Icon(Icons.tune),
               ),
             ],
           ),
@@ -125,6 +118,8 @@ class _BandeCarte extends StatelessWidget {
     final coutKg = bande['coutParKg'] == null ? null : _n(bande['coutParKg']);
     final prixMin = _n(bande['seuilRentabiliteParSujet']);
     final effectif = _n(bande['effectifVivant']);
+    final fixe = _n(bande['coutFixeParSujet']);
+    final amort = _n(bande['amortissementParSujet']);
 
     final String message;
     final Color couleur;
@@ -215,6 +210,24 @@ class _BandeCarte extends StatelessWidget {
                   ),
                 ),
               ],
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), visualDensity: VisualDensity.compact),
+                  onPressed: () async {
+                    final ok = await modifierCoutsBande(context, bande);
+                    if (ok && context.mounted) await context.read<FinanceProvider>().chargerAccueil();
+                  },
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: Text(
+                    fixe > 0 || amort > 0
+                        ? 'Coût fixe ${fcfa(fixe)} · Amort. ${fcfa(amort)} / sujet'
+                        : 'Ajouter coût fixe & amortissement',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

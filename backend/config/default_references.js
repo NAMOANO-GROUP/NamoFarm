@@ -16,4 +16,24 @@ function withDefaultReferences(stored) {
   return { ...DEFAULT_REFERENCES, ...base };
 }
 
-module.exports = { DEFAULT_REFERENCES, withDefaultReferences };
+// Durée d'élevage (jours) par type de volaille, d'après les références.
+function dureesParType(references) {
+  const out = {};
+  for (const [type, ref] of Object.entries(withDefaultReferences(references))) {
+    const d = Number(ref?.dureeJours);
+    if (d > 0) out[type] = d;
+  }
+  return out;
+}
+
+// Références enregistrées dans la Configuration (app_config), complétées par les valeurs par défaut.
+async function chargerReferences(api) {
+  try {
+    const res = await api.from('app_config').select('referencestheoriques').eq('key', 'main').maybeSingle();
+    return withDefaultReferences(res.error ? {} : res.data?.referencestheoriques);
+  } catch (_) {
+    return withDefaultReferences({});
+  }
+}
+
+module.exports = { DEFAULT_REFERENCES, withDefaultReferences, dureesParType, chargerReferences };

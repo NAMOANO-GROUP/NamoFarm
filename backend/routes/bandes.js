@@ -1,4 +1,5 @@
 const express = require('express');
+const { chargerReferences, dureesParType } = require('../config/default_references');
 const crypto = require('crypto');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
@@ -533,7 +534,8 @@ router.post('/', requirePermission('bandes.create'), async (req, res) => {
       nombre_actuel: Number(req.body.nombreInitial || 0),
       poids_arrivee_g: Number(req.body.poidsArriveeG || 0),
       objectif_poids_g: Number(req.body.objectifPoidsG || 0),
-      duree_elevage_jours: Number(req.body.dureeElevageJours || 45),
+      duree_elevage_jours: Number(req.body.dureeElevageJours)
+        || dureesParType(await chargerReferences(api))[req.body.typeVolaille] || 45,
       batiment: req.body.batiment || '',
       notes: req.body.notes || '',
       evenements_previsionnels: evenementsPrevisionnels,
