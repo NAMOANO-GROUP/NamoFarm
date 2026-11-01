@@ -350,6 +350,10 @@ class ApiService {
   static Future<Map<String, dynamic>> getSoldeTresorerie() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/solde')));
 
+    /// Bornes de filtre : début / fin du jour dans le fuseau de l'appareil, envoyés en UTC.
+    static String debutJourUtc(DateTime d) => DateTime(d.year, d.month, d.day).toUtc().toIso8601String();
+    static String finJourUtc(DateTime d) => DateTime(d.year, d.month, d.day, 23, 59, 59, 999).toUtc().toIso8601String();
+
     static Future<List<dynamic>> getMouvementsTresorerie({
         int limit = 200,
         String? period,
@@ -368,8 +372,8 @@ class ApiService {
         if (weekdays != null && weekdays.isNotEmpty) query['weekdays'] = weekdays.join(',');
         if (month != null && month >= 1 && month <= 12) query['month'] = '$month';
         if (year != null && year > 0) query['year'] = '$year';
-        if (dateFrom != null) query['dateFrom'] = dateFrom.toIso8601String();
-        if (dateTo != null) query['dateTo'] = dateTo.toIso8601String();
+        if (dateFrom != null) query['dateFrom'] = debutJourUtc(dateFrom);
+        if (dateTo != null) query['dateTo'] = finJourUtc(dateTo);
         return List<dynamic>.from(_ensureSuccess(await _get('/finance/mouvements', query: query)) ?? []);
     }
 
@@ -407,8 +411,8 @@ class ApiService {
         if (weekdays != null && weekdays.isNotEmpty) query['weekdays'] = weekdays.join(',');
         if (month != null && month >= 1 && month <= 12) query['month'] = '$month';
         if (year != null && year > 0) query['year'] = '$year';
-        if (dateFrom != null) query['dateFrom'] = dateFrom.toIso8601String();
-        if (dateTo != null) query['dateTo'] = dateTo.toIso8601String();
+        if (dateFrom != null) query['dateFrom'] = debutJourUtc(dateFrom);
+        if (dateTo != null) query['dateTo'] = finJourUtc(dateTo);
         return _getCsv('/finance/mouvements/export.csv', query: query);
     }
 
@@ -440,6 +444,12 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getComptabiliteAnalytique() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/analytique')));
+
+  static Future<Map<String, dynamic>> getBudgetsFinance() async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/budgets')) ?? {});
+
+  static Future<Map<String, dynamic>> enregistrerBudgetsFinance(Map<String, double> budgets) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/finance/budgets', body: {'budgets': budgets})) ?? {});
 
   static Future<Map<String, dynamic>> getTendanceMensuelle(int year) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/dashboard/tendance-mensuelle', query: {'year': '$year'})));

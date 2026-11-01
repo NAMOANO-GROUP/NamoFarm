@@ -212,14 +212,34 @@ class _HelpScreenState extends State<HelpScreen> {
     ]),
     _HelpChapter('Finance', Icons.account_balance_wallet_outlined, Color(0xFF00695C), [
       _HelpArticle(
-        'Trésorerie',
-        'Le module Finance suit les entrées et sorties d\'argent. L\'historique des '
-            'mouvements est replié par défaut.',
+        'Accueil : où en est mon argent ?',
+        'L\'onglet Accueil montre l\'argent disponible, les entrées et sorties du mois '
+            '(avec l\'évolution par rapport au mois dernier), des conseils en phrases simples, '
+            'un graphique sur 6 mois et les postes où part l\'argent.',
       ),
       _HelpArticle(
-        'Comptabilité par bande',
-        'La vue Comptabilité calcule la marge par bande : produits des ventes moins les '
-            'coûts (poussins, dépenses, aliment consommé).',
+        'Saisir une dépense ou une entrée d\'argent',
+        'Bouton « + » en haut à droite, ou boutons Dépense / Entrée d\'argent de l\'accueil. '
+            'Tapez le montant, touchez le poste (Aliment, Salaires…), choisissez la bande si besoin, '
+            'puis Enregistrer. « Refaire » reprend une dépense récente en un geste. '
+            'Les ventes arrivent automatiquement depuis les commandes payées.',
+      ),
+      _HelpArticle(
+        'Mouvements',
+        'Le journal est groupé par jour avec les totaux en haut. Cherchez un mot, un nom ou un '
+            'montant, et utilisez le menu Filtres (sens, origine, période). Touchez un mouvement '
+            'pour le détail ; Modifier et Supprimer sont réservés aux administrateurs.',
+      ),
+      _HelpArticle(
+        'Par bande',
+        'Résultat de chaque bande (dépensé, vendu, coût au kg) et prix minimum de vente par '
+            'sujet pour ne pas perdre d\'argent. L\'icône de réglage ouvre les coûts fixes et '
+            'amortissements.',
+      ),
+      _HelpArticle(
+        'Budget',
+        'Fixez un plafond mensuel par poste : la barre devient orange à 80 % et rouge en cas '
+            'de dépassement, et l\'accueil vous prévient.',
       ),
     ]),
     _HelpChapter('Configuration (Admin)', Icons.settings_outlined, Color(0xFF37474F), [
