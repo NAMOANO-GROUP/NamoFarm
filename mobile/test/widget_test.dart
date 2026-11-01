@@ -418,10 +418,9 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: RoadmapScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Aucun planning — créez-en un avec +'), findsOneWidget);
+    expect(find.text('Aucun planning'), findsOneWidget);
 
-    // Le bouton existe dans l'AppBar et dans la barre compacte.
-    await tester.tap(find.byTooltip('Nouveau planning').first);
+    await tester.tap(find.text('Créer un planning'));
     await tester.pumpAndSettle();
 
     expect(find.text('Nouveau planning macro'), findsOneWidget);
@@ -431,11 +430,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Planning Test UI'), findsWidgets);
-    expect(find.textContaining('Macro mensuel'), findsOneWidget);
-    expect(find.byTooltip('Ajouter tâche, sous-tâche, jalon ou date clé'), findsOneWidget);
-    expect(find.byTooltip('Modifier période du planning'), findsOneWidget);
-    expect(find.byTooltip('Modifier tâche, sous-tâche, jalon ou date clé'), findsOneWidget);
-    expect(find.byTooltip('Supprimer tâche, sous-tâche, jalon ou date clé'), findsOneWidget);
+    // Barre d'outils en icônes seules.
+    expect(find.byTooltip('Ajouter une tâche, un jalon ou une date clé'), findsOneWidget);
+    expect(find.byTooltip('Aller à aujourd’hui'), findsOneWidget);
+    expect(find.byTooltip('Zoom'), findsOneWidget);
+    expect(find.byTooltip('Plus d’options'), findsOneWidget);
+    expect(find.byKey(const ValueKey('roadmap-charge')), findsOneWidget);
   });
 
   testWidgets('Suivi day form refreshes selected date immediately', (WidgetTester tester) async {

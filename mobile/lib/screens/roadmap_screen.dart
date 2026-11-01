@@ -4,6 +4,7 @@ import '../widgets/brand_logo.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/iso_calendar_picker.dart';
 
 class RoadmapMilestone {
@@ -146,16 +147,7 @@ class ProductionPlan {
 
 enum _RoadmapActionMode { edit, delete }
 
-enum _RoadmapItemKind { task, subtask, milestone, planningDate }
-
 enum _RoadmapCreateKind { task, subtask, milestone, planningDate }
-
-class _MilestoneSelection {
-  final RoadmapTask task;
-  final RoadmapMilestone milestone;
-
-  const _MilestoneSelection({required this.task, required this.milestone});
-}
 
 class _HighlightDateSelection {
   final int index;
@@ -165,11 +157,14 @@ class _HighlightDateSelection {
 }
 
 class _RoadmapGridPainter extends CustomPainter {
-  _RoadmapGridPainter({required this.monthsTotal, required this.monthWidth, this.dark = false});
+  _RoadmapGridPainter({required this.monthsTotal, required this.monthWidth, this.dark = false, this.todayUnit});
 
   final int monthsTotal;
   final double monthWidth;
   final bool dark;
+
+  /// Position d'aujourd'hui en mois depuis le début du planning (null = hors période).
+  final double? todayUnit;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -193,12 +188,70 @@ class _RoadmapGridPainter extends CustomPainter {
         }
       }
     }
+    final t = todayUnit;
+    if (t != null) {
+      final x = t * monthWidth;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), Paint()
+        ..color = Colors.redAccent
+        ..strokeWidth = 2);
+    }
   }
 
   @override
   bool shouldRepaint(covariant _RoadmapGridPainter oldDelegate) {
-    return oldDelegate.monthsTotal != monthsTotal || oldDelegate.monthWidth != monthWidth || oldDelegate.dark != dark;
+    return oldDelegate.monthsTotal != monthsTotal ||
+        oldDelegate.monthWidth != monthWidth ||
+        oldDelegate.dark != dark ||
+        oldDelegate.todayUnit != todayUnit;
   }
+}
+
+const roadmapMoisCourts = ['JANV', 'FÉVR', 'MARS', 'AVR', 'MAI', 'JUIN', 'JUIL', 'AOÛT', 'SEPT', 'OCT', 'NOV', 'DÉC'];
+const _moisFr = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+/// « 7 août » (ou « 7 août 2027 » si [annee]).
+String roadmapDateCourte(DateTime d, {bool annee = false}) => '${d.day} ${_moisFr[d.month - 1]}${annee ? ' ${d.year}' : ''}';
+
+/// Durée en jours calendaires, bornes incluses.
+int roadmapDureeJours(DateTime debut, DateTime fin) =>
+    DateTime.utc(fin.year, fin.month, fin.day).difference(DateTime.utc(debut.year, debut.month, debut.day)).inDays + 1;
+
+/// « 7 août → 5 nov. · 91 j » (année ajoutée si les dates ne sont pas de la même année).
+String roadmapPeriode(DateTime debut, DateTime fin) {
+  final annee = debut.year != fin.year;
+  return '${roadmapDateCourte(debut, annee: annee)} → ${roadmapDateCourte(fin, annee: annee)} · ${roadmapDureeJours(debut, fin)} j';
+}
+
+/// Avancement d'une tâche au jour [now] : 0 = à venir, 1 = terminée.
+double roadmapAvancement(RoadmapTask t, {DateTime? now}) {
+  final n = now ?? DateTime.now();
+  final jour = DateTime(n.year, n.month, n.day);
+  final debut = DateTime(t.start.year, t.start.month, t.start.day);
+  final fin = DateTime(t.end.year, t.end.month, t.end.day);
+  if (jour.isBefore(debut)) return 0;
+  if (jour.isAfter(fin)) return 1;
+  // Le jour en cours compte pour moitié : le dernier jour n'est pas encore « terminé ».
+  return (roadmapDureeJours(debut, jour) - 0.5) / roadmapDureeJours(debut, fin);
+}
+
+/// Tâches « feuilles » (sous-tâches, ou tâche sans sous-tâche) : ce sont elles qui occupent la période.
+List<RoadmapTask> roadmapFeuilles(List<RoadmapTask> taches) => [
+      for (final t in taches)
+        if (t.subTasks.isEmpty) t else ...roadmapFeuilles(t.subTasks),
+    ];
+
+/// Nombre de tâches actives chaque mois du planning (charge).
+List<int> roadmapChargeParMois(ProductionPlan plan) {
+  final feuilles = roadmapFeuilles(plan.tasks);
+  final out = <int>[];
+  var m = DateTime(plan.start.year, plan.start.month, 1);
+  final dernier = DateTime(plan.end.year, plan.end.month, 1);
+  while (!m.isAfter(dernier)) {
+    final fin = DateTime(m.year, m.month + 1, 0);
+    out.add(feuilles.where((t) => !t.start.isAfter(fin) && !t.end.isBefore(m)).length);
+    m = DateTime(m.year, m.month + 1, 1);
+  }
+  return out;
 }
 
 class RoadmapScreen extends StatefulWidget {
@@ -212,6 +265,10 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   final List<ProductionPlan> _plans = [];
   String? _selectedPlanId;
   double _zoom = 1.0;
+  final ScrollController _hScroll = ScrollController();
+
+  static const _zooms = {'Mois': 1.0, 'Trimestre': 0.5, 'Année': 0.25};
+  static const double _margeTimeline = 20;
   static const double _baseMonthWidth = 72;
   static const String _plansPrefsKey = 'roadmap.productionPlans';
   static const String _selectedPlanPrefsKey = 'roadmap.selectedPlanId';
@@ -228,6 +285,12 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   void initState() {
     super.initState();
     _loadPlans();
+  }
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    super.dispose();
   }
 
   ProductionPlan? get _selectedPlan {
@@ -353,270 +416,220 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     return _monthSpan(plan.start, plan.end) * _monthWidth();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  double? _todayUnit(ProductionPlan plan) {
+    final n = DateTime.now();
+    final today = DateTime(n.year, n.month, n.day);
+    if (today.isBefore(DateTime(plan.start.year, plan.start.month, 1)) ||
+        today.isAfter(DateTime(plan.end.year, plan.end.month + 1, 0))) {
+      return null;
+    }
+    return _dateToMonthUnit(plan.start, today, endInclusive: true) - 0.5 / DateTime(today.year, today.month + 1, 0).day;
+  }
+
+  void _allerAujourdhui(ProductionPlan plan) {
+    final t = _todayUnit(plan);
+    if (t == null || !_hScroll.hasClients) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aujourd’hui est hors de la période du planning')));
+      return;
+    }
+    final viewport = _hScroll.position.viewportDimension;
+    final cible = (t * _monthWidth() - viewport / 3).clamp(0.0, _hScroll.position.maxScrollExtent);
+    _hScroll.animateTo(cible, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+  }
+
+  void _menuPlanning(String action) {
     final plan = _selectedPlan;
-    return Scaffold(
-      appBar: AppBar(
-        leading: const BrandLogo(),
-        title: const Text('Roadmap production'),
-        actions: [
-          IconButton(
-            onPressed: _plans.isEmpty ? null : _showDeleteAllPlansDialog,
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Supprimer tous les plannings',
-          ),
-          IconButton(
-            onPressed: _plans.length >= 5 ? null : _showCreatePlanDialog,
-            icon: const Icon(Icons.add_chart),
-            tooltip: 'Nouveau planning',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildCompactPlanBar(),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: _buildPlanDetails(plan),
-            ),
-          ),
-        ],
-      ),
-    );
+    switch (action) {
+      case 'nouveau':
+        _showCreatePlanDialog();
+      case 'periode':
+        if (plan != null) _showEditPlanDialog(plan);
+      case 'date_cle_modifier':
+        if (plan != null) _showHighlightDatePicker(plan, _RoadmapActionMode.edit);
+      case 'date_cle_supprimer':
+        if (plan != null) _showHighlightDatePicker(plan, _RoadmapActionMode.delete);
+      case 'supprimer':
+        if (plan != null) _showDeletePlanDialog(plan);
+      case 'tout':
+        _showDeleteAllPlansDialog();
+    }
   }
 
-  // Compact plan selector for small screens: a dropdown + add/delete, so the
-  // timeline gets almost the whole screen height (the tall side panel would eat it).
-  Widget _buildCompactPlanBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 4, 6, 2),
+  /// Titre : le planning affiché, cliquable pour en changer.
+  Widget _titrePlanning(ProductionPlan? plan) {
+    if (_plans.isEmpty) return const Text('Roadmap');
+    return PopupMenuButton<String>(
+      tooltip: 'Changer de planning',
+      onSelected: (id) {
+        if (id == '__nouveau') {
+          _showCreatePlanDialog();
+          return;
+        }
+        setState(() => _selectedPlanId = id);
+        _savePlans();
+      },
+      itemBuilder: (_) => [
+        for (final p in _plans) CheckedPopupMenuItem(value: p.id, checked: p.id == plan?.id, child: Text(p.name)),
+        if (_plans.length < 5) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(value: '__nouveau', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.add), title: Text('Nouveau planning'))),
+        ],
+      ],
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: _plans.isEmpty
-                ? const Text('Aucun planning — créez-en un avec +', style: TextStyle(fontSize: 12))
-                : SizedBox(
-                    height: 40,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedPlanId,
-                      isExpanded: true,
-                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                      decoration: const InputDecoration(
-                        labelText: 'Planning',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _plans
-                          .map((p) => DropdownMenuItem(
-                                value: p.id,
-                                child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                              ))
-                          .toList(),
-                      onChanged: (v) {
-                        setState(() => _selectedPlanId = v);
-                        _savePlans();
-                      },
-                    ),
-                  ),
-          ),
-          IconButton(
-            onPressed: _plans.length >= 5 ? null : _showCreatePlanDialog,
-            icon: const Icon(Icons.add_chart, size: 20),
-            tooltip: 'Nouveau planning',
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            padding: EdgeInsets.zero,
-          ),
-          if (_selectedPlan != null)
-            IconButton(
-              onPressed: () => _showDeletePlanDialog(_selectedPlan!),
-              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-              tooltip: 'Supprimer planning',
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlanDetails(ProductionPlan? plan) {
-    if (plan == null) return const Card(child: Center(child: Text('Sélectionnez ou créez un planning')));
-
-    return Card(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 4, 6, 2),
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            plan.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            'Macro mensuel · ${DateFormat('yyyy').format(plan.start)}–${DateFormat('yyyy').format(plan.end)}',
-                            style: const TextStyle(fontSize: 10),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (MediaQuery.of(context).size.width >= 600) ...[
-                      IconButton(
-                        tooltip: 'Ajouter tâche, sous-tâche, jalon ou date clé',
-                        onPressed: () => _showRoadmapCreateMenu(plan),
-                        icon: const Icon(Icons.add_task_outlined, size: 20),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                      IconButton(
-                        tooltip: 'Modifier période du planning',
-                        onPressed: () => _showEditPlanDialog(plan),
-                        icon: const Icon(Icons.edit_calendar_outlined, size: 20),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                      IconButton(
-                        tooltip: 'Modifier tâche, sous-tâche, jalon ou date clé',
-                        onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.edit),
-                        icon: const Icon(Icons.edit_outlined, size: 20),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                      IconButton(
-                        tooltip: 'Supprimer tâche, sous-tâche, jalon ou date clé',
-                        onPressed: () => _showRoadmapActionMenu(plan, _RoadmapActionMode.delete),
-                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                    ] else
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        tooltip: 'Actions du planning',
-                        padding: EdgeInsets.zero,
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'add':
-                              _showRoadmapCreateMenu(plan);
-                              break;
-                            case 'period':
-                              _showEditPlanDialog(plan);
-                              break;
-                            case 'edit':
-                              _showRoadmapActionMenu(plan, _RoadmapActionMode.edit);
-                              break;
-                            case 'delete':
-                              _showRoadmapActionMenu(plan, _RoadmapActionMode.delete);
-                              break;
-                          }
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'add', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.add_task_outlined), title: Text('Ajouter élément'))),
-                          PopupMenuItem(value: 'period', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_calendar_outlined), title: Text('Modifier période'))),
-                          PopupMenuItem(value: 'edit', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Modifier élément'))),
-                          PopupMenuItem(value: 'delete', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Supprimer élément'))),
-                        ],
-                      ),
-                    // Zoom compact aligné à droite du titre
-                    IconButton(
-                      tooltip: 'Zoom -',
-                      onPressed: () => setState(() => _zoom = (_zoom - 0.1).clamp(0.1, 3.0)),
-                      icon: const Icon(Icons.zoom_out, size: 20),
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      padding: EdgeInsets.zero,
-                    ),
-                    SizedBox(
-                      width: 90,
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 2,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                        ),
-                        child: Slider(
-                          value: _zoom,
-                          min: 0.1,
-                          max: 3.0,
-                          divisions: 29,
-                          label: '${(_zoom * 100).toStringAsFixed(0)}%',
-                          onChanged: (v) => setState(() => _zoom = v),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Zoom +',
-                      onPressed: () => setState(() => _zoom = (_zoom + 0.1).clamp(0.1, 3.0)),
-                      icon: const Icon(Icons.zoom_in, size: 20),
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
+                Text(plan?.name ?? 'Roadmap', maxLines: 1, overflow: TextOverflow.ellipsis),
+                if (plan != null)
+                  Text(
+                    '${roadmapDateCourte(plan.start, annee: true)} → ${roadmapDateCourte(plan.end, annee: true)}',
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
               ],
             ),
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final timelineWidth = _timelineWidth(plan).clamp(constraints.maxWidth, double.infinity);
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: SizedBox(
-                    width: timelineWidth,
-                    height: constraints.maxHeight,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-                          child: _buildMonthHeader(plan),
-                        ),
-                        const Divider(height: 1),
-                        Expanded(
-                          child: plan.tasks.isEmpty
-                              ? const Center(child: Text('Ajoutez des tâches pour construire la roadmap'))
-                              : ListView(
-                                  padding: const EdgeInsets.all(8),
-                                  children: plan.tasks.map((t) => _buildTaskTile(t, plan)).toList(),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          const Icon(Icons.arrow_drop_down),
         ],
       ),
     );
   }
 
-  Widget _buildMonthHeader(ProductionPlan plan) {
-    final localeTag = Localizations.localeOf(context).toLanguageTag();
+  @override
+  Widget build(BuildContext context) {
+    final plan = _selectedPlan;
+    final dates = plan == null ? 0 : plan.highlightedDates.length;
+    return Scaffold(
+      appBar: AppBar(
+        leading: const BrandLogo(),
+        title: _titrePlanning(plan),
+        actions: [
+          if (plan != null) ...[
+            IconButton.filled(
+              tooltip: 'Ajouter une tâche, un jalon ou une date clé',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _showRoadmapCreateMenu(plan),
+              icon: const Icon(Icons.add),
+            ),
+            IconButton(
+              tooltip: 'Aller à aujourd’hui',
+              onPressed: () => _allerAujourdhui(plan),
+              icon: const Icon(Icons.today_outlined),
+            ),
+            PopupMenuButton<double>(
+              tooltip: 'Zoom',
+              icon: const Icon(Icons.zoom_in),
+              onSelected: (z) => setState(() => _zoom = z),
+              itemBuilder: (_) => [
+                for (final e in _zooms.entries) CheckedPopupMenuItem(value: e.value, checked: _zoom == e.value, child: Text(e.key)),
+              ],
+            ),
+          ],
+          PopupMenuButton<String>(
+            tooltip: 'Plus d’options',
+            onSelected: _menuPlanning,
+            itemBuilder: (_) => [
+              if (_plans.length < 5)
+                const PopupMenuItem(value: 'nouveau', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.add_chart), title: Text('Nouveau planning'))),
+              if (plan != null) ...[
+                const PopupMenuItem(value: 'periode', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_calendar_outlined), title: Text('Renommer / période'))),
+                if (dates > 0) ...[
+                  const PopupMenuItem(value: 'date_cle_modifier', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.outlined_flag), title: Text('Modifier une date clé'))),
+                  const PopupMenuItem(value: 'date_cle_supprimer', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.flag_outlined), title: Text('Supprimer une date clé'))),
+                ],
+                const PopupMenuDivider(),
+                const PopupMenuItem(value: 'supprimer', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Supprimer ce planning'))),
+              ],
+              if (_plans.length > 1)
+                const PopupMenuItem(value: 'tout', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_sweep_outlined, color: Colors.redAccent), title: Text('Supprimer tous les plannings'))),
+            ],
+          ),
+        ],
+      ),
+      body: plan == null
+          ? EmptyState(
+              icon: Icons.view_timeline_outlined,
+              title: 'Aucun planning',
+              subtitle: 'Un planning montre vos bandes et projets mois par mois.',
+              actionLabel: 'Créer un planning',
+              actionIcon: Icons.add_chart,
+              onAction: _showCreatePlanDialog,
+            )
+          : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan)),
+    );
+  }
+
+  Widget _buildPlanDetails(ProductionPlan plan) {
+    final today = _todayUnit(plan);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Marge de 20 de chaque côté : celle des cartes de tâches (liste 8 + carte 4 + contenu 8).
+          final timelineWidth = (_timelineWidth(plan) + 2 * _margeTimeline).clamp(constraints.maxWidth, double.infinity);
+          return SingleChildScrollView(
+            controller: _hScroll,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: timelineWidth,
+              height: constraints.maxHeight,
+              child: Column(
+                children: [
+                  Padding(padding: const EdgeInsets.fromLTRB(_margeTimeline, 6, _margeTimeline, 4), child: _buildMonthHeader(plan, today)),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: plan.tasks.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Ajoutez une tâche avec le bouton « + »,\nou maintenez le doigt sur le planning.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ),
+                          )
+                        : GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onLongPressStart: (d) => _tacheALaDate(plan, d.localPosition.dx),
+                            child: ListView(
+                              padding: const EdgeInsets.all(8),
+                              children: [for (final e in _lignesTaches(plan.tasks)) _buildTaskTile(e.$1, plan, indent: e.$2 * 16.0, today: today)],
+                            ),
+                          ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(padding: const EdgeInsets.fromLTRB(_margeTimeline, 4, _margeTimeline, 6), child: _buildCharge(plan)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Tâches et sous-tâches à plat (avec leur niveau) : chaque carte garde sa barre alignée sur les mois.
+  List<(RoadmapTask, int)> _lignesTaches(List<RoadmapTask> taches, [int niveau = 0]) => [
+        for (final t in taches) ...[(t, niveau), ..._lignesTaches(t.subTasks, niveau + 1)],
+      ];
+
+  /// Appui long sur le planning : nouvelle tâche qui commence à la date touchée.
+  void _tacheALaDate(ProductionPlan plan, double dx) {
+    final unit = ((dx - _margeTimeline) / _monthWidth()).clamp(0.0, _monthSpan(plan.start, plan.end) - 0.001);
+    final mois = DateTime(plan.start.year, plan.start.month + unit.floor(), 1);
+    final jours = DateTime(mois.year, mois.month + 1, 0).day;
+    var debut = DateTime(mois.year, mois.month, 1 + ((unit - unit.floor()) * jours).floor());
+    // Premier et dernier mois souvent partiels : la date reste dans la période du planning.
+    if (debut.isBefore(plan.start)) debut = plan.start;
+    if (debut.isAfter(plan.end)) debut = plan.end;
+    _showAddTaskDialog(plan, asSubtask: false, debut: debut);
+  }
+
+  Widget _buildMonthHeader(ProductionPlan plan, double? today) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
     final months = <DateTime>[];
     final first = DateTime(plan.start.year, plan.start.month, 1);
     final last = DateTime(plan.end.year, plan.end.month, 1);
@@ -625,55 +638,146 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       months.add(cursor);
       cursor = DateTime(cursor.year, cursor.month + 1, 1);
     }
+    final w = _monthWidth();
 
     return SizedBox(
       key: const ValueKey('roadmap-header-timeline'),
       width: _timelineWidth(plan),
-      child: Row(
-        children: months.map((m) {
-          final highlighted = plan.highlightedDates.any((d) => d.year == m.year && d.month == m.month);
-          final bg = highlighted
-              ? (dark ? Colors.amber.shade900.withValues(alpha: 0.45) : Colors.amber.shade100)
-              : (dark ? Colors.white.withValues(alpha: 0.06) : Colors.blueGrey.shade50);
-          final borderColor = highlighted
-              ? (dark ? Colors.amber.shade400 : Colors.amber.shade700)
-              : (dark ? Colors.white24 : Colors.blueGrey.shade200);
-          final fg = dark ? Colors.white : Colors.black87;
-          return Container(
-            key: ValueKey('roadmap-month-${m.year}-${m.month}'),
-            width: _monthWidth(),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: bg,
-              border: Border.all(color: borderColor),
+      child: Stack(
+        children: [
+          Row(
+            children: months.map((m) {
+              final courant = m.year == now.year && m.month == now.month;
+              final highlighted = plan.highlightedDates.any((d) => d.year == m.year && d.month == m.month);
+              final bg = courant
+                  ? scheme.primary.withValues(alpha: dark ? 0.30 : 0.15)
+                  : highlighted
+                      ? (dark ? Colors.amber.shade900.withValues(alpha: 0.45) : Colors.amber.shade100)
+                      : (dark ? Colors.white.withValues(alpha: 0.06) : Colors.blueGrey.shade50);
+              final borderColor = courant
+                  ? scheme.primary
+                  : highlighted
+                      ? (dark ? Colors.amber.shade400 : Colors.amber.shade700)
+                      : (dark ? Colors.white24 : Colors.blueGrey.shade200);
+              final fg = dark ? Colors.white : Colors.black87;
+              final nom = roadmapMoisCourts[m.month - 1];
+              final libelle = w >= 44 ? nom : (w >= 26 ? nom.substring(0, 3) : nom.substring(0, 1));
+              final annee = w >= 44 || m.month == 1;
+              return Container(
+                key: ValueKey('roadmap-month-${m.year}-${m.month}'),
+                width: w,
+                padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
+                decoration: BoxDecoration(color: bg, border: Border.all(color: borderColor)),
+                child: Column(
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(libelle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: courant ? scheme.primary : fg)),
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(annee ? '${m.year}' : ' ', style: TextStyle(fontSize: 9, color: fg.withValues(alpha: 0.7))),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          if (today != null)
+            Positioned(
+              left: today * w - 1,
+              top: 0,
+              bottom: 0,
+              child: Tooltip(message: 'Aujourd’hui', child: Container(width: 2, color: Colors.redAccent)),
             ),
-            child: Column(
-              children: [
-                Text(DateFormat('MMM', localeTag).format(m).toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: fg)),
-                Text('${m.year}', style: TextStyle(fontSize: 9, color: fg.withValues(alpha: 0.7))),
-              ],
-            ),
-          );
-        }).toList(),
+        ],
       ),
     );
   }
 
-  Widget _buildTaskTile(RoadmapTask task, ProductionPlan plan, {double indent = 0}) {
+  /// Charge : nombre de tâches en cours chaque mois.
+  Widget _buildCharge(ProductionPlan plan) {
+    final charge = roadmapChargeParMois(plan);
+    final maxi = charge.isEmpty ? 0 : charge.reduce((a, b) => a > b ? a : b);
+    final scheme = Theme.of(context).colorScheme;
+    final w = _monthWidth();
+    return SizedBox(
+      key: const ValueKey('roadmap-charge'),
+      width: _timelineWidth(plan),
+      height: 26,
+      child: Row(
+        children: [
+          for (var i = 0; i < charge.length; i++)
+            Tooltip(
+              message: '${charge[i]} en cours',
+              child: Container(
+                width: w,
+                margin: EdgeInsets.zero,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: charge[i] == 0
+                      ? Colors.transparent
+                      : Color.lerp(Colors.teal.shade200, Colors.deepOrange, maxi <= 1 ? 0 : (charge[i] - 1) / (maxi - 1))!
+                          .withValues(alpha: 0.35),
+                  border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    charge[i] == 0 ? '–' : '${charge[i]}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: charge[i] == 0 ? scheme.outline : null),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskTile(RoadmapTask task, ProductionPlan plan, {double indent = 0, double? today}) {
     final monthsTotal = _monthSpan(plan.start, plan.end);
     final startOffset = _dateToMonthUnit(plan.start, task.start).clamp(0.0, monthsTotal.toDouble());
     final endOffset = _dateToMonthUnit(plan.start, task.end, endInclusive: true).clamp(0.0, monthsTotal.toDouble());
     final barDuration = (endOffset - startOffset).clamp(0.12, monthsTotal.toDouble());
+    final avancement = roadmapAvancement(task);
+    final terminee = avancement >= 1;
+    final barWidth = _monthWidth() * barDuration;
+    final periode = roadmapPeriode(task.start, task.end);
+    final scheme = Theme.of(context).colorScheme;
+    final couleur = terminee ? task.color.withValues(alpha: 0.45) : task.color;
 
     return Card(
-      margin: EdgeInsets.only(left: indent, bottom: 6),
+      margin: const EdgeInsets.only(left: 4, right: 4, bottom: 6),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              child: Text(task.title, style: TextStyle(fontSize: 13, fontWeight: task.group ? FontWeight.w700 : FontWeight.w500)),
+            InkWell(
+              onTap: () => _ficheTache(plan, task),
+              child: Row(
+                children: [
+                  if (indent > 0) ...[
+                    SizedBox(width: indent - 8),
+                    Icon(Icons.subdirectory_arrow_right, size: 14, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                  ],
+                  Flexible(
+                    child: Text(
+                      task.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, fontWeight: task.group ? FontWeight.w700 : FontWeight.w500),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    terminee ? 'Terminée' : periode,
+                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 4),
             SizedBox(
@@ -681,17 +785,48 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
               width: _timelineWidth(plan),
               height: 24,
               child: CustomPaint(
-                painter: _RoadmapGridPainter(monthsTotal: monthsTotal, monthWidth: _monthWidth(), dark: Theme.of(context).brightness == Brightness.dark),
+                painter: _RoadmapGridPainter(
+                  monthsTotal: monthsTotal,
+                  monthWidth: _monthWidth(),
+                  dark: Theme.of(context).brightness == Brightness.dark,
+                  todayUnit: today,
+                ),
                 child: Stack(
                   children: [
                     Positioned(
                       key: ValueKey('roadmap-bar-${task.id}'),
                       left: _monthWidth() * startOffset,
                       top: 3,
-                      child: Container(
-                        width: _monthWidth() * barDuration,
-                        height: 18,
-                        decoration: BoxDecoration(color: task.color, borderRadius: BorderRadius.circular(9)),
+                      child: Tooltip(
+                        message: '${task.title}\n$periode',
+                        child: GestureDetector(
+                          onTap: () => _ficheTache(plan, task),
+                          child: Container(
+                            width: barWidth,
+                            height: 18,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(color: couleur, borderRadius: BorderRadius.circular(9)),
+                            child: Stack(
+                              children: [
+                                if (avancement > 0 && avancement < 1)
+                                  Container(width: barWidth * avancement, color: Colors.black.withValues(alpha: 0.22)),
+                                if (barWidth >= 70)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        periode,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     ...task.milestones.map((m) {
@@ -699,8 +834,12 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       return Positioned(
                         left: (_monthWidth() * unit) - 7,
                         top: 1,
-                        child: GestureDetector(
-                          child: Icon(Icons.flag, size: 14, color: m.color),
+                        child: Tooltip(
+                          message: '${m.title} · ${roadmapDateCourte(m.date, annee: true)}',
+                          child: GestureDetector(
+                            onTap: () => _showEditMilestoneDialog(plan, task, m),
+                            child: Icon(Icons.flag, size: 16, color: m.color),
+                          ),
                         ),
                       );
                     }),
@@ -708,11 +847,72 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 ),
               ),
             ),
-            if (task.subTasks.isNotEmpty) ...task.subTasks.map((s) => _buildTaskTile(s, plan, indent: indent + 16)),
           ],
         ),
       ),
     );
+  }
+
+  /// Fiche d'une tâche (toucher la barre) : période, avancement et actions.
+  Future<void> _ficheTache(ProductionPlan plan, RoadmapTask task) async {
+    final avancement = roadmapAvancement(task);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Row(
+                children: [
+                  Container(width: 14, height: 14, decoration: BoxDecoration(color: task.color, shape: BoxShape.circle)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(roadmapPeriode(task.start, task.end)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(value: avancement, minHeight: 6, color: task.color),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                avancement >= 1 ? 'Terminée' : (avancement <= 0 ? 'À venir' : 'En cours · ${(avancement * 100).round()} %'),
+                style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Modifier'), onTap: () => Navigator.pop(ctx, 'modifier')),
+            ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('Ajouter un jalon'), onTap: () => Navigator.pop(ctx, 'jalon')),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              title: const Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
+              onTap: () => Navigator.pop(ctx, 'supprimer'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'modifier':
+        await _showEditTaskDialog(plan, task);
+      case 'jalon':
+        await _showAddMilestoneDialog(plan, task);
+      case 'supprimer':
+        await _showDeleteTaskDialog(plan, task);
+    }
   }
 
   Future<void> _showCreatePlanDialog() async {
@@ -773,9 +973,12 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     );
   }
 
-  Future<void> _showAddTaskDialog(ProductionPlan plan, {required bool asSubtask}) async {
+  Future<void> _showAddTaskDialog(ProductionPlan plan, {required bool asSubtask, DateTime? debut}) async {
     final title = TextEditingController();
-    DateTimeRange range = DateTimeRange(start: plan.start, end: DateTime(plan.start.year, plan.start.month + 1, 1));
+    final d = debut ?? plan.start;
+    final finProposee = DateTime(d.year, d.month + 1, d.day);
+    final fin = finProposee.isAfter(plan.end) ? plan.end : finProposee;
+    DateTimeRange range = DateTimeRange(start: d, end: fin.isBefore(d) ? d : fin);
     Color selectedColor = _taskColors.first;
     RoadmapTask? selectedGroup;
 
@@ -1321,50 +1524,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     _savePlans();
   }
 
-  Future<void> _showRoadmapActionMenu(ProductionPlan plan, _RoadmapActionMode mode) async {
-    final kind = await _showRoadmapPickerDialog<_RoadmapItemKind>(
-      title: 'Choisir un élément',
-      children: [
-        ListTile(
-          leading: const Icon(Icons.task_alt),
-          title: const Text('Tâche'),
-          onTap: () => Navigator.pop(context, _RoadmapItemKind.task),
-        ),
-        ListTile(
-          leading: const Icon(Icons.account_tree_outlined),
-          title: const Text('Sous-tâche'),
-          onTap: () => Navigator.pop(context, _RoadmapItemKind.subtask),
-        ),
-        ListTile(
-          leading: const Icon(Icons.flag_outlined),
-          title: const Text('Jalon'),
-          onTap: () => Navigator.pop(context, _RoadmapItemKind.milestone),
-        ),
-        ListTile(
-          leading: const Icon(Icons.outlined_flag),
-          title: const Text('Date clé du planning'),
-          onTap: () => Navigator.pop(context, _RoadmapItemKind.planningDate),
-        ),
-      ],
-    );
-    if (kind == null || !mounted) return;
-
-    switch (kind) {
-      case _RoadmapItemKind.task:
-        await _showTaskPicker(plan, mode, subtasks: false);
-        break;
-      case _RoadmapItemKind.subtask:
-        await _showTaskPicker(plan, mode, subtasks: true);
-        break;
-      case _RoadmapItemKind.milestone:
-        await _showMilestonePicker(plan, mode);
-        break;
-      case _RoadmapItemKind.planningDate:
-        await _showHighlightDatePicker(plan, mode);
-        break;
-    }
-  }
-
   Future<void> _showRoadmapCreateMenu(ProductionPlan plan) async {
     final kind = await _showRoadmapPickerDialog<_RoadmapCreateKind>(
       title: 'Ajouter un élément',
@@ -1459,66 +1618,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     );
   }
 
-  Future<void> _showTaskPicker(ProductionPlan plan, _RoadmapActionMode mode, {required bool subtasks}) async {
-    final tasks = subtasks ? _collectSubTasks(plan.tasks) : plan.tasks;
-    if (tasks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(subtasks ? 'Aucune sous-tâche disponible' : 'Aucune tâche disponible')),
-      );
-      return;
-    }
-
-    await _showRoadmapPickerDialog<void>(
-      title: subtasks ? 'Choisir une sous-tâche' : 'Choisir une tâche',
-      children: tasks.map((task) {
-        final subtitle = '${DateFormat('dd/MM/yyyy').format(task.start)} -> ${DateFormat('dd/MM/yyyy').format(task.end)}';
-        return ListTile(
-          leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
-          title: Text(task.title),
-          subtitle: Text(subtitle),
-          onTap: () {
-            Navigator.pop(context);
-            if (mode == _RoadmapActionMode.edit) {
-              _showEditTaskDialog(plan, task);
-            } else {
-              _showDeleteTaskDialog(plan, task);
-            }
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  Future<void> _showMilestonePicker(ProductionPlan plan, _RoadmapActionMode mode) async {
-    final milestones = _collectMilestones(plan.tasks);
-    if (milestones.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun jalon disponible')),
-      );
-      return;
-    }
-
-    await _showRoadmapPickerDialog<void>(
-      title: 'Choisir un jalon',
-      children: milestones.map((item) {
-        final subtitle = '${item.task.title} • ${DateFormat('dd/MM/yyyy').format(item.milestone.date)}';
-        return ListTile(
-          leading: Icon(mode == _RoadmapActionMode.edit ? Icons.edit : Icons.delete_outline, color: mode == _RoadmapActionMode.delete ? Colors.redAccent : null),
-          title: Text(item.milestone.title),
-          subtitle: Text(subtitle),
-          onTap: () {
-            Navigator.pop(context);
-            if (mode == _RoadmapActionMode.edit) {
-              _showEditMilestoneDialog(plan, item.task, item.milestone);
-            } else {
-              _showDeleteMilestoneDialog(plan, item.task, item.milestone);
-            }
-          },
-        );
-      }).toList(),
-    );
-  }
-
   Future<void> _showHighlightDatePicker(ProductionPlan plan, _RoadmapActionMode mode) async {
     final dates = _collectHighlightDates(plan);
     if (dates.isEmpty) {
@@ -1548,31 +1647,11 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     );
   }
 
-  List<RoadmapTask> _collectSubTasks(List<RoadmapTask> tasks) {
-    final out = <RoadmapTask>[];
-    for (final task in tasks) {
-      out.addAll(task.subTasks);
-      out.addAll(_collectSubTasks(task.subTasks));
-    }
-    return out;
-  }
-
   List<RoadmapTask> _collectAllTasks(List<RoadmapTask> tasks) {
     final out = <RoadmapTask>[];
     for (final task in tasks) {
       out.add(task);
       out.addAll(_collectAllTasks(task.subTasks));
-    }
-    return out;
-  }
-
-  List<_MilestoneSelection> _collectMilestones(List<RoadmapTask> tasks) {
-    final out = <_MilestoneSelection>[];
-    for (final task in tasks) {
-      for (final milestone in task.milestones) {
-        out.add(_MilestoneSelection(task: task, milestone: milestone));
-      }
-      out.addAll(_collectMilestones(task.subTasks));
     }
     return out;
   }
@@ -1644,52 +1723,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         end: current.end,
         tasks: current.tasks,
         highlightedDates: dates,
-      );
-    });
-    _savePlans();
-  }
-
-  Future<void> _showDeleteMilestoneDialog(ProductionPlan plan, RoadmapTask task, RoadmapMilestone milestone) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer jalon'),
-        content: Text('Supprimer le jalon "${milestone.title}" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true) return;
-
-    final updatedTask = RoadmapTask(
-      id: task.id,
-      title: task.title,
-      start: task.start,
-      end: task.end,
-      color: task.color,
-      group: task.group,
-      milestones: task.milestones.where((m) => m.id != milestone.id).toList(),
-      subTasks: task.subTasks,
-    );
-
-    setState(() {
-      final idx = _plans.indexWhere((p) => p.id == plan.id);
-      if (idx < 0) return;
-      final current = _plans[idx];
-      _plans[idx] = ProductionPlan(
-        id: current.id,
-        name: current.name,
-        start: current.start,
-        end: current.end,
-        tasks: _replaceTask(current.tasks, updatedTask),
-        highlightedDates: current.highlightedDates,
       );
     });
     _savePlans();

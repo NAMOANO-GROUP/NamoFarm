@@ -46,10 +46,23 @@ Future<bool> confirmAction(
   return ok == true;
 }
 
-void showCrmSnack(BuildContext context, String message, {SnackBarAction? action}) {
+/// Message en bas d'écran. Avec un bouton (Annuler, Consigner...), il reste [dureeAction] puis disparaît :
+/// depuis Flutter 3.32 un message avec bouton resterait sinon affiché jusqu'à ce qu'on le touche.
+void showCrmSnack(
+  BuildContext context,
+  String message, {
+  SnackBarAction? action,
+  Duration dureeAction = const Duration(seconds: 6),
+}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message), action: action, behavior: SnackBarBehavior.floating));
+    ..showSnackBar(SnackBar(
+      content: Text(message),
+      action: action,
+      behavior: SnackBarBehavior.floating,
+      persist: false,
+      duration: action == null ? const Duration(seconds: 4) : dureeAction,
+    ));
 }
 
 /// Coche / décoche une tâche (mise à jour instantanée) avec un bouton "Annuler" façon Planner.
@@ -62,6 +75,8 @@ Future<void> toggleTacheWithUndo(BuildContext context, TacheCRM tache) async {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
       behavior: SnackBarBehavior.floating,
+      persist: false,
+      duration: const Duration(seconds: 6),
       content: Text(ok
           ? (nouveau == 'terminee' ? 'Tâche terminée 🎉' : 'Tâche rouverte')
           : 'Mise à jour impossible, réessayez'),

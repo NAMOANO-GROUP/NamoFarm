@@ -10,7 +10,6 @@ import '../../utils/finance.dart' show fcfa, moisFr;
 import '../../widgets/crm/crm_widgets.dart';
 import 'cheptel_dialogs.dart';
 import 'cheptel_widgets.dart';
-import 'mouvement_sheet.dart';
 
 /// Fiche d'un troupeau : Aperçu, Courbe, Journal, Finances.
 class CheptelDetailScreen extends StatelessWidget {
@@ -27,12 +26,6 @@ class CheptelDetailScreen extends StatelessWidget {
         appBar: AppBar(
           title: Text(c.nom),
           actions: [
-            IconButton.filled(
-              tooltip: 'Nouveau mouvement',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => showMouvementCheptelSheet(context, c),
-              icon: const Icon(Icons.add),
-            ),
             PopupMenuButton<String>(
               tooltip: 'Plus d’options',
               onSelected: (v) async {
