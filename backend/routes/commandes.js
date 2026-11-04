@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { getAdminClient, logAudit } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
 const { requirePermission, requireAnyPermission, hasPermission, requireAdmin } = require('../middleware/auth');
+const ventesBandes = require('../services/ventes_bandes');
 
 const router = express.Router();
 const COMMANDES_COMPANY_COLUMNS = ['company_id', 'companyId'];
@@ -762,10 +763,33 @@ router.put('/:id/statut', requireAnyPermission(['commandes.status.prepare', 'com
       };
     }
 
+    // Commande payée liée à une bande : les animaux vendus sortent de l'effectif (une seule fois).
+    let sortieBande = null;
+    if (nouveauStatut === 'payee' && ventesBandes.aDeduire(current.data)) {
+      const quantite = ventesBandes.quantiteAnimaux(current.data.produits);
+      const sortie = await ventesBandes.retirerDeLaBande(apiClient, companyId, ventesBandes.bandeIdDe(current.data), quantite);
+      if (sortie.ok) {
+        sortieBande = sortie;
+        historique.push(ventesBandes.entreeHistorique(sortie.retire, sortie.bandeNom, req.body.auteur || getActorLabel(req)));
+      } else {
+        console.warn('Sortie de bande impossible pour la commande', current.data.id, sortie.error);
+      }
+    }
+
+    // En cas d'échec plus loin, l'effectif retiré est remis (la commande reste non payée).
+    const annulerSortie = async () => {
+      if (sortieBande) {
+        await ventesBandes.retirerDeLaBande(apiClient, companyId, ventesBandes.bandeIdDe(current.data), -sortieBande.retire);
+      }
+    };
+
     let tresorerieSaved = null;
     if (tresoreriePayload && Number(tresoreriePayload.montant || 0) > 0) {
       tresorerieSaved = await insertTresorerieCompat(apiClient, tresoreriePayload);
-      if (tresorerieSaved.error) return res.status(400).json({ message: tresorerieSaved.error.message });
+      if (tresorerieSaved.error) {
+        await annulerSortie();
+        return res.status(400).json({ message: tresorerieSaved.error.message });
+      }
     }
 
     const saved = await updateCommandeCompat(apiClient, companyId, req.params.id, {
@@ -776,7 +800,10 @@ router.put('/:id/statut', requireAnyPermission(['commandes.status.prepare', 'com
       updated_at: new Date().toISOString(),
     });
 
-    if (saved.error) return res.status(400).json({ message: saved.error.message });
+    if (saved.error) {
+      await annulerSortie();
+      return res.status(400).json({ message: saved.error.message });
+    }
 
     let linkedClient = null;
     if (saved.data.client_id) {
@@ -1104,6 +1131,40 @@ router.put('/:id', requirePermission('commandes.update'), async (req, res) => {
     return res.json(mapCommandeRow(saved.data, null));
   } catch (err) {
     return res.status(400).json({ message: err.message });
+  }
+});
+
+// Rattrapage : retire des bandes les animaux des commandes déjà payées qui ne l'ont pas encore été.
+router.post('/rattrapage-effectifs-bandes', requireAdmin, async (req, res) => {
+  try {
+    const apiClient = getAdminClient();
+    const companyId = await getCompanyIdForUser(apiClient, req.user.id || req.user._id);
+    const cmdRes = await listCommandesCompat(apiClient, companyId, (query) => query.order('created_at', { ascending: true }));
+    if (cmdRes.error) return res.status(500).json({ message: cmdRes.error.message });
+
+    const aTraiter = (cmdRes.data || []).filter((row) => isCommandeHistorique(row) && ventesBandes.aDeduire(row));
+    let commandes = 0;
+    let sujets = 0;
+    for (const row of aTraiter) {
+      const quantite = ventesBandes.quantiteAnimaux(row.produits);
+      const sortie = await ventesBandes.retirerDeLaBande(apiClient, companyId, ventesBandes.bandeIdDe(row), quantite);
+      if (!sortie.ok) continue;
+      const historique = [
+        ...(Array.isArray(row.historique_actions) ? row.historique_actions : []),
+        ventesBandes.entreeHistorique(sortie.retire, sortie.bandeNom, 'Rattrapage des ventes'),
+      ];
+      const saved = await updateCommandeCompat(apiClient, companyId, row.id, { historique_actions: historique });
+      if (saved.error) {
+        // La bande est déjà mise à jour : on remet l'effectif pour éviter un double retrait au prochain rattrapage.
+        await ventesBandes.retirerDeLaBande(apiClient, companyId, ventesBandes.bandeIdDe(row), -sortie.retire);
+        continue;
+      }
+      commandes += 1;
+      sujets += sortie.retire;
+    }
+    return res.json({ commandes, sujets });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 });
 

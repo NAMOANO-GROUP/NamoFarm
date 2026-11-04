@@ -147,6 +147,13 @@ class BandeKpis {
   final int dureeJours;
   final DateTime dateSortiePrevue;
   final int effectif;
+
+  /// Sujets mis en place à l'ouverture.
+  final int effectifInitial;
+
+  /// Nombre de morts depuis l'ouverture et sur les 7 derniers jours.
+  final int morts;
+  final int morts7j;
   final double viabilitePct;
   final double mortalitePct;
   final double alimentTotalKg;
@@ -175,6 +182,9 @@ class BandeKpis {
     required this.dureeJours,
     required this.dateSortiePrevue,
     required this.effectif,
+    this.effectifInitial = 0,
+    this.morts = 0,
+    this.morts7j = 0,
     required this.viabilitePct,
     required this.mortalitePct,
     required this.alimentTotalKg,
@@ -211,7 +221,8 @@ BandeKpis computeBandeKpis(Bande b, ReferenceType ref, {DateTime? now}) {
   final duree = ref.dureeJours > 0 ? ref.dureeJours : b.dureeElevageJours;
   final initial = b.nombreInitial;
   final effectif = b.nombreActuel;
-  final viabilite = initial > 0 ? effectif / initial * 100 : 0.0;
+  // Viabilité = animaux non morts : les animaux vendus (sortis de l'effectif) restent des réussites.
+  final viabilite = initial > 0 ? (initial - b.mortaliteTotale).clamp(0, initial) / initial * 100 : 0.0;
   final mortalitePct = initial > 0 ? b.mortaliteTotale / initial * 100 : 0.0;
 
   final suivis = [...b.suiviJournalier]..sort((x, y) => x.date.compareTo(y.date));
@@ -235,7 +246,14 @@ BandeKpis computeBandeKpis(Bande b, ReferenceType ref, {DateTime? now}) {
     poidsRef = ref.poidsA(agePesee, poidsArriveeG: b.poidsArriveeG);
     gmq = (poids - b.poidsArriveeG) / agePesee;
     final alimJusquPesee = suivis.where((s) => !s.date.isAfter(pesee!.date)).fold<double>(0, (s, x) => s + x.alimentationKg);
-    final biomasseKg = effectif * poids / 1000;
+    // Animaux présents le jour de la pesée (avant les ventes) : mis en place moins morts à cette date.
+    final mortsALaPesee = suivis.where((s) => !s.date.isAfter(pesee!.date)).fold<int>(0, (s, x) => s + x.mortaliteJour);
+    // Morts enregistrées hors suivi journalier (anciennes saisies) : comptées dès le début.
+    final mortsSuivi = suivis.fold<int>(0, (s, x) => s + x.mortaliteJour);
+    final mortsHorsSuivi = (b.mortaliteTotale - mortsSuivi).clamp(0, b.mortaliteTotale);
+    final morts = mortsALaPesee + mortsHorsSuivi;
+    final effectifPesee = initial > 0 ? (initial - morts).clamp(0, initial) : effectif;
+    final biomasseKg = effectifPesee * poids / 1000;
     if (alimJusquPesee > 0 && biomasseKg > 0) {
       ic = alimJusquPesee / biomasseKg;
       iep = viabilite * (poids / 1000) / (agePesee * ic) * 100;
@@ -259,6 +277,9 @@ BandeKpis computeBandeKpis(Bande b, ReferenceType ref, {DateTime? now}) {
     dureeJours: duree,
     dateSortiePrevue: DateTime(b.dateOuverture.year, b.dateOuverture.month, b.dateOuverture.day + duree),
     effectif: effectif,
+    effectifInitial: initial,
+    morts: b.mortaliteTotale,
+    morts7j: morts7j,
     viabilitePct: viabilite,
     mortalitePct: mortalitePct,
     alimentTotalKg: alimentTotal,

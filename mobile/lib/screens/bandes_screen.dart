@@ -41,11 +41,22 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
       if (mounted) setState(() => _refs = r);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BandesProvider>().chargerBandesActives();
-      context.read<BandesProvider>().chargerHistorique();
+      final bandes = context.read<BandesProvider>();
+      bandes.chargerBandesActives();
+      bandes.chargerHistorique();
       final alertes = context.read<AlertesProvider>();
       if (alertes.alertes.isEmpty) alertes.chargerAlertes(period: 'all');
+      if (context.read<AuthProvider>().isAdmin) _rattraperVentes(bandes);
     });
+  }
+
+  Future<void> _rattraperVentes(BandesProvider bandes) async {
+    final sujets = await bandes.rattraperVentesUneFois();
+    if (sujets > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ventes déjà payées : $sujets sujet(s) retiré(s) des effectifs des bandes')),
+      );
+    }
   }
 
   @override

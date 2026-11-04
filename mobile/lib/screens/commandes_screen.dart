@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../providers/bandes_provider.dart';
 import '../providers/commandes_provider.dart';
 import '../providers/clients_provider.dart';
 import '../models/commande.dart';
@@ -396,10 +397,18 @@ class _CommandesScreenState extends State<CommandesScreen> {
                 else ...[
                   PopupMenuButton<String>(
                     onSelected: (statut) async {
+                      final bandes = context.read<BandesProvider>();
                       final ok = await provider.mettreAJourStatut(commande.id!, statut);
+                      // Une commande payée liée à une bande retire les animaux vendus de son effectif.
+                      final sortie = ok && statut == 'payee' && (commande.bandeId ?? '').isNotEmpty;
+                      if (sortie) await bandes.chargerBandesActives();
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(ok ? 'Statut mis à jour' : 'Erreur statut commande: ${provider.lastError ?? 'cause inconnue'}')),
+                        SnackBar(
+                          content: Text(ok
+                              ? (sortie ? 'Commande payée · effectif de la bande mis à jour' : 'Statut mis à jour')
+                              : 'Erreur statut commande: ${provider.lastError ?? 'cause inconnue'}'),
+                        ),
                       );
                     },
                     itemBuilder: (ctx) => [

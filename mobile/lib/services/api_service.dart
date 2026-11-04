@@ -426,7 +426,11 @@ class ApiService {
         return Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/rapprochement', query: query)));
     }
 
-    static Future<Map<String, dynamic>> getBudgetPrevisionnel({int months = 6}) async =>
+    /// Retire des bandes les animaux des commandes déjà payées (une seule fois par commande).
+  static Future<Map<String, dynamic>> rattraperEffectifsBandes() async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _post('/commandes/rattrapage-effectifs-bandes')) ?? {});
+
+  static Future<Map<String, dynamic>> getBudgetPrevisionnel({int months = 6}) async =>
             Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/budget-previsionnel', query: {'months': '$months'})));
 
     static Future<List<dynamic>> getMargeParBande() async =>

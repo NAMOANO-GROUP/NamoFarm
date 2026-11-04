@@ -211,10 +211,18 @@ void main() {
       expect(local.joursRestants, 62);
       expect(k.dateSortiePrevue, DateTime(2026, 11, 15));
       expect(k.viabilitePct, closeTo(97, 0.001));
+      expect((k.effectifInitial, k.morts), (1000, 30));
       expect(k.mortalitePct, closeTo(3, 0.001));
       expect(k.agePesee, 27);
       expect(k.gmqG, closeTo((1400 - 40) / 27, 0.001));
       expect(k.ic, closeTo(1800 / (970 * 1.4), 0.0001));
+
+      // 300 animaux vendus ensuite : l'effectif baisse, la viabilité et l'IC ne bougent pas.
+      final vendue = _bande(ouverture: b.dateOuverture, actuel: 670, suivis: b.suiviJournalier);
+      final kv = computeBandeKpis(vendue, _ref45, now: now);
+      expect(kv.effectif, 670);
+      expect(kv.viabilitePct, closeTo(97, 0.001));
+      expect(kv.ic, closeTo(k.ic!, 0.0001));
       expect(k.iep, closeTo(97 * 1.4 / (27 * (1800 / (970 * 1.4))) * 100, 0.01));
       expect(k.poidsReferenceG, closeTo(1216, 0.01));
       expect(k.ecartReferencePct, closeTo((1400 - 1216) / 1216 * 100, 0.01));

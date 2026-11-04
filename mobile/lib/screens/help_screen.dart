@@ -255,7 +255,8 @@ class _HelpScreenState extends State<HelpScreen> {
       _HelpArticle(
         'Commandes',
         'L\'onglet Commandes permet de créer une commande, éventuellement avec un '
-            'nouveau client à la volée.',
+            'nouveau client à la volée. Quand une commande liée à une bande est déclarée payée, '
+            'les animaux vendus (quantité de la commande) sont retirés de l\'effectif de la bande.',
       ),
     ]),
     _HelpChapter('Finance', Icons.account_balance_wallet_outlined, Color(0xFF00695C), [

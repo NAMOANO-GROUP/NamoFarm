@@ -531,20 +531,23 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const coutPoussins = Number(achatSujetByBande.get(id) || 0);
       const autresDepenses = depensesManuelles - prophylaxie - coutPoussins;
       const coutAliment = Number(consoByBande.get(id) || 0);
-      const effectifVivant = nombreActuel > 0 ? nombreActuel : nombreInitial;
+      // Animaux encore dans la bande (les ventes payées et les morts en sont retirées).
+      const effectifVivant = nombreActuel;
+      // Animaux élevés jusqu'au bout (vendus ou encore présents) : base des coûts par sujet.
+      const effectifProduit = Math.max(0, nombreInitial - mortalite) || nombreActuel || nombreInitial;
       const coutFixeParSujet = Number(b.cout_fixe_par_sujet || 0);
       const amortissementParSujet = Number(b.amortissement_par_sujet || 0);
-      const coutFixe = coutFixeParSujet * effectifVivant;
-      const coutAmortissement = amortissementParSujet * effectifVivant;
+      const coutFixe = coutFixeParSujet * effectifProduit;
+      const coutAmortissement = amortissementParSujet * effectifProduit;
       const depenses = depensesManuelles + coutAliment;
       const coutTotal = depenses + coutFixe + coutAmortissement;
       const revenus = Number(revenusByBande.get(id) || 0);
       const margeNette = revenus - coutTotal;
       const tauxMarge = revenus > 0 ? (margeNette / revenus) * 100 : 0;
       const tauxMortalite = nombreInitial > 0 ? (mortalite / nombreInitial) * 100 : 0;
-      const coutParSujet = effectifVivant > 0 ? coutTotal / effectifVivant : 0;
+      const coutParSujet = effectifProduit > 0 ? coutTotal / effectifProduit : 0;
       const poidsMoyenKg = lastPoidsKg(b);
-      const productionKg = effectifVivant * poidsMoyenKg;
+      const productionKg = effectifProduit * poidsMoyenKg;
       const coutParKg = productionKg > 0 ? coutTotal / productionKg : null;
       const suiviAliment = Array.isArray(b.suivi_journalier) ? b.suivi_journalier : [];
       const consoAlimentKg = suiviAliment.reduce((s, j) => s + Number(j.alimentationKg || 0), 0);
@@ -558,6 +561,7 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
         dateFermeture: b.date_fermeture || null,
         nombreInitial,
         effectifVivant,
+        effectifProduit,
         mortalite,
         tauxMortalite: Number(tauxMortalite.toFixed(2)),
         coutPoussins: Number(coutPoussins.toFixed(2)),

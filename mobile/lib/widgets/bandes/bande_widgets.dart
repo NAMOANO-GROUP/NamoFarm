@@ -83,10 +83,10 @@ List<Widget> bandeKpiTiles(BandeKpis k, {double width = 128}) {
       width: width,
       label: 'Effectif',
       value: fmtEntier(k.effectif),
-      sub: 'Viabilité ${fmt1(k.viabilitePct)} %',
+      sub: 'Initial ${fmtEntier(k.effectifInitial)} · viab. ${fmt1(k.viabilitePct)} %',
       icon: Icons.groups_outlined,
       color: k.viabilitePct >= 95 ? Colors.teal : (k.viabilitePct >= 90 ? Colors.orange : Colors.red),
-      tooltip: 'Sujets vivants et part des sujets de départ encore en vie',
+      tooltip: 'Sujets présents (morts et ventes payées retirés), sujets mis en place et part des sujets non morts',
     ),
     KpiTile(
       width: width,
@@ -126,10 +126,11 @@ List<Widget> bandeKpiTiles(BandeKpis k, {double width = 128}) {
     KpiTile(
       width: width,
       label: 'Mortalité',
-      value: '${fmt1(k.mortalitePct)} %',
-      sub: '7 j : ${fmt1(k.mortalite7jPct)} %',
+      value: '${fmtEntier(k.morts)} morts',
+      sub: '${fmt1(k.mortalitePct)} % · 7 j : ${fmtEntier(k.morts7j)} (${fmt1(k.mortalite7jPct)} %)',
       icon: Icons.warning_amber_outlined,
       color: k.mortalite7jPct >= 2 ? Colors.red : Colors.orange,
+      tooltip: 'Nombre de morts depuis l’ouverture, part des sujets mis en place, et morts des 7 derniers jours',
     ),
     KpiTile(
       width: width,
@@ -328,7 +329,11 @@ class BandeCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _Metric(label: 'Effectif', value: fmtEntier(kpis.effectif), sub: '${fmt1(kpis.viabilitePct)} % vivants'),
+                      _Metric(
+                        label: 'Effectif',
+                        value: fmtEntier(kpis.effectif),
+                        sub: 'sur ${fmtEntier(kpis.effectifInitial)} · ${fmtEntier(kpis.morts)} morts',
+                      ),
                       _Metric(
                         label: 'Poids',
                         value: kpis.poidsG == null ? '—' : '${fmtEntier(kpis.poidsG!)} g',

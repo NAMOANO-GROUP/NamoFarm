@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bande.dart';
 import '../services/api_service.dart';
 
@@ -24,6 +25,26 @@ class BandesProvider with ChangeNotifier {
     }
     _isLoading = false;
     notifyListeners();
+  }
+
+  static const _cleRattrapage = 'bandes.rattrapageVentes.v1';
+
+  /// Une seule fois par appareil (administrateur) : retire des bandes les animaux des ventes déjà payées
+  /// avant que l'effectif ne suive les ventes. Le serveur ne retire jamais deux fois la même commande.
+  /// Renvoie le nombre d'animaux retirés (0 si déjà fait ou en cas d'échec, réessayé la fois suivante).
+  Future<int> rattraperVentesUneFois() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_cleRattrapage) == true) return 0;
+    try {
+      final r = await ApiService.rattraperEffectifsBandes();
+      await prefs.setBool(_cleRattrapage, true);
+      final sujets = (r['sujets'] as num?)?.toInt() ?? 0;
+      if (sujets > 0) await chargerBandesActives();
+      return sujets;
+    } catch (e) {
+      debugPrint('Rattrapage des ventes impossible : $e');
+      return 0;
+    }
   }
 
   Future<void> chargerHistorique() async {

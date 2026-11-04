@@ -117,7 +117,8 @@ class _BandeCarte extends StatelessWidget {
     final cout = _n(bande['coutTotal']);
     final coutKg = bande['coutParKg'] == null ? null : _n(bande['coutParKg']);
     final prixMin = _n(bande['seuilRentabiliteParSujet']);
-    final effectif = _n(bande['effectifVivant']);
+    // Animaux élevés (vendus ou présents) : le prix minimum reste utile après les premières ventes.
+    final effectif = bande['effectifProduit'] != null ? _n(bande['effectifProduit']) : _n(bande['effectifVivant']);
     final fixe = _n(bande['coutFixeParSujet']);
     final amort = _n(bande['amortissementParSujet']);
 
