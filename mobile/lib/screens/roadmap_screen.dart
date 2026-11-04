@@ -511,6 +511,11 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             IconButton.filled(
               tooltip: 'Ajouter une tâche, un jalon ou une date clé',
               visualDensity: VisualDensity.compact,
+              // Couleurs explicites : la barre du haut imposerait sinon une icône claire sur fond clair.
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
               onPressed: () => _showRoadmapCreateMenu(plan),
               icon: const Icon(Icons.add),
             ),

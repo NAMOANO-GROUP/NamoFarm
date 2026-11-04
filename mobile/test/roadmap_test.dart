@@ -94,6 +94,14 @@ void main() {
       expect(find.byTooltip('Ajouter une tâche, un jalon ou une date clé'), findsOneWidget);
       expect(find.byTooltip('Aller à aujourd’hui'), findsOneWidget);
       expect(find.byTooltip('Aujourd’hui'), findsOneWidget);
+
+      // Bouton « + » lisible : icône de la couleur « sur primaire », pas celle de la barre du haut.
+      final plus = find.descendant(
+        of: find.byTooltip('Ajouter une tâche, un jalon ou une date clé'),
+        matching: find.byIcon(Icons.add),
+      );
+      final ctx = tester.element(plus);
+      expect(IconTheme.of(ctx).color, Theme.of(ctx).colorScheme.onPrimary);
       expect(find.textContaining(roadmapPeriode(t1d, t1f)), findsWidgets);
       expect(find.byKey(const ValueKey('roadmap-charge')), findsOneWidget);
       expect(find.text('1'), findsWidgets);
