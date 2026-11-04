@@ -19,6 +19,13 @@ function effectifDejaDeduit(historique) {
   return toArray(historique).some((h) => h && h.action === ACTION_EFFECTIF);
 }
 
+/** Sujets déjà retirés de la bande pour cette commande (somme des sorties et corrections tracées). */
+function quantiteDeduite(historique) {
+  return toArray(historique)
+    .filter((h) => h && h.action === ACTION_EFFECTIF)
+    .reduce((s, h) => s + (Number(h.quantite) || 0), 0);
+}
+
 function bandeIdDe(row) {
   const id = row?.bande_id || row?.bandeId || '';
   return id ? String(id) : '';
@@ -41,8 +48,10 @@ function entreeHistorique(quantite, bandeNom, auteur) {
 }
 
 /**
- * Retire [quantite] animaux de l'effectif de la bande (jamais en dessous de 0).
- * Renvoie { ok, bandeNom, retire } ; ok = false si la bande est introuvable.
+ * Retire [quantite] animaux de l'effectif de la bande (une quantité négative les rend).
+ * Refuse de retirer plus que l'effectif présent : c'est presque toujours une erreur de saisie
+ * (prix saisi à la place de la quantité) qui viderait la bande.
+ * Renvoie { ok, bandeNom, retire } ; ok = false si la bande est introuvable ou l'effectif insuffisant.
  */
 async function retirerDeLaBande(api, companyId, bandeId, quantite) {
   const bande = await api
@@ -54,7 +63,15 @@ async function retirerDeLaBande(api, companyId, bandeId, quantite) {
   if (bande.error) return { ok: false, error: bande.error.message };
   if (!bande.data) return { ok: false, error: 'Bande introuvable' };
   const actuel = Number(bande.data.nombre_actuel || 0);
-  const nouveau = Math.max(0, actuel - quantite);
+  if (quantite > actuel) {
+    return {
+      ok: false,
+      insuffisant: true,
+      bandeNom: bande.data.nom || '',
+      error: `Quantité (${quantite}) supérieure à l'effectif de la bande ${bande.data.nom || ''} (${actuel})`,
+    };
+  }
+  const nouveau = actuel - quantite;
   const saved = await api
     .from('bandes')
     .update({ nombre_actuel: nouveau, updated_at: new Date().toISOString() })
@@ -68,6 +85,7 @@ module.exports = {
   ACTION_EFFECTIF,
   quantiteAnimaux,
   effectifDejaDeduit,
+  quantiteDeduite,
   aDeduire,
   bandeIdDe,
   entreeHistorique,

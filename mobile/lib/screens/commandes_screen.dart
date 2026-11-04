@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../providers/auth_provider.dart';
 import '../providers/bandes_provider.dart';
 import '../providers/commandes_provider.dart';
 import '../providers/clients_provider.dart';
@@ -15,6 +16,39 @@ import '../widgets/status_pill.dart';
 import '../widgets/number_field.dart';
 import '../widgets/async_button.dart';
 import '../utils/number_input.dart';
+
+/// « 6 × 3 000 FCFA = 18 000 FCFA » sous les champs : une inversion quantité / prix se voit tout de suite.
+class TotalCommandeApercu extends StatelessWidget {
+  final TextEditingController quantite;
+  final TextEditingController prix;
+
+  const TotalCommandeApercu({super.key, required this.quantite, required this.prix});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: Listenable.merge([quantite, prix]),
+        builder: (context, _) {
+          final q = parseInteger(quantite.text) ?? 0;
+          final p = parseAmount(prix.text) ?? 0;
+          if (q <= 0 || p <= 0) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${formatAmount(q).replaceAll(',00', '')} × ${formatAmountFcfa(p)} = ${formatAmountFcfa(q * p)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          );
+        },
+      );
+}
 
 class CommandesScreen extends StatefulWidget {
   final bool embedded;
@@ -392,9 +426,15 @@ class _CommandesScreenState extends State<CommandesScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (isHistorique)
-                  const Chip(label: Text('Historique'))
-                else ...[
+                if (isHistorique) ...[
+                  const Chip(label: Text('Historique')),
+                  if (context.read<AuthProvider>().isAdmin)
+                    OutlinedButton.icon(
+                      onPressed: () => _showCorrectionCommandeDialog(commande),
+                      icon: const Icon(Icons.build_outlined, size: 16),
+                      label: const Text('Corriger'),
+                    ),
+                ] else ...[
                   PopupMenuButton<String>(
                     onSelected: (statut) async {
                       final bandes = context.read<BandesProvider>();
@@ -485,8 +525,9 @@ class _CommandesScreenState extends State<CommandesScreen> {
             children: [
               const Text('Produit:', style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(controller: produitNomController, decoration: const InputDecoration(labelText: 'Nom du produit')),
-              NumberField(controller: produitQteController, label: 'Quantité', decimal: false),
+              NumberField(controller: produitQteController, label: 'Quantité (nombre de sujets)', decimal: false),
               NumberField(controller: produitPrixController, label: 'Prix unitaire (FCFA)'),
+              TotalCommandeApercu(quantite: produitQteController, prix: produitPrixController),
             ],
           ),
         ),
@@ -853,6 +894,70 @@ class _CommandesScreenState extends State<CommandesScreen> {
     );
   }
 
+  /// Correction d'une commande payée (erreur de saisie) : quantité et prix ; l'effectif de la bande suit.
+  void _showCorrectionCommandeDialog(Commande commande) {
+    final rootContext = context;
+    final p = commande.produits.isNotEmpty ? commande.produits.first : null;
+    final nomCtrl = TextEditingController(text: p?.nom ?? '');
+    final quantiteCtrl = TextEditingController(text: '${p?.quantite ?? 0}');
+    final prixCtrl = TextEditingController(text: formatAmount(p?.prixUnitaire ?? 0).replaceAll(',00', ''));
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Corriger la commande payée'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                (commande.bandeId ?? '').isEmpty
+                    ? 'Le montant encaissé en Finance sera mis à jour.'
+                    : 'Le montant encaissé et l’effectif de la bande ${commande.bandeNom} seront mis à jour.',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Produit')),
+              NumberField(controller: quantiteCtrl, label: 'Quantité (nombre de sujets)', decimal: false),
+              NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA)'),
+              TotalCommandeApercu(quantite: quantiteCtrl, prix: prixCtrl),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+          AsyncButton(
+            label: const Text('Corriger'),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(rootContext);
+              final navigator = Navigator.of(dialogContext);
+              final provider = rootContext.read<CommandesProvider>();
+              final bandes = rootContext.read<BandesProvider>();
+              final quantite = parseInteger(quantiteCtrl.text) ?? 0;
+              final prix = parseAmount(prixCtrl.text) ?? 0;
+              if (commande.id == null || nomCtrl.text.trim().isEmpty || quantite <= 0 || prix <= 0) {
+                messenger.showSnackBar(const SnackBar(content: Text('Renseigne un produit, une quantité et un prix valides')));
+                return;
+              }
+              final ok = await provider.corrigerCommande(commande.id!, {
+                'produits': [
+                  {'nom': nomCtrl.text.trim(), 'quantite': quantite, 'prixUnitaire': prix}
+                ],
+                'montantTotal': quantite * prix,
+              });
+              if ((commande.bandeId ?? '').isNotEmpty) await bandes.chargerBandesActives();
+              if (!mounted) return;
+              if (ok) navigator.pop();
+              messenger.showSnackBar(
+                SnackBar(content: Text(ok ? 'Commande corrigée' : 'Correction impossible : ${provider.lastError ?? ''}')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showModifierCommandeDialog(Commande commande) {
     final rootContext = context;
     final produitPrincipal = commande.produits.isNotEmpty ? commande.produits.first : null;
@@ -875,8 +980,9 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   controller: nomProduitCtrl,
                   decoration: const InputDecoration(labelText: 'Nom du produit *'),
                 ),
-                NumberField(controller: quantiteCtrl, label: 'Quantité *', decimal: false),
+                NumberField(controller: quantiteCtrl, label: 'Quantité (nombre de sujets) *', decimal: false),
                 NumberField(controller: prixCtrl, label: 'Prix unitaire (FCFA) *'),
+                TotalCommandeApercu(quantite: quantiteCtrl, prix: prixCtrl),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date de livraison'),

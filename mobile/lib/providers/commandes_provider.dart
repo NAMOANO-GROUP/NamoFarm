@@ -172,6 +172,19 @@ class CommandesProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> corrigerCommande(String id, Map<String, dynamic> data) async {
+    try {
+      _lastError = null;
+      await ApiService.corrigerCommande(id, data);
+      await chargerCommandes();
+      return true;
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> mettreAJourStatut(String id, String statut) async {
     try {
       await ApiService.mettreAJourStatutCommande(id, statut);

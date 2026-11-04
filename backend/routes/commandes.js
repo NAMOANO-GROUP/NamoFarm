@@ -771,6 +771,10 @@ router.put('/:id/statut', requireAnyPermission(['commandes.status.prepare', 'com
       if (sortie.ok) {
         sortieBande = sortie;
         historique.push(ventesBandes.entreeHistorique(sortie.retire, sortie.bandeNom, req.body.auteur || getActorLabel(req)));
+      } else if (sortie.insuffisant) {
+        return res.status(400).json({
+          message: `${sortie.error}. Vérifiez la quantité et le prix unitaire de la commande avant de la déclarer payée.`,
+        });
       } else {
         console.warn('Sortie de bande impossible pour la commande', current.data.id, sortie.error);
       }
@@ -1134,6 +1138,136 @@ router.put('/:id', requirePermission('commandes.update'), async (req, res) => {
   }
 });
 
+// Correction d'une commande payée (erreur de saisie) : produits et montant, avec mise à jour
+// de l'effectif de la bande (différence avec la sortie déjà faite) et du montant en trésorerie.
+router.put('/:id/correction', requireAdmin, async (req, res) => {
+  try {
+    const apiClient = getAdminClient();
+    const companyId = await getCompanyIdForUser(apiClient, req.user.id || req.user._id);
+    const current = await getCommandeCompat(apiClient, companyId, req.params.id);
+    if (current.error) return res.status(400).json({ message: current.error.message });
+    if (!current.data) return res.status(404).json({ message: 'Commande non trouvée' });
+
+    const produits = toArray(req.body.produits);
+    if (!produits.length) return res.status(400).json({ message: 'Produits obligatoires' });
+    const montantTotal = Number(req.body.montantTotal);
+    if (!Number.isFinite(montantTotal) || montantTotal < 0) return res.status(400).json({ message: 'Montant invalide' });
+
+    const auteur = getActorLabel(req);
+    const historique = toArray(current.data.historique_actions);
+    const paye = isCommandeHistorique(current.data);
+    const bandeId = ventesBandes.bandeIdDe(current.data);
+
+    // Effectif : on ajuste de la différence entre la nouvelle quantité et ce qui a déjà été retiré.
+    let ajustement = null;
+    if (paye && bandeId) {
+      const deja = ventesBandes.quantiteDeduite(historique);
+      const delta = ventesBandes.quantiteAnimaux(produits) - deja;
+      if (delta !== 0) {
+        const sortie = await ventesBandes.retirerDeLaBande(apiClient, companyId, bandeId, delta);
+        if (!sortie.ok && sortie.insuffisant) return res.status(400).json({ message: sortie.error });
+        if (sortie.ok) {
+          ajustement = { delta, bandeId };
+          historique.push({
+            ...ventesBandes.entreeHistorique(sortie.retire, sortie.bandeNom, auteur),
+            details: delta > 0
+              ? `Correction : ${delta} sujet(s) de plus retiré(s) de la bande ${sortie.bandeNom}`
+              : `Correction : ${-delta} sujet(s) rendu(s) à la bande ${sortie.bandeNom}`,
+          });
+        }
+      }
+    }
+
+    const ancienMontant = Number(current.data.montant_total || 0);
+    historique.push({
+      action: 'correction',
+      auteur,
+      details: `Commande corrigée : ${produits.map((p) => `${p.quantite} × ${p.prixUnitaire}`).join(', ')} = ${montantTotal} FCFA`
+        + (ancienMontant !== montantTotal ? ` (avant ${ancienMontant} FCFA)` : ''),
+      date: new Date().toISOString(),
+    });
+
+    // Trésorerie d'abord (commande déjà payée) : on compare au mouvement réellement enregistré,
+    // pour qu'une correction relancée répare aussi un montant resté faux.
+    let tresoAvant = null;
+    const echecTreso = async (message) => {
+      if (ajustement) await ventesBandes.retirerDeLaBande(apiClient, companyId, ajustement.bandeId, -ajustement.delta);
+      return res.status(400).json({ message });
+    };
+    if (paye) {
+      const encaisse = montantTotal + computeFraisLivraisonTotal(current.data);
+      const tresoId = current.data.dernier_mouvement_tresorerie_id;
+      let recherche = apiClient.from('tresorerie_mouvements').select('id,montant').eq('company_id', companyId);
+      recherche = tresoId ? recherche.eq('id', tresoId) : recherche.eq('externe_cle', `commande:${current.data.id}:payee`);
+      const trouve = await recherche.limit(1);
+      if (trouve.error) return echecTreso(trouve.error.message);
+      const mouvement = (trouve.data || [])[0];
+      if (mouvement) {
+        if (Number(mouvement.montant || 0) !== encaisse) {
+          const maj = await apiClient.from('tresorerie_mouvements').update({ montant: encaisse })
+            .eq('company_id', companyId).eq('id', mouvement.id);
+          if (maj.error) return echecTreso(maj.error.message);
+          tresoAvant = { id: mouvement.id, montant: Number(mouvement.montant || 0) };
+        }
+      } else if (encaisse > 0) {
+        const userName = getUserName(req);
+        const cree = await insertTresorerieCompat(apiClient, {
+          company_id: companyId,
+          nature: 'entree',
+          source: 'vente',
+          qui_nom: userName.quiNom,
+          qui_prenom: userName.quiPrenom,
+          categorie: 'vente',
+          type: 'Commande client',
+          montant: encaisse,
+          date_mouvement: new Date().toISOString(),
+          commentaire: `Commande ${current.data.id} corrigée (produits + livraison)`,
+          reference_type: 'Commande',
+          reference_id: current.data.id,
+          externe_cle: `commande:${current.data.id}:payee`,
+        });
+        if (cree.error) return echecTreso(cree.error.message);
+        tresoAvant = { id: cree.data?.id, cree: true };
+      }
+    }
+
+    const annulerTreso = async () => {
+      if (!tresoAvant?.id) return;
+      if (tresoAvant.cree) {
+        await apiClient.from('tresorerie_mouvements').delete().eq('company_id', companyId).eq('id', tresoAvant.id);
+      } else {
+        await apiClient.from('tresorerie_mouvements').update({ montant: tresoAvant.montant }).eq('company_id', companyId).eq('id', tresoAvant.id);
+      }
+    };
+
+    const saved = await updateCommandeCompat(apiClient, companyId, req.params.id, {
+      produits,
+      montant_total: montantTotal,
+      historique_actions: historique,
+      ...(tresoAvant?.cree && tresoAvant.id ? { dernier_mouvement_tresorerie_id: tresoAvant.id, vente_comptabilisee: true } : {}),
+      updated_at: new Date().toISOString(),
+    });
+    if (saved.error) {
+      if (ajustement) await ventesBandes.retirerDeLaBande(apiClient, companyId, ajustement.bandeId, -ajustement.delta);
+      await annulerTreso();
+      return res.status(400).json({ message: saved.error.message });
+    }
+
+    await safeAudit(apiClient, {
+      userId: req.user.id || req.user._id,
+      userEmail: req.user.email,
+      action: 'commande.correction',
+      targetType: 'Commande',
+      targetId: req.params.id,
+      metadata: { before: mapCommandeRow(current.data, null), after: mapCommandeRow(saved.data, null) },
+      ip: '',
+    });
+    return res.json(mapCommandeRow(saved.data, null));
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+});
+
 // Rattrapage : retire des bandes les animaux des commandes déjà payées qui ne l'ont pas encore été.
 router.post('/rattrapage-effectifs-bandes', requireAdmin, async (req, res) => {
   try {
@@ -1145,10 +1279,14 @@ router.post('/rattrapage-effectifs-bandes', requireAdmin, async (req, res) => {
     const aTraiter = (cmdRes.data || []).filter((row) => isCommandeHistorique(row) && ventesBandes.aDeduire(row));
     let commandes = 0;
     let sujets = 0;
+    const ignorees = [];
     for (const row of aTraiter) {
       const quantite = ventesBandes.quantiteAnimaux(row.produits);
       const sortie = await ventesBandes.retirerDeLaBande(apiClient, companyId, ventesBandes.bandeIdDe(row), quantite);
-      if (!sortie.ok) continue;
+      if (!sortie.ok) {
+        if (sortie.insuffisant) ignorees.push({ id: row.id, quantite, bande: sortie.bandeNom });
+        continue;
+      }
       const historique = [
         ...(Array.isArray(row.historique_actions) ? row.historique_actions : []),
         ventesBandes.entreeHistorique(sortie.retire, sortie.bandeNom, 'Rattrapage des ventes'),
@@ -1162,7 +1300,7 @@ router.post('/rattrapage-effectifs-bandes', requireAdmin, async (req, res) => {
       commandes += 1;
       sujets += sortie.retire;
     }
-    return res.json({ commandes, sujets });
+    return res.json({ commandes, sujets, ignorees });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

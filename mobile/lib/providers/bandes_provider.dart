@@ -31,19 +31,20 @@ class BandesProvider with ChangeNotifier {
 
   /// Une seule fois par appareil (administrateur) : retire des bandes les animaux des ventes déjà payées
   /// avant que l'effectif ne suive les ventes. Le serveur ne retire jamais deux fois la même commande.
-  /// Renvoie le nombre d'animaux retirés (0 si déjà fait ou en cas d'échec, réessayé la fois suivante).
-  Future<int> rattraperVentesUneFois() async {
+  /// Renvoie les sujets retirés et les commandes ignorées (quantité supérieure à l'effectif : à corriger).
+  Future<({int sujets, int ignorees})> rattraperVentesUneFois() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_cleRattrapage) == true) return 0;
+    if (prefs.getBool(_cleRattrapage) == true) return (sujets: 0, ignorees: 0);
     try {
       final r = await ApiService.rattraperEffectifsBandes();
       await prefs.setBool(_cleRattrapage, true);
       final sujets = (r['sujets'] as num?)?.toInt() ?? 0;
+      final ignorees = (r['ignorees'] as List? ?? const []).length;
       if (sujets > 0) await chargerBandesActives();
-      return sujets;
+      return (sujets: sujets, ignorees: ignorees);
     } catch (e) {
       debugPrint('Rattrapage des ventes impossible : $e');
-      return 0;
+      return (sujets: 0, ignorees: 0);
     }
   }
 

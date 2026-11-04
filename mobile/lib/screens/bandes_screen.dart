@@ -51,10 +51,18 @@ class _BandesScreenState extends State<BandesScreen> with SingleTickerProviderSt
   }
 
   Future<void> _rattraperVentes(BandesProvider bandes) async {
-    final sujets = await bandes.rattraperVentesUneFois();
-    if (sujets > 0 && mounted) {
+    final r = await bandes.rattraperVentesUneFois();
+    if ((r.sujets > 0 || r.ignorees > 0) && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ventes déjà payées : $sujets sujet(s) retiré(s) des effectifs des bandes')),
+        SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text([
+            if (r.sujets > 0) 'Ventes déjà payées : ${r.sujets} sujet(s) retiré(s) des effectifs des bandes.',
+            if (r.ignorees > 0)
+              '${r.ignorees} commande(s) payée(s) avec une quantité supérieure à l’effectif de la bande : '
+                  'corrigez-les dans Commandes (bouton « Corriger »).',
+          ].join('\n')),
+        ),
       );
     }
   }

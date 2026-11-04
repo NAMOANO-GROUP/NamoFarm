@@ -28,10 +28,25 @@ function fausseBase(nombre) {
   return { etat, api: { from: () => chaine } };
 }
 
-test('retirerDeLaBande ne descend jamais sous zéro', async () => {
-  const { etat, api } = fausseBase(30);
-  const r1 = await v.retirerDeLaBande(api, 'c', 'b1', 12);
-  assert.deepEqual([r1.ok, r1.retire, etat.nombre_actuel], [true, 12, 18]);
-  const r2 = await v.retirerDeLaBande(api, 'c', 'b1', 50);
-  assert.deepEqual([r2.retire, etat.nombre_actuel], [18, 0]);
+test('retirerDeLaBande refuse de retirer plus que l’effectif (erreur de saisie)', async () => {
+  const { etat, api } = fausseBase(319);
+  const r1 = await v.retirerDeLaBande(api, 'c', 'b1', 6);
+  assert.deepEqual([r1.ok, r1.retire, etat.nombre_actuel], [true, 6, 313]);
+  // Prix (3000) saisi à la place de la quantité : la bande n'est pas vidée.
+  const r2 = await v.retirerDeLaBande(api, 'c', 'b1', 3000);
+  assert.deepEqual([r2.ok, r2.insuffisant, etat.nombre_actuel], [false, true, 313]);
+  assert.match(r2.error, /3000.*313/);
+  // Quantité négative : les sujets sont rendus à la bande (correction).
+  const r3 = await v.retirerDeLaBande(api, 'c', 'b1', -2);
+  assert.deepEqual([r3.ok, r3.retire, etat.nombre_actuel], [true, -2, 315]);
+});
+
+test('quantiteDeduite additionne sorties et corrections', () => {
+  const h = [
+    { action: 'creation' },
+    v.entreeHistorique(10, 'B1', 'Moi'),
+    v.entreeHistorique(-4, 'B1', 'Moi'),
+  ];
+  assert.equal(v.quantiteDeduite(h), 6);
+  assert.equal(v.quantiteDeduite([]), 0);
 });

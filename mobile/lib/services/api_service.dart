@@ -324,6 +324,10 @@ class ApiService {
   static Future<Map<String, dynamic>> mettreAJourCommande(String id, Map<String, dynamic> data) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _put('/commandes/$id', body: data)));
 
+  /// Correction d'une commande déjà payée (admin) : produits et montant ; effectif de la bande ajusté.
+  static Future<Map<String, dynamic>> corrigerCommande(String id, Map<String, dynamic> data) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/commandes/$id/correction', body: data)));
+
   static Future<Map<String, dynamic>> mettreAJourStatutCommande(String id, String statut) async =>
       Map<String, dynamic>.from(_ensureSuccess(await _put('/commandes/$id/statut', body: {'statut': statut})));
 
