@@ -350,6 +350,11 @@ class ApiService {
         _ensureSuccess(await _delete('/commandes/historique/all'));
     }
 
+  /// Supprime une commande non payée (ex. commande annulée).
+  static Future<void> supprimerCommande(String id) async {
+    _ensureSuccess(await _delete('/commandes/$id'));
+  }
+
   // TRESORERIE / FINANCE
   static Future<Map<String, dynamic>> getSoldeTresorerie() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/solde')));

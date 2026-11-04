@@ -172,6 +172,22 @@ class CommandesProvider with ChangeNotifier {
     }
   }
 
+  /// Supprime les commandes données (annulées) ; renvoie le nombre supprimé.
+  Future<int> supprimerCommandes(Iterable<String> ids) async {
+    _lastError = null;
+    var n = 0;
+    for (final id in ids) {
+      try {
+        await ApiService.supprimerCommande(id);
+        n++;
+      } catch (e) {
+        _lastError = e.toString().replaceFirst('Exception: ', '');
+      }
+    }
+    await chargerCommandes();
+    return n;
+  }
+
   Future<bool> corrigerCommande(String id, Map<String, dynamic> data) async {
     try {
       _lastError = null;

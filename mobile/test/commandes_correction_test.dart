@@ -30,6 +30,16 @@ class _FakeCommandes extends CommandesProvider {
   bool get isLoading => false;
   @override
   Future<void> chargerCommandes() async {}
+  final List<String> supprimees = [];
+
+  @override
+  Future<int> supprimerCommandes(Iterable<String> ids) async {
+    supprimees.addAll(ids);
+    _liste = _liste.where((c) => !ids.contains(c.id)).toList();
+    notifyListeners();
+    return ids.length;
+  }
+
   @override
   Future<bool> corrigerCommande(String id, Map<String, dynamic> data) async {
     corrections.add(data);
@@ -108,6 +118,55 @@ void main() {
     final p = (commandes.corrections.single['produits'] as List).single as Map;
     expect((p['quantite'], p['prixUnitaire'], commandes.corrections.single['montantTotal']), (6, 3000.0, 18000.0));
     expect(find.text('Commande corrigée'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Commande annulée : supprimée de la liste après confirmation', (tester) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+
+    final commandes = _FakeCommandes([
+      Commande(
+        id: 'a1',
+        clientId: 'c2',
+        clientNom: 'Mr Abdoul',
+        produits: [Produit(nom: 'PDF', quantite: 102, prixUnitaire: 2500)],
+        montantTotal: 255000,
+        statut: 'annulee',
+      ),
+      Commande(
+        id: 'a2',
+        clientId: 'c3',
+        clientNom: 'Awa',
+        produits: [Produit(nom: 'Poulets', quantite: 10, prixUnitaire: 3000)],
+        montantTotal: 30000,
+        statut: 'confirmee',
+      ),
+    ]);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>(create: (_) => _Admin()),
+        ChangeNotifierProvider<CommandesProvider>.value(value: commandes),
+        ChangeNotifierProvider<BandesProvider>(create: (_) => _FakeBandes()),
+        ChangeNotifierProvider<ClientsProvider>(create: (_) => ClientsProvider()),
+      ],
+      child: const MaterialApp(home: CommandesScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Supprimer la commande annulée'), findsOneWidget, reason: 'seulement sur la commande annulée');
+    await tester.tap(find.byTooltip('Supprimer la commande annulée'));
+    await tester.pumpAndSettle();
+    expect(find.text('Supprimer la commande annulée ?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Supprimer'));
+    await tester.pumpAndSettle();
+
+    expect(commandes.supprimees, ['a1']);
+    expect(find.text('Mr Abdoul • -'), findsNothing);
+    expect(find.text('Commande supprimée'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

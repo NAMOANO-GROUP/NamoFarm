@@ -217,9 +217,26 @@ class _CommandesScreenState extends State<CommandesScreen> {
                       padding: const EdgeInsets.all(16),
                       children: [
                         if (commandesActives.isNotEmpty) ...[
-                          const Text(
-                            'Commandes actives',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Commandes actives',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              if (_peutSupprimer && provider.commandesActivesFiltrees.where((c) => c.statut == 'annulee').length > 1)
+                                TextButton.icon(
+                                  onPressed: () => _supprimerAnnulees(
+                                    provider.commandesActivesFiltrees.where((c) => c.statut == 'annulee').toList(),
+                                  ),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                                  icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                                  label: Text(
+                                    'Supprimer les annulées (${provider.commandesActivesFiltrees.where((c) => c.statut == 'annulee').length})',
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           ...commandesActives.map(_buildCommandeCard),
@@ -501,6 +518,13 @@ class _CommandesScreenState extends State<CommandesScreen> {
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Modifier'),
                   ),
+                  if (commande.statut == 'annulee' && _peutSupprimer)
+                    IconButton(
+                      tooltip: 'Supprimer la commande annulée',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _supprimerAnnulees([commande]),
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    ),
                 ],
               ],
             ),
@@ -508,6 +532,41 @@ class _CommandesScreenState extends State<CommandesScreen> {
         ),
       ),
     );
+  }
+
+  bool get _peutSupprimer => context.read<AuthProvider>().hasPermission('commandes.delete');
+
+  /// Supprime des commandes annulées après confirmation.
+  Future<void> _supprimerAnnulees(List<Commande> commandes) async {
+    final ids = [for (final c in commandes) if (c.id != null && c.statut == 'annulee') c.id!];
+    if (ids.isEmpty) return;
+    final un = ids.length == 1;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(un ? 'Supprimer la commande annulée ?' : 'Supprimer ${ids.length} commandes annulées ?'),
+        content: Text(un
+            ? '« ${commandes.first.produits.isNotEmpty ? commandes.first.produits.first.nom : 'Commande'} » de ${commandes.first.clientNom} sera retirée de la liste. Action définitive.'
+            : 'Elles seront retirées de la liste. Action définitive.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final provider = context.read<CommandesProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final n = await provider.supprimerCommandes(ids);
+    messenger.showSnackBar(SnackBar(
+      content: Text(n == ids.length
+          ? (un ? 'Commande supprimée' : '$n commandes supprimées')
+          : '$n sur ${ids.length} supprimée(s) : ${provider.lastError ?? 'erreur'}'),
+    ));
   }
 
   void _showNouvelleCommandeDialog() {
