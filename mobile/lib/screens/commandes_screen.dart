@@ -107,11 +107,6 @@ class _CommandesScreenState extends State<CommandesScreen> {
         title: const Text('Commandes'),
       ),
       body: _buildContent(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showNouvelleCommandeDialog(),
-        icon: const Icon(Icons.add_shopping_cart),
-        label: const Text('Nouvelle Commande'),
-      ),
     );
   }
 
@@ -177,6 +172,13 @@ class _CommandesScreenState extends State<CommandesScreen> {
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Nouvelle commande',
+                    onPressed: _showNouvelleCommandeDialog,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.add_shopping_cart, size: 18),
+                  ),
                 ],
               ),
             ),
@@ -190,13 +192,6 @@ class _CommandesScreenState extends State<CommandesScreen> {
                       tooltip: 'Rafraîchir',
                       onPressed: () => context.read<CommandesProvider>().chargerCommandes(),
                       icon: const Icon(Icons.refresh),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton.filled(
-                      tooltip: 'Nouvelle commande',
-                      onPressed: _showNouvelleCommandeDialog,
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.add_shopping_cart, size: 18),
                     ),
                   ],
                 ),
