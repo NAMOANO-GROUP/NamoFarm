@@ -255,7 +255,11 @@ List<int> roadmapChargeParMois(ProductionPlan plan) {
 }
 
 class RoadmapScreen extends StatefulWidget {
-  const RoadmapScreen({super.key});
+  /// Intégré à un autre écran (ex. Planification) : pas de barre d'application propre,
+  /// la barre d'outils du planning passe dans le corps.
+  final bool embedded;
+
+  const RoadmapScreen({super.key, this.embedded = false});
 
   @override
   State<RoadmapScreen> createState() => _RoadmapScreenState();
@@ -502,11 +506,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   Widget build(BuildContext context) {
     final plan = _selectedPlan;
     final dates = plan == null ? 0 : plan.highlightedDates.length;
-    return Scaffold(
-      appBar: AppBar(
-        leading: const BrandLogo(),
-        title: _titrePlanning(plan),
-        actions: [
+    final actions = <Widget>[
           if (plan != null) ...[
             IconButton.filled(
               tooltip: 'Ajouter une tâche, un jalon ou une date clé',
@@ -552,18 +552,35 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 const PopupMenuItem(value: 'tout', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_sweep_outlined, color: Colors.redAccent), title: Text('Supprimer tous les plannings'))),
             ],
           ),
-        ],
-      ),
-      body: plan == null
-          ? EmptyState(
-              icon: Icons.view_timeline_outlined,
-              title: 'Aucun planning',
-              subtitle: 'Un planning montre vos bandes et projets mois par mois.',
-              actionLabel: 'Créer un planning',
-              actionIcon: Icons.add_chart,
-              onAction: _showCreatePlanDialog,
-            )
-          : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan)),
+    ];
+    final corps = plan == null
+        ? EmptyState(
+            icon: Icons.view_timeline_outlined,
+            title: 'Aucun planning',
+            subtitle: 'Un planning montre vos bandes et projets mois par mois.',
+            actionLabel: 'Créer un planning',
+            actionIcon: Icons.add_chart,
+            onAction: _showCreatePlanDialog,
+          )
+        : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan));
+
+    if (widget.embedded) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
+              child: Row(children: [Expanded(child: _titrePlanning(plan)), ...actions]),
+            ),
+            Expanded(child: corps),
+          ],
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(leading: const BrandLogo(), title: _titrePlanning(plan), actions: actions),
+      body: corps,
     );
   }
 

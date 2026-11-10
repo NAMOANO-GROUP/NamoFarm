@@ -9,7 +9,7 @@ import 'alertes_screen.dart';
 import 'achats_screen.dart';
 import 'crm_screen.dart';
 import 'finance_screen.dart';
-import 'roadmap_screen.dart';
+import 'planification_screen.dart';
 import 'profile_screen.dart';
 import 'config_screen.dart';
 import 'help_screen.dart';
@@ -163,10 +163,10 @@ class _HomeScreenState extends State<HomeScreen> {
       permission: 'finance:view',
     ),
     _ModuleItem(
-      id: 'roadmap',
-      page: RoadmapScreen(),
-      desktopDestination: NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: 'Roadmap'),
-      mobileDestination: NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: 'Roadmap'),
+      id: 'planification',
+      page: PlanificationScreen(),
+      desktopDestination: NavigationDestination(icon: Icon(Icons.event_note_outlined), selectedIcon: Icon(Icons.event_note), label: 'Planification'),
+      mobileDestination: NavigationDestination(icon: Icon(Icons.event_note_outlined), selectedIcon: Icon(Icons.event_note), label: 'Planification'),
       permission: 'dashboard:view',
     ),
     _ModuleItem(

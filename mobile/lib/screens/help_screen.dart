@@ -286,24 +286,37 @@ class _HelpScreenState extends State<HelpScreen> {
             'bande permet de saisir ces montants par sujet.',
       ),
     ]),
-    _HelpChapter('Roadmap', Icons.view_timeline_outlined, Color(0xFF00838F), [
+    _HelpChapter('Planification', Icons.event_note_outlined, Color(0xFF00838F), [
       _HelpArticle(
-        'Lire le planning',
-        'Chaque tâche est une barre sur les mois, avec ses dates et sa durée. Le trait rouge marque aujourd\'hui et '
+        'Roadmap : lire le planning',
+        'Premier onglet de Planification. Chaque tâche est une barre sur les mois, avec ses dates et sa durée. Le trait rouge marque aujourd\'hui et '
             'le mois en cours est mis en avant ; la partie foncée d\'une barre indique l\'avancement, une barre '
             'terminée est grisée. La ligne du bas compte les tâches en cours chaque mois (charge).',
       ),
       _HelpArticle(
-        'Boutons',
+        'Roadmap : boutons',
         '« + » : ajouter une tâche, une sous-tâche, un jalon ou une date clé. Calendrier : revenir à aujourd\'hui. '
             'Loupe : zoom Mois, Trimestre ou Année. Touchez le titre pour changer de planning ; menu ⋮ pour '
             'créer, renommer ou supprimer un planning.',
       ),
       _HelpArticle(
-        'Modifier une tâche',
+        'Roadmap : modifier une tâche',
         'Touchez une barre ou son nom : période, avancement, Modifier, Ajouter un jalon, Supprimer. Touchez un '
             'drapeau pour modifier ou supprimer un jalon. Maintenez le doigt sur le planning pour créer une tâche '
             'à cette date.',
+      ),
+      _HelpArticle(
+        'Scénarii : simuler une production',
+        'Deuxième onglet : indiquez combien de sujets vous voulez vendre (ex. 1 000 poulets) et obtenez le coût '
+            'd\'aliment, de poussins, de prophylaxie et des autres charges, le coût par sujet, la marge et le prix '
+            'minimum de vente. Les valeurs sont proposées d\'après vos bandes, stocks, ventes et références ; '
+            'chaque champ indique sa provenance (Vos données, Référence, Estimation) et reste modifiable.',
+      ),
+      _HelpArticle(
+        'Scénarii : comparer et enregistrer',
+        'Le bouton « + » à droite des scénarios en crée un, le menu ⋮ permet de renommer, dupliquer ou revenir aux valeurs proposées. '
+            'Les scénarios sont enregistrés sur l\'appareil. Dès qu\'il y en a plusieurs, « Comparer les scénarios » '
+            'met leurs marges côte à côte.',
       ),
     ]),
     _HelpChapter('Configuration (Admin)', Icons.settings_outlined, Color(0xFF37474F), [
