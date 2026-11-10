@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/iso_calendar_picker.dart';
+import 'planification/roadmap_calendrier.dart';
 
 class RoadmapMilestone {
   final String id;
@@ -269,8 +270,11 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   final List<ProductionPlan> _plans = [];
   String? _selectedPlanId;
   double _zoom = 1.0;
+  bool _calendrier = false;
+  int _signalAujourdhui = 0;
   final ScrollController _hScroll = ScrollController();
 
+  static const String _vuePrefsKey = 'roadmap.vue';
   static const _zooms = {'Mois': 1.0, 'Trimestre': 0.5, 'Année': 0.25};
   static const double _margeTimeline = 20;
   static const double _baseMonthWidth = 72;
@@ -289,6 +293,15 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   void initState() {
     super.initState();
     _loadPlans();
+    SharedPreferences.getInstance().then((p) {
+      if (mounted && p.getString(_vuePrefsKey) == 'calendrier') setState(() => _calendrier = true);
+    });
+  }
+
+  Future<void> _changerVue() async {
+    setState(() => _calendrier = !_calendrier);
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_vuePrefsKey, _calendrier ? 'calendrier' : 'gantt');
   }
 
   @override
@@ -431,6 +444,10 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   void _allerAujourdhui(ProductionPlan plan) {
+    if (_calendrier) {
+      setState(() => _signalAujourdhui++);
+      return;
+    }
     final t = _todayUnit(plan);
     if (t == null || !_hScroll.hasClients) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aujourd’hui est hors de la période du planning')));
@@ -524,13 +541,19 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
               onPressed: () => _allerAujourdhui(plan),
               icon: const Icon(Icons.today_outlined),
             ),
-            PopupMenuButton<double>(
-              tooltip: 'Zoom',
-              icon: const Icon(Icons.zoom_in),
-              onSelected: (z) => setState(() => _zoom = z),
-              itemBuilder: (_) => [
-                for (final e in _zooms.entries) CheckedPopupMenuItem(value: e.value, checked: _zoom == e.value, child: Text(e.key)),
-              ],
+            if (!_calendrier)
+              PopupMenuButton<double>(
+                tooltip: 'Zoom',
+                icon: const Icon(Icons.zoom_in),
+                onSelected: (z) => setState(() => _zoom = z),
+                itemBuilder: (_) => [
+                  for (final e in _zooms.entries) CheckedPopupMenuItem(value: e.value, checked: _zoom == e.value, child: Text(e.key)),
+                ],
+              ),
+            IconButton(
+              tooltip: _calendrier ? 'Vue planning (Gantt)' : 'Vue calendrier',
+              onPressed: _changerVue,
+              icon: Icon(_calendrier ? Icons.view_timeline_outlined : Icons.calendar_month_outlined),
             ),
           ],
           PopupMenuButton<String>(
@@ -562,7 +585,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             actionIcon: Icons.add_chart,
             onAction: _showCreatePlanDialog,
           )
-        : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan));
+        : _calendrier
+            ? RoadmapCalendrier(
+                plan: plan,
+                signalAujourdhui: _signalAujourdhui,
+                onTache: (t) => _ficheTache(plan, t),
+                onCreer: (d) => _showAddTaskDialog(plan, asSubtask: false, debut: d),
+              )
+            : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan));
 
     if (widget.embedded) {
       return Scaffold(

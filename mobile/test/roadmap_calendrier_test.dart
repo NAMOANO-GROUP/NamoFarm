@@ -1,0 +1,96 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:namofarm/screens/planification/roadmap_calendrier.dart';
+import 'package:namofarm/screens/roadmap_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+RoadmapTask _t(String id, DateTime d, DateTime f, {List<RoadmapMilestone> jalons = const [], List<RoadmapTask> sous = const []}) =>
+    RoadmapTask(id: id, title: 'Tâche $id', start: d, end: f, color: Colors.blue, milestones: jalons, subTasks: sous);
+
+void main() {
+  group('Logique du calendrier', () {
+    test('cases d’un mois : lundi en premier, 6 semaines', () {
+      final cases = roadmapCasesMois(2026, 2); // 1er février 2026 = dimanche
+      expect(cases, hasLength(42));
+      expect(cases.take(6).every((c) => c == null), isTrue);
+      expect(cases[6], DateTime(2026, 2, 1));
+      expect(cases.whereType<DateTime>(), hasLength(28));
+      expect(roadmapCasesMois(2026, 6).first, DateTime(2026, 6, 1)); // lundi
+    });
+
+    test('tâches du jour : bornes incluses', () {
+      final t = _t('a', DateTime(2026, 3, 10), DateTime(2026, 3, 12));
+      expect(roadmapTachesDuJour([t], DateTime(2026, 3, 9)), isEmpty);
+      expect(roadmapTachesDuJour([t], DateTime(2026, 3, 10)), [t]);
+      expect(roadmapTachesDuJour([t], DateTime(2026, 3, 12, 18)), [t]);
+      expect(roadmapTachesDuJour([t], DateTime(2026, 3, 13)), isEmpty);
+    });
+
+    test('jalons du jour : y compris sur les sous-tâches', () {
+      final m = RoadmapMilestone(id: 'm', title: 'Vaccin', date: DateTime(2026, 3, 11), color: Colors.red);
+      final sous = _t('s', DateTime(2026, 3, 1), DateTime(2026, 3, 30), jalons: [m]);
+      final parent = _t('p', DateTime(2026, 3, 1), DateTime(2026, 3, 30), sous: [sous]);
+      expect(roadmapJalonsDuJour([parent], DateTime(2026, 3, 11)), [m]);
+      expect(roadmapJalonsDuJour([parent], DateTime(2026, 3, 12)), isEmpty);
+    });
+  });
+
+  testWidgets('Roadmap : bascule en calendrier annuel et détail d’un jour', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final n = DateTime.now();
+    final debut = DateTime(n.year, 1, 1);
+    final t1 = DateTime(n.year, 1, 10);
+    final t1f = DateTime(n.year, 1, 20);
+    SharedPreferences.setMockInitialValues({
+      'roadmap.productionPlans': jsonEncode([
+        {
+          'id': 'plan-1',
+          'name': 'Production',
+          'start': debut.toIso8601String(),
+          'end': DateTime(n.year + 1, 12, 31).toIso8601String(),
+          'tasks': [
+            {'id': 'B1', 'title': 'Bande B1', 'start': t1.toIso8601String(), 'end': t1f.toIso8601String(), 'color': Colors.green.toARGB32(), 'group': true, 'milestones': [], 'subTasks': []},
+          ],
+          'highlightedDates': [],
+        },
+      ]),
+      'roadmap.selectedPlanId': 'plan-1',
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: RoadmapScreen()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('roadmap-calendrier')), findsNothing);
+
+    await tester.tap(find.byTooltip('Vue calendrier'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('roadmap-calendrier')), findsOneWidget);
+    expect(find.text('${n.year}'), findsOneWidget);
+    expect(find.text('Janvier'), findsOneWidget);
+    expect(find.byKey(ValueKey('roadmap-legende-B1')), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('roadmap.vue'), 'calendrier');
+
+    final jour = find.byKey(ValueKey('roadmap-cal-jour-${n.year}-1-12'));
+    final decoration = tester.widget<Container>(jour).decoration! as BoxDecoration;
+    expect(decoration.color, isNotNull);
+
+    await tester.tap(jour);
+    await tester.pumpAndSettle();
+    expect(find.text('Bande B1'), findsWidgets);
+    expect(find.text('Ajouter une tâche à cette date'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Année suivante'));
+    await tester.pumpAndSettle();
+    expect(find.text('${n.year + 1}'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}

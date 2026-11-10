@@ -300,6 +300,13 @@ class _HelpScreenState extends State<HelpScreen> {
             'créer, renommer ou supprimer un planning.',
       ),
       _HelpArticle(
+        'Roadmap : vue calendrier',
+        'Le bouton calendrier de la barre bascule vers une vue annuelle : un mois par grille, chaque jour coloré '
+            'selon la tâche en cours (bandes de couleur en bas si plusieurs tâches se chevauchent, drapeau pour '
+            'un jalon, point rouge pour une date clé). Touchez une tâche de la légende pour ne voir qu\'elle, '
+            'un jour pour son détail ou pour y ajouter une tâche. Les flèches changent d\'année.',
+      ),
+      _HelpArticle(
         'Roadmap : modifier une tâche',
         'Touchez une barre ou son nom : période, avancement, Modifier, Ajouter un jalon, Supprimer. Touchez un '
             'drapeau pour modifier ou supprimer un jalon. Maintenez le doigt sur le planning pour créer une tâche '
