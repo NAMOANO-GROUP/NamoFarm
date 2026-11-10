@@ -151,21 +151,31 @@ void main() {
     });
   });
 
-  testWidgets('Achats : feuilles Stocks et Fournisseurs, appel et WhatsApp, ouverture de la fiche', (tester) async {
+  testWidgets('Achats : accueil à deux cartes Stocks et Fournisseurs, appel et WhatsApp, ouverture de la fiche', (tester) async {
     _phone(tester, const Size(390, 844));
     final fournisseurs = _Fournisseurs([_sahel]);
     await tester.pumpWidget(_app(const AchatsScreen(), fournisseurs: fournisseurs));
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Achats'), findsOneWidget);
-    expect(find.widgetWithText(Tab, 'Stocks'), findsOneWidget);
-    expect(find.widgetWithText(Tab, 'Fournisseurs'), findsOneWidget);
+    expect(find.byType(TabBar), findsNothing);
+    expect(find.byKey(const ValueKey('achats-carte-stocks')), findsOneWidget);
+    expect(find.byKey(const ValueKey('achats-carte-fournisseurs')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('achats-carte-stocks')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Stocks'), findsOneWidget);
     expect(find.text('Gestion des Stocks'), findsNothing, reason: "pas de double barre de titre");
     expect(find.text('Aliment démarrage'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(Tab, 'Fournisseurs'));
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('achats-carte-fournisseurs')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('achats-carte-fournisseurs')));
     await tester.pumpAndSettle();
     expect(fournisseurs.chargements, 1);
+    expect(find.widgetWithText(AppBar, 'Fournisseurs'), findsOneWidget);
     expect(find.text('Provenderie du Sahel'), findsOneWidget);
     expect(find.byTooltip('Appeler'), findsOneWidget);
     expect(find.byTooltip('WhatsApp'), findsOneWidget);
@@ -176,7 +186,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Achats : seules les feuilles autorisées sont affichées', (tester) async {
+  testWidgets('Achats : seules les pages autorisées sont affichées', (tester) async {
     _phone(tester, const Size(390, 844));
     await tester.pumpWidget(_app(
       const AchatsScreen(),
@@ -185,7 +195,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TabBar), findsNothing);
+    expect(find.byKey(const ValueKey('achats-carte-fournisseurs')), findsNothing);
     expect(find.text('Provenderie du Sahel'), findsOneWidget);
     expect(find.text('Aliment démarrage'), findsNothing);
     expect(tester.takeException(), isNull);

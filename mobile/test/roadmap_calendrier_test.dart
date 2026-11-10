@@ -273,7 +273,8 @@ void main() {
 
     await tester.tap(find.text('Colorer'));
     await tester.pumpAndSettle();
-    expect(find.text('3 semaines sélectionnées'), findsNWidgets(2)); // barre + fiche
+    expect(find.text('3 semaines sélectionnées'), findsOneWidget); // la fiche remplace la barre du bas
+    expect(find.byKey(const ValueKey('roadmap-cal-selection')), findsNothing);
     expect(find.byTooltip('Plus de semaines'), findsNothing);
     await tester.enterText(find.byType(TextField), 'Fêtes');
     await tester.tap(find.byKey(ValueKey('roadmap-couleur-${vert.toARGB32()}')));

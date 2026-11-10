@@ -338,7 +338,7 @@ List<int> roadmapChargeParMois(ProductionPlan plan) {
 }
 
 class RoadmapScreen extends StatefulWidget {
-  /// Ouvert depuis Planification : une flèche de retour remplace le logo.
+  /// Ouvert depuis l'accueil de Planification : une flèche de retour remplace le logo.
   final VoidCallback? onRetour;
 
   const RoadmapScreen({super.key, this.onRetour});
@@ -689,7 +689,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       appBar: AppBar(
         leading: widget.onRetour == null
             ? const BrandLogo()
-            : IconButton(tooltip: 'Retour à Planification', icon: const Icon(Icons.arrow_back), onPressed: widget.onRetour),
+            : IconButton(tooltip: 'Retour', icon: const Icon(Icons.arrow_back), onPressed: widget.onRetour),
         title: _titrePlanning(plan),
         actions: actions,
       ),

@@ -194,7 +194,7 @@ class _HelpScreenState extends State<HelpScreen> {
     _HelpChapter('Achats : stocks et fournisseurs', Icons.shopping_basket_outlined, Color(0xFF00838F), [
       _HelpArticle(
         'Ajouter un stock',
-        'Module Achats → onglet Stocks → bouton « + ». Renseignez le produit, la catégorie, '
+        'Module Achats → carte Stocks → bouton « + ». Renseignez le produit, la catégorie, '
             'la quantité, le coût unitaire, le seuil d\'alerte et le fournisseur.',
       ),
       _HelpArticle(
@@ -205,7 +205,7 @@ class _HelpScreenState extends State<HelpScreen> {
       ),
       _HelpArticle(
         'Fiche fournisseur',
-        'Module Achats → onglet Fournisseurs → touchez un fournisseur. Appelez-le ou écrivez-lui sur '
+        'Module Achats → carte Fournisseurs → touchez un fournisseur. Appelez-le ou écrivez-lui sur '
             'WhatsApp, consignez vos échanges et retrouvez ses réceptions de stock. Les articles dont le '
             'champ « Fournisseur » contient son entreprise ou son nom y sont listés, avec un bouton '
             '« Commander » qui prépare le message WhatsApp.',

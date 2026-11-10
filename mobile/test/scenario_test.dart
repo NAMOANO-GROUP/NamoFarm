@@ -206,6 +206,19 @@ void main() {
       await tester.tap(find.byTooltip('Nouveau scénario'));
       await tester.pumpAndSettle();
       expect(find.text('Scénario 2'), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNothing);
+
+      // Liste déroulante : retour au premier scénario.
+      await tester.tap(find.byKey(const ValueKey('planif-selecteur')));
+      await tester.pumpAndSettle();
+      expect(find.text('Scénario réaliste'), findsOneWidget);
+      await tester.tap(find.text('Scénario réaliste'));
+      await tester.pumpAndSettle();
+      expect(find.text('Scénario 2'), findsNothing);
+      expect(find.text('2 scénarios enregistrés'), findsOneWidget);
+      await tester.tap(find.byTooltip('Nouveau scénario'));
+      await tester.pumpAndSettle();
+      expect(find.text('Scénario 3'), findsOneWidget);
 
       await tester.tap(find.text('Résultats'));
       await tester.pumpAndSettle();
@@ -235,13 +248,13 @@ void main() {
       expect(find.text('Aucun planning'), findsOneWidget);
       expect(find.text('Scénarii'), findsNothing);
 
-      await tester.tap(find.byTooltip('Retour à Planification'));
+      await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('planif-carte-scenarii')));
       await tester.pumpAndSettle();
       expect(find.text('Objectif de production'), findsOneWidget);
       expect(find.text('Roadmap'), findsNothing);
-      await tester.tap(find.byTooltip('Retour à Planification'));
+      await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('planif-carte-roadmap')), findsOneWidget);
       expect(tester.takeException(), isNull);

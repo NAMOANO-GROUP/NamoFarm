@@ -297,25 +297,40 @@ class _ScenariosTabState extends State<ScenariosTab> {
   }
 
   Widget _selecteur() {
-    return SizedBox(
-      height: 54,
+    final scheme = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 54),
       child: Row(
         children: [
           Expanded(
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-              children: [
-                for (final s in _scenarios)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(s.nom),
-                      selected: s.id == _selId,
-                      onSelected: (_) => _selectionner(s.id),
-                    ),
-                  ),
+            child: PopupMenuButton<String>(
+              key: const ValueKey('planif-selecteur'),
+              tooltip: 'Changer de scénario',
+              onSelected: _selectionner,
+              itemBuilder: (_) => [
+                for (final s in _scenarios) CheckedPopupMenuItem(value: s.id, checked: s.id == _selId, child: Text(s.nom)),
               ],
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_sel.nom, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          Text(
+                            '${_scenarios.length} scénario${_scenarios.length > 1 ? 's' : ''} enregistré${_scenarios.length > 1 ? 's' : ''}',
+                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+              ),
             ),
           ),
           IconButton(tooltip: 'Nouveau scénario', icon: const Icon(Icons.add_circle_outline), onPressed: _nouveau),

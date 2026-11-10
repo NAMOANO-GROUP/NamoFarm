@@ -145,6 +145,9 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
   /// Semaines (lundis) sélectionnées pour être colorées ensemble.
   final Set<DateTime> _selection = {};
 
+  /// Fiche de couleur ouverte : elle remplace la barre de sélection du bas.
+  bool _ficheOuverte = false;
+
   void _basculerSemaine(DateTime lundi) => setState(() {
         if (!_selection.remove(lundi)) _selection.add(lundi);
       });
@@ -310,7 +313,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
         );
       },
     );
-    return Column(children: [Expanded(child: liste), if (_selection.isNotEmpty) _barreSelection()]);
+    return Column(children: [Expanded(child: liste), if (_selection.isNotEmpty && !_ficheOuverte) _barreSelection()]);
   }
 
   /// Barre d'action pendant la sélection de plusieurs semaines.
@@ -437,6 +440,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     var couleur = modele?.color ?? roadmapCouleursMarques.first;
     var semaines = marque?.weeks ?? 1;
     final debut = marque?.start ?? lundi;
+    setState(() => _ficheOuverte = true);
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -523,7 +527,9 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Wrap(
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
                     alignment: !aMarque ? WrapAlignment.end : WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 8,
@@ -569,6 +575,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                       ),
                     ],
                   ),
+                  ),
                 ],
               ),
             ),
@@ -576,6 +583,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
         },
       ),
     );
+    if (mounted) setState(() => _ficheOuverte = false);
   }
 
   Widget _case(DateTime? d, List<RoadmapTask> visibles, ColorScheme scheme, DateTime aujourdhui, Set<DateTime> cles) {
