@@ -256,11 +256,10 @@ List<int> roadmapChargeParMois(ProductionPlan plan) {
 }
 
 class RoadmapScreen extends StatefulWidget {
-  /// Intégré à un autre écran (ex. Planification) : pas de barre d'application propre,
-  /// la barre d'outils du planning passe dans le corps.
-  final bool embedded;
+  /// Ouvert depuis Planification : une flèche de retour remplace le logo.
+  final VoidCallback? onRetour;
 
-  const RoadmapScreen({super.key, this.embedded = false});
+  const RoadmapScreen({super.key, this.onRetour});
 
   @override
   State<RoadmapScreen> createState() => _RoadmapScreenState();
@@ -594,22 +593,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
               )
             : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan));
 
-    if (widget.embedded) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
-              child: Row(children: [Expanded(child: _titrePlanning(plan)), ...actions]),
-            ),
-            Expanded(child: corps),
-          ],
-        ),
-      );
-    }
     return Scaffold(
-      appBar: AppBar(leading: const BrandLogo(), title: _titrePlanning(plan), actions: actions),
+      appBar: AppBar(
+        leading: widget.onRetour == null
+            ? const BrandLogo()
+            : IconButton(tooltip: 'Retour à Planification', icon: const Icon(Icons.arrow_back), onPressed: widget.onRetour),
+        title: _titrePlanning(plan),
+        actions: actions,
+      ),
       body: corps,
     );
   }

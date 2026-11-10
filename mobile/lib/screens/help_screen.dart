@@ -289,7 +289,7 @@ class _HelpScreenState extends State<HelpScreen> {
     _HelpChapter('Planification', Icons.event_note_outlined, Color(0xFF00838F), [
       _HelpArticle(
         'Roadmap : lire le planning',
-        'Premier onglet de Planification. Chaque tâche est une barre sur les mois, avec ses dates et sa durée. Le trait rouge marque aujourd\'hui et '
+        'Carte Roadmap de Planification. Chaque tâche est une barre sur les mois, avec ses dates et sa durée. Le trait rouge marque aujourd\'hui et '
             'le mois en cours est mis en avant ; la partie foncée d\'une barre indique l\'avancement, une barre '
             'terminée est grisée. La ligne du bas compte les tâches en cours chaque mois (charge).',
       ),
@@ -303,8 +303,8 @@ class _HelpScreenState extends State<HelpScreen> {
         'Roadmap : vue calendrier',
         'Le bouton calendrier de la barre bascule vers une vue annuelle : un mois par grille, chaque jour coloré '
             'selon la tâche en cours (bandes de couleur en bas si plusieurs tâches se chevauchent, drapeau pour '
-            'un jalon, point rouge pour une date clé). Touchez une tâche de la légende pour ne voir qu\'elle, '
-            'un jour pour son détail ou pour y ajouter une tâche. Les flèches changent d\'année.',
+                        'un jalon, point rouge pour une date clé). Touchez un jour pour son détail ou pour y ajouter une tâche. '
+                        'Les flèches changent d\'année.',
       ),
       _HelpArticle(
         'Roadmap : modifier une tâche',
@@ -314,7 +314,7 @@ class _HelpScreenState extends State<HelpScreen> {
       ),
       _HelpArticle(
         'Scénarii : simuler une production',
-        'Deuxième onglet : indiquez combien de sujets vous voulez vendre (ex. 1 000 poulets) et obtenez le coût '
+        'Carte Scénarii de Planification : indiquez combien de sujets vous voulez vendre (ex. 1 000 poulets) et obtenez le coût '
             'd\'aliment, de poussins, de prophylaxie et des autres charges, le coût par sujet, la marge et le prix '
             'minimum de vente. Les valeurs sont proposées d\'après vos bandes, stocks, ventes et références ; '
             'chaque champ indique sa provenance (Vos données, Référence, Estimation) et reste modifiable.',

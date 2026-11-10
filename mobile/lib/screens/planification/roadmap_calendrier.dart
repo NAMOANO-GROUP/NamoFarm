@@ -65,7 +65,6 @@ class RoadmapCalendrier extends StatefulWidget {
 
 class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
   late int _annee = _anneeInitiale();
-  String? _focusId;
 
   int _anneeInitiale() {
     final n = DateTime.now().year;
@@ -77,7 +76,6 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     super.didUpdateWidget(old);
     if (old.plan.id != widget.plan.id) {
       _annee = _anneeInitiale();
-      _focusId = null;
     } else if (_annee < widget.plan.start.year || _annee > widget.plan.end.year) {
       _annee = _anneeInitiale();
     }
@@ -154,7 +152,6 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     final plan = widget.plan;
     final scheme = Theme.of(context).colorScheme;
     final feuilles = _feuilles;
-    final visibles = _focusId == null ? feuilles : feuilles.where((t) => t.id == _focusId).toList();
     final peutReculer = _annee > plan.start.year;
     final peutAvancer = _annee < plan.end.year;
 
@@ -172,24 +169,25 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
               children: [
                 IconButton(
                   tooltip: 'Année précédente',
+                  visualDensity: VisualDensity.compact,
                   onPressed: peutReculer ? () => setState(() => _annee--) : null,
                   icon: const Icon(Icons.chevron_left),
                 ),
-                Text('$_annee', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                Text('$_annee', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 IconButton(
                   tooltip: 'Année suivante',
+                  visualDensity: VisualDensity.compact,
                   onPressed: peutAvancer ? () => setState(() => _annee++) : null,
                   icon: const Icon(Icons.chevron_right),
                 ),
               ],
             ),
-            _legende(feuilles, scheme),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
             Wrap(
               spacing: gap,
               runSpacing: 16,
               children: [
-                for (var m = 1; m <= 12; m++) SizedBox(width: largeur, child: _mois(m, visibles, scheme)),
+                for (var m = 1; m <= 12; m++) SizedBox(width: largeur, child: _mois(m, feuilles, scheme)),
               ],
             ),
           ],
@@ -198,30 +196,6 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     );
   }
 
-  Widget _legende(List<RoadmapTask> feuilles, ColorScheme scheme) {
-    if (feuilles.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Center(child: Text('Ajoutez une tâche pour la voir dans le calendrier.', style: TextStyle(color: scheme.onSurfaceVariant))),
-      );
-    }
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final t in feuilles)
-          FilterChip(
-            key: ValueKey('roadmap-legende-${t.id}'),
-            avatar: Container(width: 16, height: 16, decoration: BoxDecoration(color: t.color.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(4), border: Border.all(color: t.color))),
-            label: Text('${t.title} · ${roadmapDateCourte(t.start)} → ${roadmapDateCourte(t.end)}', style: const TextStyle(fontSize: 12)),
-            selected: _focusId == t.id,
-            showCheckmark: false,
-            visualDensity: VisualDensity.compact,
-            onSelected: (v) => setState(() => _focusId = v ? t.id : null),
-          ),
-      ],
-    );
-  }
 
   Widget _mois(int mois, List<RoadmapTask> visibles, ColorScheme scheme) {
     final cases = roadmapCasesMois(_annee, mois);

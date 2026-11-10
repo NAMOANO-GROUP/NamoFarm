@@ -222,13 +222,28 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Planification : deux onglets Roadmap et Scénarii', (tester) async {
+    testWidgets('Planification : accueil à deux cartes, pages séparées', (tester) async {
       SharedPreferences.setMockInitialValues({});
       await pump(tester, const PlanificationScreen());
       expect(find.text('Planification'), findsOneWidget);
-      expect(find.widgetWithText(Tab, 'Roadmap'), findsOneWidget);
-      expect(find.widgetWithText(Tab, 'Scénarii'), findsOneWidget);
+      expect(find.byType(TabBar), findsNothing);
+      expect(find.byKey(const ValueKey('planif-carte-roadmap')), findsOneWidget);
+      expect(find.byKey(const ValueKey('planif-carte-scenarii')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('planif-carte-roadmap')));
+      await tester.pumpAndSettle();
       expect(find.text('Aucun planning'), findsOneWidget);
+      expect(find.text('Scénarii'), findsNothing);
+
+      await tester.tap(find.byTooltip('Retour à Planification'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('planif-carte-scenarii')));
+      await tester.pumpAndSettle();
+      expect(find.text('Objectif de production'), findsOneWidget);
+      expect(find.text('Roadmap'), findsNothing);
+      await tester.tap(find.byTooltip('Retour à Planification'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('planif-carte-roadmap')), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

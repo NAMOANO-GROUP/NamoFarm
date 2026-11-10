@@ -72,7 +72,7 @@ void main() {
     expect(find.byKey(const ValueKey('roadmap-calendrier')), findsOneWidget);
     expect(find.text('${n.year}'), findsOneWidget);
     expect(find.text('Janvier'), findsOneWidget);
-    expect(find.byKey(ValueKey('roadmap-legende-B1')), findsOneWidget);
+    expect(find.byType(FilterChip), findsNothing);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('roadmap.vue'), 'calendrier');
