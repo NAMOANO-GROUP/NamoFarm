@@ -95,17 +95,28 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 560),
       builder: (ctx) => SafeArea(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
           child: ListView(
             shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
             children: [
               Text(roadmapDateCourte(d, annee: true), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               if (taches.isEmpty && jalons.isEmpty && !cle)
-                Text('Aucune tâche ce jour.', style: TextStyle(color: scheme.onSurfaceVariant)),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(14)),
+                  child: Column(
+                    children: [
+                      Icon(Icons.event_available_outlined, color: scheme.onSurfaceVariant),
+                      const SizedBox(height: 6),
+                      Text('Aucune tâche ce jour', style: TextStyle(color: scheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
               if (cle)
                 const ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -131,8 +142,8 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                     widget.onTache(t);
                   },
                 ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
+              const SizedBox(height: 14),
+              FilledButton.tonalIcon(
                 onPressed: () {
                   Navigator.pop(ctx);
                   widget.onCreer(d);
