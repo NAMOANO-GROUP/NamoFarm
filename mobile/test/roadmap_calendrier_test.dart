@@ -212,8 +212,8 @@ void main() {
     await tester.ensureVisible(find.byKey(cle));
     await tester.tap(find.byKey(cle));
     await tester.pumpAndSettle();
-    expect(find.text('Retirer la couleur'), findsOneWidget);
-    await tester.tap(find.text('Retirer la couleur'));
+    expect(find.byTooltip('Retirer la couleur'), findsOneWidget);
+    await tester.tap(find.byTooltip('Retirer la couleur'));
     await tester.pumpAndSettle();
     expect(fond(cle), isNot(bleu.withValues(alpha: 0.9)));
     expect(tester.takeException(), isNull);
@@ -268,6 +268,8 @@ void main() {
     await tester.tap(sem(b));
     await tester.pumpAndSettle();
     expect(find.text('2 semaines sélectionnées'), findsOneWidget);
+    // Les boutons sont en haut : barre d'action au-dessus du calendrier.
+    expect(tester.getTopLeft(find.byKey(const ValueKey('roadmap-cal-selection'))).dy, lessThan(120));
     await tester.tap(sem(b));
     await tester.pumpAndSettle();
 
@@ -279,6 +281,8 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Fêtes');
     await tester.tap(find.byKey(ValueKey('roadmap-couleur-${vert.toARGB32()}')));
     await tester.pump();
+    // « Enregistrer » est en haut de la fiche, au-dessus des couleurs.
+    expect(tester.getCenter(find.text('Enregistrer')).dy, lessThan(tester.getCenter(find.byKey(ValueKey('roadmap-couleur-${vert.toARGB32()}'))).dy));
     await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
 

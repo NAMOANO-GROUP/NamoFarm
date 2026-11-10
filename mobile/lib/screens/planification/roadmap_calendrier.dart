@@ -313,41 +313,36 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
         );
       },
     );
-    return Column(children: [Expanded(child: liste), if (_selection.isNotEmpty && !_ficheOuverte) _barreSelection()]);
+    return Column(children: [if (_selection.isNotEmpty && !_ficheOuverte) _barreSelection(), Expanded(child: liste)]);
   }
 
-  /// Barre d'action pendant la sélection de plusieurs semaines.
+  /// Barre d'action en haut, pendant la sélection de plusieurs semaines.
   Widget _barreSelection() {
     final scheme = Theme.of(context).colorScheme;
     final n = _selection.length;
-    return Material(
+    return Container(
       key: const ValueKey('roadmap-cal-selection'),
-      elevation: 8,
-      color: scheme.surfaceContainerHigh,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '$n semaine${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              TextButton(onPressed: () => setState(_selection.clear), child: const Text('Annuler')),
-              const SizedBox(width: 4),
-              FilledButton.icon(
-                onPressed: () => _ficheSemaine(_selection.first, selection: {..._selection}),
-                icon: const Icon(Icons.palette_outlined),
-                label: const Text('Colorer'),
-              ),
-            ],
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$n semaine${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSecondaryContainer),
+            ),
           ),
-        ),
+          TextButton(onPressed: () => setState(_selection.clear), child: const Text('Annuler')),
+          const SizedBox(width: 4),
+          FilledButton.icon(
+            onPressed: () => _ficheSemaine(_selection.first, selection: {..._selection}),
+            icon: const Icon(Icons.palette_outlined),
+            label: const Text('Colorer'),
+          ),
+        ],
       ),
     );
   }
@@ -457,20 +452,71 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    multi
-                        ? '${lundis.length} semaine${lundis.length > 1 ? 's' : ''} sélectionnée${lundis.length > 1 ? 's' : ''}'
-                        : semaines > 1 || marque != null && marque.start != lundi
-                            ? 'Semaines ${roadmapNumeroSemaine(debut)} à ${roadmapNumeroSemaine(fin)}'
-                            : 'Semaine ${roadmapNumeroSemaine(lundi)}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    multi
-                        ? 'Semaines ${lundis.map(roadmapNumeroSemaine).join(', ')}'
-                        : '${roadmapDateCourte(debut)} → ${roadmapDateCourte(fin, annee: true)}',
-                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              multi
+                                  ? '${lundis.length} semaine${lundis.length > 1 ? 's' : ''} sélectionnée${lundis.length > 1 ? 's' : ''}'
+                                  : semaines > 1 || marque != null && marque.start != lundi
+                                      ? 'Semaines ${roadmapNumeroSemaine(debut)} à ${roadmapNumeroSemaine(fin)}'
+                                      : 'Semaine ${roadmapNumeroSemaine(lundi)}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              multi
+                                  ? 'Semaines ${lundis.map(roadmapNumeroSemaine).join(', ')}'
+                                  : '${roadmapDateCourte(debut)} → ${roadmapDateCourte(fin, annee: true)}',
+                              style: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (aMarque)
+                        IconButton(
+                          tooltip: 'Retirer la couleur',
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            if (multi) {
+                              widget.onMarques(roadmapRetirerSemaines(widget.plan.weekMarks, lundis));
+                              setState(_selection.clear);
+                            } else {
+                              widget.onMarques([for (final m in widget.plan.weekMarks) if (m.id != marque!.id) m]);
+                            }
+                          },
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        ),
+                      const SizedBox(width: 4),
+                      FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          if (multi) {
+                            widget.onMarques(roadmapAppliquerCouleur(widget.plan.weekMarks, lundis, color: couleur, label: libelle.text.trim()));
+                            setState(_selection.clear);
+                            return;
+                          }
+                          final nouvelle = RoadmapWeekMark(
+                            id: marque?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+                            start: debut,
+                            weeks: semaines,
+                            color: couleur,
+                            label: libelle.text.trim(),
+                          );
+                          widget.onMarques([
+                            for (final m in widget.plan.weekMarks)
+                              if (m.id != nouvelle.id) m,
+                            nouvelle,
+                          ]);
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Enregistrer'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -526,56 +572,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                       ],
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Wrap(
-                    alignment: !aMarque ? WrapAlignment.end : WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (aMarque)
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            if (multi) {
-                              widget.onMarques(roadmapRetirerSemaines(widget.plan.weekMarks, lundis));
-                              setState(_selection.clear);
-                            } else {
-                              widget.onMarques([for (final m in widget.plan.weekMarks) if (m.id != marque!.id) m]);
-                            }
-                          },
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                          label: const Text('Retirer la couleur', style: TextStyle(color: Colors.redAccent)),
-                        ),
-                      FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          if (multi) {
-                            widget.onMarques(roadmapAppliquerCouleur(widget.plan.weekMarks, lundis, color: couleur, label: libelle.text.trim()));
-                            setState(_selection.clear);
-                            return;
-                          }
-                          final nouvelle = RoadmapWeekMark(
-                            id: marque?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-                            start: debut,
-                            weeks: semaines,
-                            color: couleur,
-                            label: libelle.text.trim(),
-                          );
-                          widget.onMarques([
-                            for (final m in widget.plan.weekMarks)
-                              if (m.id != nouvelle.id) m,
-                            nouvelle,
-                          ]);
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text('Enregistrer'),
-                      ),
-                    ],
-                  ),
-                  ),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
