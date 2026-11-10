@@ -144,6 +144,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Bande B1'), findsWidgets);
     expect(find.text('Ajouter une tâche à cette date'), findsOneWidget);
+    // Pop-up au milieu de l'écran (et non une feuille collée en bas).
+    final centre = tester.getCenter(find.byType(Dialog));
+    expect(centre.dy, closeTo(844 / 2, 80));
+    expect(centre.dx, closeTo(390 / 2, 1));
 
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();

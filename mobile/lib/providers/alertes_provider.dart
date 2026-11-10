@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 class AlertesProvider with ChangeNotifier {
   List<Alerte> _alertes = [];
   List<Alerte> _alertesAutomatiques = [];
+  List<Alerte> _automatiquesBrutes = [];
   List<Alerte> _historiqueAlertes = [];
   List<Alerte> _historiqueAlertesAutomatiques = [];
   Set<String> _dismissedAutoAlertKeys = {};
@@ -44,8 +45,8 @@ class AlertesProvider with ChangeNotifier {
     notifyListeners();
     try {
       final data = await ApiService.getAlertesAutomatiques();
-      _alertesAutomatiques = data
-          .map((json) => Alerte.fromJson(json))
+      _automatiquesBrutes = data.map((json) => Alerte.fromJson(json)).toList();
+      _alertesAutomatiques = _automatiquesBrutes
           .where((a) => !_dismissedAutoAlertKeys.contains(_dismissKeyForToday(a.id)))
           .toList();
     } catch (e) {
@@ -225,7 +226,8 @@ class AlertesProvider with ChangeNotifier {
 
   /// Annule une fin de tâche : la rouvre et supprime l'occurrence suivante éventuellement créée (un seul appel).
   Future<bool> rouvrir(Alerte a, {String? prochaineId}) async {
-    if (a.automatique || a.id == null) return false;
+    if (a.id == null) return false;
+    if (a.automatique) return _rouvrirAutomatique(a);
     var ok = true;
     try {
       await ApiService.rouvrirAlerte(a.id!, prochaineId: prochaineId);
@@ -235,6 +237,26 @@ class AlertesProvider with ChangeNotifier {
     }
     await Future.wait([chargerAlertes(), chargerHistoriqueAlertes()]);
     return ok;
+  }
+
+  /// Décoche une tâche automatique terminée : supprime son archive et la fait réapparaître dès aujourd'hui.
+  Future<bool> _rouvrirAutomatique(Alerte a) async {
+    if (_isSyntheticAlerteId(a.id)) return false;
+    try {
+      await ApiService.rouvrirAlerte(a.id!);
+    } catch (e) {
+      debugPrint('Erreur: $e');
+      return false;
+    }
+    await _loadDismissedAutoAlerts();
+    final memes = _automatiquesBrutes.where((x) => x.titre == a.titre && x.source == a.source).toList();
+    final memeDate = memes.where((x) => x.dateEcheance.isAtSameMomentAs(a.dateEcheance)).toList();
+    for (final x in memeDate.isNotEmpty ? memeDate : memes) {
+      _dismissedAutoAlertKeys.remove(_dismissKeyForToday(x.id));
+    }
+    await _saveDismissedAutoAlerts();
+    await Future.wait([chargerAlertesAutomatiques(), chargerHistoriqueAlertesAutomatiques()]);
+    return true;
   }
 
   Future<bool> supprimer(Alerte a) async {

@@ -573,7 +573,30 @@ router.put('/:id/rouvrir', requirePermission('alertes.mark_done'), async (req, r
     if (original.error) return res.status(400).json({ message: original.error.message });
     if (!original.data) return res.status(404).json({ message: 'Alerte non trouvée' });
     if (original.data.automatique === true) {
-      return res.status(400).json({ message: 'Les alertes automatiques ne peuvent pas être rouvertes' });
+      // Tâche automatique décochée : on retire son archive ; la règle la refera apparaître si elle est toujours d'actualité.
+      if (original.data.source === 'crm_tache') {
+        const tache = await api
+          .from('crm_taches')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('statut', 'terminee')
+          .eq('titre', original.data.titre)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (tache.error) return res.status(400).json({ message: tache.error.message });
+        if (tache.data) {
+          const relance = await api
+            .from('crm_taches')
+            .update({ statut: 'a_faire', updated_at: new Date().toISOString() })
+            .eq('company_id', companyId)
+            .eq('id', tache.data.id);
+          if (relance.error) return res.status(400).json({ message: relance.error.message });
+        }
+      }
+      const removed = await api.from('alertes').delete().eq('company_id', companyId).eq('id', req.params.id);
+      if (removed.error) return res.status(400).json({ message: removed.error.message });
+      return res.json({ ...mapAlerteRow(original.data), statut: 'active', archiveSupprimee: true });
     }
 
     // Annulation d'une tâche périodique : on retire d'abord l'occurrence créée par /fait,

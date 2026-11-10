@@ -178,17 +178,15 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     final cle = _datesCles.contains(_jour(d));
     final marques = widget.plan.weekMarks.where((m) => m.couvre(roadmapLundi(d))).toList();
     final scheme = Theme.of(context).colorScheme;
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: 560),
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+          constraints: BoxConstraints(maxWidth: 460, maxHeight: MediaQuery.sizeOf(ctx).height * 0.8),
           child: ListView(
             shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+            padding: const EdgeInsets.all(20),
             children: [
               Text(roadmapDateCourte(d, annee: true), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
@@ -436,18 +434,18 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     var semaines = marque?.weeks ?? 1;
     final debut = marque?.start ?? lundi;
     setState(() => _ficheOuverte = true);
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: 560),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setFiche) {
           final scheme = Theme.of(ctx).colorScheme;
           final fin = DateTime(debut.year, debut.month, debut.day + 7 * semaines - 1);
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 28 + MediaQuery.viewInsetsOf(ctx).bottom),
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -575,6 +573,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                   const SizedBox(height: 4),
                 ],
               ),
+            ),
             ),
           );
         },

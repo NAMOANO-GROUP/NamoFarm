@@ -120,16 +120,13 @@ String _module(Alerte a) {
   return (icon: Icons.check_circle_outline, color: enRetard ? Colors.red : Colors.indigo);
 }
 
-/// Ce qui demande une action aujourd'hui : tâches échues ou du jour (Todo et automatiques),
-/// sorties de bande proches ou dépassées. Les éléments urgents (en retard) passent en tête.
+/// Ce qui demande une action : les tâches en retard (Todo et automatiques) et les alertes du cheptel
+/// (recomptage, mortalité en hausse). Les éléments urgents (en retard, mortalité) passent en tête.
 List<ElementAujourdhui> elementsAujourdhui({
   List<Alerte> taches = const [],
   List<Alerte> automatiques = const [],
-  List<Bande> bandes = const [],
-  Map<String, BandeKpis> kpis = const {},
   List<Cheptel> cheptels = const [],
   DateTime? now,
-  int horizonSortieJours = 7,
 }) {
   final today = _jour(now ?? DateTime.now());
   final out = <ElementAujourdhui>[];
@@ -138,17 +135,18 @@ List<ElementAujourdhui> elementsAujourdhui({
   for (final a in [...taches, ...automatiques]) {
     if (a.estFaite) continue;
     final jour = _jour(a.dateEcheance.toLocal());
-    if (jour.isAfter(today)) continue;
+    // Seules les tâches échues comptent ; les stocks bas et les livraisons ne sont jamais « en retard ».
+    final enRetard = jour.isBefore(today) && a.type != 'stock_bas' && a.source != 'commercial';
+    if (!enRetard) continue;
     final cle = a.id ?? '${a.titre}|${a.dateEcheance}';
     if (!vus.add(cle)) continue;
-    final enRetard = jour.isBefore(today) && a.type != 'stock_bas' && a.source != 'commercial';
     final s = _style(a, enRetard);
     final retard = today.difference(jour).inDays;
     out.add(
       ElementAujourdhui(
         titre: a.titre,
         detail: [
-          if (enRetard) 'En retard de $retard j',
+          'En retard de $retard j',
           if (a.bandeNom.isNotEmpty && !a.titre.contains(a.bandeNom)) a.bandeNom,
           if (a.message.isNotEmpty) a.message,
         ].join(' · '),
@@ -156,29 +154,8 @@ List<ElementAujourdhui> elementsAujourdhui({
         color: s.color,
         module: _module(a),
         date: a.dateEcheance,
-        urgent: enRetard || (a.priorite == 'haute' && a.type == 'stock_bas'),
+        urgent: true,
         bandeId: a.automatique ? null : a.bandeId,
-      ),
-    );
-  }
-
-  for (final b in bandes) {
-    final k = kpis[b.id];
-    if (k == null || b.dateFermeture != null || b.id == null) continue;
-    final r = k.joursRestants;
-    if (r > horizonSortieJours) continue;
-    out.add(
-      ElementAujourdhui(
-        titre: r < 0
-            ? 'Sortie dépassée : ${b.nom}'
-            : (r == 0 ? 'Sortie aujourd’hui : ${b.nom}' : 'Sortie dans $r j : ${b.nom}'),
-        detail: '${k.effectif} sujets · J${k.ageJours} / ${k.dureeJours}',
-        icon: Icons.local_shipping_outlined,
-        color: r < 0 ? Colors.orange : Colors.green,
-        module: 'bandes',
-        date: k.dateSortiePrevue,
-        urgent: r < 0,
-        bandeId: b.id,
       ),
     );
   }

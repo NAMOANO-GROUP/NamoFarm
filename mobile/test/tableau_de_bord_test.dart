@@ -9,7 +9,6 @@ import 'package:namofarm/providers/nav_hub_provider.dart';
 import 'package:namofarm/screens/bandes/bande_detail_screen.dart';
 import 'package:namofarm/screens/tableau_de_bord/tdb_source.dart';
 import 'package:namofarm/screens/tableau_de_bord_screen.dart';
-import 'package:namofarm/utils/bande_kpis.dart';
 import 'package:namofarm/utils/tableau_de_bord.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -184,15 +183,8 @@ void main() {
       expect(evolutionPct(10, 0), isNull);
     });
 
-    test('à faire aujourd’hui : échues, du jour, sorties proches ; urgences en tête', () {
+    test('à faire : tâches en retard seulement ; urgences en tête', () {
       final now = _jour(0, heure: 12);
-      final b1 = _bande('b1', 'B-001', age: 40); // 45 j → sortie dans 5 j
-      final b2 = _bande('b2', 'B-002', age: 50); // sortie dépassée de 5 j
-      final b3 = _bande('b3', 'B-003', age: 5);
-      const ref = ReferenceType(dureeJours: 45, poidsFinalG: 2000, consoTotaleKgParTete: 4.5);
-      final kpis = {
-        for (final b in [b1, b2, b3]) b.id!: computeBandeKpis(b, ref, now: now),
-      };
 
       final e = elementsAujourdhui(
         taches: [
@@ -205,7 +197,7 @@ void main() {
           _tache(
             'stock-1',
             'Stock bas: Aliment',
-            _jour(0),
+            _jour(-1),
             auto: true,
             source: 'stock',
             type: 'stock_bas',
@@ -213,23 +205,19 @@ void main() {
           ),
           _tache('crm-task-1', 'Rappeler Awa', _jour(-1), auto: true, source: 'crm_tache', type: 'vente'),
         ],
-        bandes: [b1, b2, b3],
-        kpis: kpis,
         now: now,
       );
       final titres = e.map((x) => x.titre).toList();
+      expect(titres.toSet(), {'Vacciner B-001', 'Rappeler Awa'});
+      expect(titres, isNot(contains('Nettoyer le bâtiment')), reason: 'du jour : pas en retard');
       expect(titres, isNot(contains('Plus tard')));
       expect(titres, isNot(contains('Déjà fait')));
-      expect(titres, contains('Sortie dans 5 j : B-001'));
-      expect(titres.where((t) => t.contains('B-003')), isEmpty);
-
-      final urgents = e.takeWhile((x) => x.urgent).map((x) => x.titre).toSet();
-      expect(urgents, {'Vacciner B-001', 'Rappeler Awa', 'Stock bas: Aliment', 'Sortie dépassée : B-002'});
-      expect(e.firstWhere((x) => x.titre == 'Vacciner B-001').detail, startsWith('En retard de 2 j'));
-      expect(e.firstWhere((x) => x.titre == 'Vacciner B-001').bandeId, 'b1');
-      expect(e.firstWhere((x) => x.titre == 'Stock bas: Aliment').module, 'achats');
+      expect(titres, isNot(contains('Stock bas: Aliment')));
+      expect(e.every((x) => x.urgent), isTrue);
+      expect(e.first.titre, 'Vacciner B-001', reason: 'le plus en retard d’abord');
+      expect(e.first.detail, startsWith('En retard de 2 j'));
+      expect(e.first.bandeId, 'b1');
       expect(e.firstWhere((x) => x.titre == 'Rappeler Awa').module, 'crm');
-      expect(e.firstWhere((x) => x.titre == 'Nettoyer le bâtiment').module, 'todo');
     });
 
     test('résumé élevage, 12 derniers mois et ordre des blocs', () {
@@ -297,9 +285,10 @@ void main() {
         find.text('Bonjour Moussa').evaluate().isNotEmpty || find.text('Bonsoir Moussa').evaluate().isNotEmpty,
         isTrue,
       );
-      expect(find.text('À faire aujourd’hui (2)'), findsOneWidget);
+      expect(find.text('À faire aujourd’hui (1)'), findsOneWidget);
       expect(find.text('1 point demande votre attention en priorité'), findsOneWidget);
-      expect(find.text('Sortie dans 5 j : B-001'), findsOneWidget);
+      expect(find.text('Vacciner'), findsOneWidget);
+      expect(find.text('Sortie dans 5 j : B-001'), findsNothing, reason: 'les sorties de bande ne sont plus listées');
 
       await tester.dragUntilVisible(find.text('Résultat'), find.byType(ListView).first, const Offset(0, -200));
       expect(find.text('350k FCFA'), findsOneWidget);
@@ -333,33 +322,24 @@ void main() {
       await tester.pumpWidget(
         _app(
           bandes: [_bande('b1', 'B-001', age: 40)],
-          auto: [
-            _tache(
-              'stock-1',
-              'Stock bas: Aliment',
-              _jour(0),
-              auto: true,
-              source: 'stock',
-              type: 'stock_bas',
-              priorite: 'haute',
-            ),
-          ],
+          taches: [_tache('t1', 'Vacciner', _jour(-1), bandeId: 'b1')],
+          auto: [_tache('crm-task-1', 'Rappeler Awa', _jour(-1), auto: true, source: 'crm_tache', type: 'vente')],
           hub: hub,
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Stock bas: Aliment'));
+      await tester.tap(find.text('Rappeler Awa'));
       await tester.pumpAndSettle();
-      expect(hub.prendreModuleDemande(), 'achats');
+      expect(hub.prendreModuleDemande(), 'crm');
 
       hub.modulesAccessibles = {'dashboard', 'bandes'};
-      await tester.tap(find.text('Stock bas: Aliment'));
+      await tester.tap(find.text('Rappeler Awa'));
       await tester.pumpAndSettle();
       expect(hub.prendreModuleDemande(), isNull);
       expect(find.text('Vous n’avez pas accès à ce module.'), findsOneWidget);
 
-      await tester.tap(find.text('Sortie dans 5 j : B-001'));
+      await tester.tap(find.text('Vacciner'));
       await tester.pumpAndSettle();
       expect(find.byType(BandeDetailScreen), findsOneWidget);
     });

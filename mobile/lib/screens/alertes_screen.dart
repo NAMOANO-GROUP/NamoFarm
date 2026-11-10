@@ -97,7 +97,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
   }
 
   Future<void> _rouvrir(Alerte a) async {
-    if (!a.modifiable) return;
+    if (a.id == null) return;
     final ok = await context.read<AlertesProvider>().rouvrir(a);
     if (mounted) showCrmSnack(context, ok ? 'Tâche rouverte' : 'Mise à jour impossible');
   }

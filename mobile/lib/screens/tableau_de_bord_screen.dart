@@ -227,8 +227,6 @@ class _TableauDeBordScreenState extends State<TableauDeBordScreen> {
     final elements = elementsAujourdhui(
       taches: taches,
       automatiques: automatiques,
-      bandes: bandes,
-      kpis: kpis,
       cheptels: cheptels,
       now: now,
     );
