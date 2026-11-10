@@ -64,6 +64,36 @@ void main() {
       expect(plan.copyWith(weekMarks: const []).weekMarks, isEmpty);
       expect(ProductionPlan.fromJson({'id': 'a', 'name': 'a'}).weekMarks, isEmpty);
     });
+    test('suites de semaines consécutives', () {
+      final l = DateTime(2026, 3, 2);
+      DateTime s(int n) => DateTime(l.year, l.month, l.day + 7 * n);
+      final suites = roadmapSuitesDeSemaines([s(4), s(0), s(1), s(1), s(6), s(5)]);
+      expect(suites.map((x) => x.length).toList(), [2, 3]);
+      expect(suites.first.first, s(0));
+      expect(suites.last.first, s(4));
+      expect(roadmapSuitesDeSemaines([DateTime(2026, 3, 4)]).single.single, DateTime(2026, 3, 2)); // ramené au lundi
+    });
+
+    test('colorer plusieurs semaines : une marque par suite, et remplacement des couleurs existantes', () {
+      DateTime s(int n) => DateTime(2026, 3, 2 + 7 * n);
+      final existantes = [RoadmapWeekMark(id: 'a', start: s(0), weeks: 4, color: Colors.red, label: 'Fête')];
+
+      // Retirer la 2e semaine scinde la marque en deux.
+      final coupee = roadmapRetirerSemaines(existantes, [s(1)]);
+      expect(coupee.map((m) => (m.start, m.weeks)).toList(), [(s(0), 1), (s(2), 2)]);
+      expect(coupee.map((m) => m.id).toSet(), hasLength(2));
+      expect(coupee.every((m) => m.label == 'Fête' && m.color == Colors.red), isTrue);
+
+      // Colorer s1, s2 et s5 en vert : s1 et s2 remplacent le rouge, s5 est à part.
+      final res = roadmapAppliquerCouleur(existantes, [s(5), s(1), s(2)], color: Colors.green, label: 'Calme', idBase: 'n');
+      bool verte(DateTime l) => res.any((m) => m.couvre(l) && m.color == Colors.green);
+      bool rouge(DateTime l) => res.any((m) => m.couvre(l) && m.color == Colors.red);
+      expect([verte(s(1)), verte(s(2)), verte(s(5))], [true, true, true]);
+      expect([rouge(s(0)), rouge(s(3))], [true, true]);
+      expect([rouge(s(1)), rouge(s(2))], [false, false]);
+      expect(res.where((m) => m.color == Colors.green), hasLength(2));
+      expect(res.map((m) => m.id).toSet(), hasLength(res.length));
+    });
   });
 
   testWidgets('Roadmap : bascule en calendrier annuel et détail d’un jour', (tester) async {
@@ -123,7 +153,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Calendrier : numéros de semaine et trait de couleur sur une semaine', (tester) async {
+  testWidgets('Calendrier : numéros de semaine colorés pour les semaines marquées', (tester) async {
     tester.view.physicalSize = const Size(390, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -149,16 +179,20 @@ void main() {
 
     final lundi = roadmapLundi(DateTime(n.year, 3, 15));
     final cle = ValueKey('roadmap-cal-sem-${lundi.year}-${lundi.month}-${lundi.day}');
-    final trait = ValueKey('roadmap-cal-trait-${lundi.year}-${lundi.month}-${lundi.day}');
+    final suivante = DateTime(lundi.year, lundi.month, lundi.day + 7);
+    final cleSuivante = ValueKey('roadmap-cal-sem-${suivante.year}-${suivante.month}-${suivante.day}');
+    Color? fond(Key k) => ((tester.widget<Container>(find.descendant(of: find.byKey(k), matching: find.byType(Container)).first)).decoration! as BoxDecoration).color;
+    final bleu = roadmapCouleursMarques[5];
+
     expect(find.text('${roadmapNumeroSemaine(lundi)}'), findsWidgets);
-    expect(find.byKey(trait), findsNothing);
+    expect(fond(cle), isNot(bleu.withValues(alpha: 0.9)));
 
     await tester.ensureVisible(find.byKey(cle));
     await tester.tap(find.byKey(cle));
     await tester.pumpAndSettle();
     expect(find.text('Semaine ${roadmapNumeroSemaine(lundi)}'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Tabaski');
-    await tester.tap(find.byKey(ValueKey('roadmap-couleur-${roadmapCouleursMarques[5].toARGB32()}')));
+    await tester.tap(find.byKey(ValueKey('roadmap-couleur-${bleu.toARGB32()}')));
     await tester.pump();
     await tester.tap(find.byTooltip('Plus de semaines'));
     await tester.pump();
@@ -166,20 +200,105 @@ void main() {
     await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(trait), findsOneWidget);
-    final suivante = DateTime(lundi.year, lundi.month, lundi.day + 7);
-    expect(find.byKey(ValueKey('roadmap-cal-trait-${suivante.year}-${suivante.month}-${suivante.day}')), findsWidgets);
+    // Seul le numéro est coloré (et assez foncé) : plus de trait sous la semaine.
+    expect(fond(cle), bleu.withValues(alpha: 0.9));
+    await tester.ensureVisible(find.byKey(cleSuivante));
+    expect(fond(cleSuivante), bleu.withValues(alpha: 0.9));
+    expect(find.byKey(ValueKey('roadmap-cal-trait-${lundi.year}-${lundi.month}-${lundi.day}')), findsNothing);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('roadmap.productionPlans'), contains('Tabaski'));
 
-    // Un jour de cette semaine rappelle le libellé ; le trait se retire depuis la fiche de la semaine.
+    // La couleur se retire depuis la fiche de la semaine.
     await tester.ensureVisible(find.byKey(cle));
     await tester.tap(find.byKey(cle));
     await tester.pumpAndSettle();
-    expect(find.text('Retirer le trait'), findsOneWidget);
-    await tester.tap(find.text('Retirer le trait'));
+    expect(find.text('Retirer la couleur'), findsOneWidget);
+    await tester.tap(find.text('Retirer la couleur'));
     await tester.pumpAndSettle();
-    expect(find.byKey(trait), findsNothing);
+    expect(fond(cle), isNot(bleu.withValues(alpha: 0.9)));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Calendrier : sélection de plusieurs semaines puis couleur commune', (tester) async {
+    tester.view.physicalSize = const Size(390, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final n = DateTime.now();
+    SharedPreferences.setMockInitialValues({
+      'roadmap.vue': 'calendrier',
+      'roadmap.productionPlans': jsonEncode([
+        {
+          'id': 'plan-1',
+          'name': 'Production',
+          'start': DateTime(n.year, 1, 1).toIso8601String(),
+          'end': DateTime(n.year, 12, 31).toIso8601String(),
+          'tasks': [],
+          'highlightedDates': [],
+        },
+      ]),
+      'roadmap.selectedPlanId': 'plan-1',
+    });
+    await tester.pumpWidget(const MaterialApp(home: RoadmapScreen()));
+    await tester.pumpAndSettle();
+
+    ValueKey<String> cleSemaine(DateTime l) => ValueKey('roadmap-cal-sem-${l.year}-${l.month}-${l.day}');
+    Finder sem(DateTime l) => find.byKey(cleSemaine(l)).first; // une semaine à cheval sur deux mois apparaît deux fois
+    Color? fond(DateTime l) =>
+        ((tester.widget<Container>(find.descendant(of: sem(l), matching: find.byType(Container)).first)).decoration! as BoxDecoration).color;
+    final a = roadmapLundi(DateTime(n.year, 3, 15));
+    final b = DateTime(a.year, a.month, a.day + 7);
+    final c = DateTime(a.year, a.month, a.day + 21); // non consécutive
+    final vert = roadmapCouleursMarques[3];
+
+    expect(find.byKey(const ValueKey('roadmap-cal-selection')), findsNothing);
+    await tester.ensureVisible(sem(a));
+    await tester.longPress(sem(a));
+    await tester.pumpAndSettle();
+    expect(find.text('1 semaine sélectionnée'), findsOneWidget);
+
+    // Une fois la sélection commencée, un simple toucher ajoute ou retire une semaine.
+    for (final l in [b, c]) {
+      await tester.ensureVisible(sem(l));
+      await tester.tap(sem(l));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('3 semaines sélectionnées'), findsOneWidget);
+    await tester.tap(sem(b));
+    await tester.pumpAndSettle();
+    expect(find.text('2 semaines sélectionnées'), findsOneWidget);
+    await tester.tap(sem(b));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Colorer'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 semaines sélectionnées'), findsNWidgets(2)); // barre + fiche
+    expect(find.byTooltip('Plus de semaines'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'Fêtes');
+    await tester.tap(find.byKey(ValueKey('roadmap-couleur-${vert.toARGB32()}')));
+    await tester.pump();
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('roadmap-cal-selection')), findsNothing);
+    for (final l in [a, b, c]) {
+      await tester.ensureVisible(sem(l));
+      expect(fond(l), vert.withValues(alpha: 0.9));
+    }
+    final entre = DateTime(a.year, a.month, a.day + 14);
+    await tester.ensureVisible(sem(entre));
+    expect(fond(entre), isNot(vert.withValues(alpha: 0.9)));
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('roadmap.productionPlans'), contains('Fêtes'));
+
+    // Annuler la sélection n'enregistre rien.
+    await tester.longPress(sem(entre));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('roadmap-cal-selection')), findsNothing);
+    expect(fond(entre), isNot(vert.withValues(alpha: 0.9)));
     expect(tester.takeException(), isNull);
   });
 }

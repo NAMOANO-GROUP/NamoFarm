@@ -303,10 +303,11 @@ class _HelpScreenState extends State<HelpScreen> {
         'Roadmap : vue calendrier',
         'Le bouton calendrier de la barre bascule vers une vue annuelle : un mois par grille, chaque jour coloré '
             'selon la tâche en cours (bandes de couleur en bas si plusieurs tâches se chevauchent, drapeau pour '
-                        'un jalon, point rouge pour une date clé). Touchez un jour pour son détail ou pour y ajouter une tâche. '
-                        'La colonne S donne le numéro de semaine : touchez-le pour poser un trait horizontal de la couleur de '
-                        'votre choix sur une ou plusieurs semaines (fêtes, périodes où l\'on vend mal…), avec un libellé. '
-                        'Les flèches changent d\'année.',
+            'un jalon, point rouge pour une date clé). Touchez un jour pour son détail ou pour y ajouter une tâche. '
+            'La colonne S donne le numéro de semaine : touchez-le pour le colorer, avec la couleur de votre choix, '
+            'et un libellé (fêtes, périodes où l\'on vend mal…). Pour plusieurs semaines, maintenez le doigt sur un '
+            'numéro puis touchez les autres (même non consécutives) et « Colorer ». '
+            'Les flèches changent d\'année.',
       ),
       _HelpArticle(
         'Roadmap : modifier une tâche',

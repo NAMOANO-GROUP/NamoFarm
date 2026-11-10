@@ -39,7 +39,64 @@ const _moisLongs = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil
 const _joursCourts = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
 const _largeurSemaine = 24.0;
 
-/// Couleurs proposées pour le trait d'une semaine marquée.
+DateTime _semaineSuivante(DateTime lundi) => DateTime(lundi.year, lundi.month, lundi.day + 7);
+
+/// Regroupe des lundis en suites de semaines consécutives (triées, sans doublon).
+List<List<DateTime>> roadmapSuitesDeSemaines(Iterable<DateTime> lundis) {
+  final tries = {for (final l in lundis) roadmapLundi(l)}.toList()..sort();
+  final suites = <List<DateTime>>[];
+  for (final l in tries) {
+    if (suites.isNotEmpty && _semaineSuivante(suites.last.last) == l) {
+      suites.last.add(l);
+    } else {
+      suites.add([l]);
+    }
+  }
+  return suites;
+}
+
+/// Retire les semaines [lundis] des marques existantes ; une marque coupée en deux devient deux marques.
+List<RoadmapWeekMark> roadmapRetirerSemaines(List<RoadmapWeekMark> marques, Iterable<DateTime> lundis) {
+  final retirees = {for (final l in lundis) roadmapLundi(l)};
+  final out = <RoadmapWeekMark>[];
+  for (final m in marques) {
+    final restantes = <DateTime>[];
+    for (var i = 0; i < m.weeks; i++) {
+      final l = DateTime(m.start.year, m.start.month, m.start.day + 7 * i);
+      if (!retirees.contains(l)) restantes.add(l);
+    }
+    final suites = roadmapSuitesDeSemaines(restantes);
+    for (var k = 0; k < suites.length; k++) {
+      out.add(RoadmapWeekMark(
+        id: k == 0 ? m.id : '${m.id}-$k',
+        start: suites[k].first,
+        weeks: suites[k].length,
+        color: m.color,
+        label: m.label,
+      ));
+    }
+  }
+  return out;
+}
+
+/// Colore les semaines [lundis] (même non consécutives) : elles remplacent toute couleur déjà posée dessus.
+List<RoadmapWeekMark> roadmapAppliquerCouleur(
+  List<RoadmapWeekMark> marques,
+  Iterable<DateTime> lundis, {
+  required Color color,
+  String label = '',
+  String? idBase,
+}) {
+  final base = idBase ?? DateTime.now().microsecondsSinceEpoch.toString();
+  final suites = roadmapSuitesDeSemaines(lundis);
+  return [
+    ...roadmapRetirerSemaines(marques, lundis),
+    for (var k = 0; k < suites.length; k++)
+      RoadmapWeekMark(id: '$base-$k', start: suites[k].first, weeks: suites[k].length, color: color, label: label),
+  ];
+}
+
+/// Couleurs proposées pour une semaine marquée.
 const roadmapCouleursMarques = [
   Color(0xFFE53935),
   Color(0xFFFB8C00),
@@ -63,7 +120,7 @@ class RoadmapCalendrier extends StatefulWidget {
   /// Créer une tâche à la date touchée.
   final ValueChanged<DateTime> onCreer;
 
-  /// Nouvelle liste de semaines marquées (trait de couleur) après un ajout, une modification ou un retrait.
+  /// Nouvelle liste de semaines marquées (couleur du numéro) après un ajout, une modification ou un retrait.
   final ValueChanged<List<RoadmapWeekMark>> onMarques;
 
   /// Année à afficher quand l'utilisateur demande « aujourd'hui » (incrémenter pour re-déclencher).
@@ -84,6 +141,13 @@ class RoadmapCalendrier extends StatefulWidget {
 
 class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
   late int _annee = _anneeInitiale();
+
+  /// Semaines (lundis) sélectionnées pour être colorées ensemble.
+  final Set<DateTime> _selection = {};
+
+  void _basculerSemaine(DateTime lundi) => setState(() {
+        if (!_selection.remove(lundi)) _selection.add(lundi);
+      });
 
   int _anneeInitiale() {
     final n = DateTime.now().year;
@@ -198,7 +262,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     final peutReculer = _annee > plan.start.year;
     final peutAvancer = _annee < plan.end.year;
 
-    return LayoutBuilder(
+    final liste = LayoutBuilder(
       builder: (context, c) {
         final colonnes = c.maxWidth >= 1000 ? 4 : (c.maxWidth >= 640 ? 3 : 2);
         const gap = 12.0;
@@ -230,7 +294,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  'Touchez un numéro de semaine pour y poser un trait de couleur (fêtes, périodes creuses…).',
+                  'Touchez un numéro de semaine pour le colorer ; maintenez-le pour en sélectionner plusieurs.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
                 ),
@@ -245,6 +309,43 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
           ],
         );
       },
+    );
+    return Column(children: [Expanded(child: liste), if (_selection.isNotEmpty) _barreSelection()]);
+  }
+
+  /// Barre d'action pendant la sélection de plusieurs semaines.
+  Widget _barreSelection() {
+    final scheme = Theme.of(context).colorScheme;
+    final n = _selection.length;
+    return Material(
+      key: const ValueKey('roadmap-cal-selection'),
+      elevation: 8,
+      color: scheme.surfaceContainerHigh,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$n semaine${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton(onPressed: () => setState(_selection.clear), child: const Text('Annuler')),
+              const SizedBox(width: 4),
+              FilledButton.icon(
+                onPressed: () => _ficheSemaine(_selection.first, selection: {..._selection}),
+                icon: const Icon(Icons.palette_outlined),
+                label: const Text('Colorer'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -285,29 +386,35 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     );
   }
 
-  /// Une ligne du mois : numéro de semaine, 7 jours et, si la semaine est marquée, un trait de couleur en bas.
+  /// Une ligne du mois : numéro de semaine (coloré si la semaine est marquée) puis les 7 jours.
   Widget _semaine(List<DateTime?> jours, List<RoadmapTask> visibles, ColorScheme scheme, DateTime aujourdhui, Set<DateTime> cles) {
     final premier = jours.whereType<DateTime>().firstOrNull;
     final lundi = premier == null ? null : roadmapLundi(premier);
     final marques = lundi == null ? const <RoadmapWeekMark>[] : widget.plan.weekMarks.where((m) => m.couvre(lundi)).toList();
     final bordure = BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.55), width: 0.5);
 
+    final marque = marques.firstOrNull;
+    final texte = marque == null
+        ? scheme.onSurfaceVariant
+        : (ThemeData.estimateBrightnessForColor(marque.color) == Brightness.dark ? Colors.white : Colors.black87);
+
     final Widget numero = lundi == null
         ? Container(width: _largeurSemaine, height: 30, decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.35), border: Border.fromBorderSide(bordure)))
         : InkWell(
             key: ValueKey('roadmap-cal-sem-${lundi.year}-${lundi.month}-${lundi.day}'),
-            onTap: () => _ficheSemaine(lundi),
+            onTap: () => _selection.isNotEmpty ? _basculerSemaine(lundi) : _ficheSemaine(lundi),
+            onLongPress: () => _basculerSemaine(lundi),
             child: Container(
               width: _largeurSemaine,
               height: 30,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: marques.isEmpty ? scheme.surfaceContainerHighest.withValues(alpha: 0.55) : marques.first.color.withValues(alpha: 0.35),
-                border: Border.fromBorderSide(bordure),
+                color: marque == null ? scheme.surfaceContainerHighest.withValues(alpha: 0.55) : marque.color.withValues(alpha: 0.9),
+                border: _selection.contains(lundi) ? Border.all(color: scheme.primary, width: 2.5) : Border.fromBorderSide(bordure),
               ),
               child: Text(
                 '${roadmapNumeroSemaine(lundi)}',
-                style: TextStyle(fontSize: 10, fontWeight: marques.isEmpty ? FontWeight.w500 : FontWeight.w800, color: scheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 10, fontWeight: marque == null ? FontWeight.w500 : FontWeight.w800, color: texte),
               ),
             ),
           );
@@ -315,35 +422,19 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     return Row(
       children: [
         numero,
-        Expanded(
-          child: Stack(
-            children: [
-              Row(children: [for (final d in jours) Expanded(child: _case(d, visibles, scheme, aujourdhui, cles))]),
-              if (marques.isNotEmpty)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Column(
-                      key: ValueKey('roadmap-cal-trait-${lundi!.year}-${lundi.month}-${lundi.day}'),
-                      mainAxisSize: MainAxisSize.min,
-                      children: [for (final m in marques.take(3)) Container(height: 4, color: m.color)],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        for (final d in jours) Expanded(child: _case(d, visibles, scheme, aujourdhui, cles)),
       ],
     );
   }
 
-  Future<void> _ficheSemaine(DateTime lundi) async {
-    final existantes = widget.plan.weekMarks.where((m) => m.couvre(lundi)).toList();
-    final marque = existantes.firstOrNull;
-    final libelle = TextEditingController(text: marque?.label ?? '');
-    var couleur = marque?.color ?? roadmapCouleursMarques.first;
+  Future<void> _ficheSemaine(DateTime lundi, {Set<DateTime>? selection}) async {
+    final multi = selection != null;
+    final lundis = (selection ?? const <DateTime>{}).toList()..sort();
+    final marque = multi ? null : widget.plan.weekMarks.where((m) => m.couvre(lundi)).firstOrNull;
+    final modele = multi ? widget.plan.weekMarks.where((m) => lundis.any(m.couvre)).firstOrNull : marque;
+    final aMarque = multi ? widget.plan.weekMarks.any((m) => lundis.any(m.couvre)) : marque != null;
+    final libelle = TextEditingController(text: modele?.label ?? '');
+    var couleur = modele?.color ?? roadmapCouleursMarques.first;
     var semaines = marque?.weeks ?? 1;
     final debut = marque?.start ?? lundi;
     await showModalBottomSheet<void>(
@@ -363,13 +454,20 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    semaines > 1 || marque != null && marque.start != lundi
-                        ? 'Semaines ${roadmapNumeroSemaine(debut)} à ${roadmapNumeroSemaine(fin)}'
-                        : 'Semaine ${roadmapNumeroSemaine(lundi)}',
+                    multi
+                        ? '${lundis.length} semaine${lundis.length > 1 ? 's' : ''} sélectionnée${lundis.length > 1 ? 's' : ''}'
+                        : semaines > 1 || marque != null && marque.start != lundi
+                            ? 'Semaines ${roadmapNumeroSemaine(debut)} à ${roadmapNumeroSemaine(fin)}'
+                            : 'Semaine ${roadmapNumeroSemaine(lundi)}',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 2),
-                  Text('${roadmapDateCourte(debut)} → ${roadmapDateCourte(fin, annee: true)}', style: TextStyle(color: scheme.onSurfaceVariant)),
+                  Text(
+                    multi
+                        ? 'Semaines ${lundis.map(roadmapNumeroSemaine).join(', ')}'
+                        : '${roadmapDateCourte(debut)} → ${roadmapDateCourte(fin, annee: true)}',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: libelle,
@@ -381,7 +479,7 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('Couleur du trait', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant)),
+                  Text('Couleur', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 10,
@@ -405,42 +503,54 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(child: Text('Nombre de semaines', style: TextStyle(fontWeight: FontWeight.w600))),
-                      IconButton.outlined(
-                        tooltip: 'Moins de semaines',
-                        onPressed: semaines > 1 ? () => setFiche(() => semaines--) : null,
-                        icon: const Icon(Icons.remove),
-                      ),
-                      SizedBox(width: 44, child: Center(child: Text('$semaines', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)))),
-                      IconButton.outlined(
-                        tooltip: 'Plus de semaines',
-                        onPressed: semaines < 12 ? () => setFiche(() => semaines++) : null,
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
+                  if (!multi) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Expanded(child: Text('Nombre de semaines', style: TextStyle(fontWeight: FontWeight.w600))),
+                        IconButton.outlined(
+                          tooltip: 'Moins de semaines',
+                          onPressed: semaines > 1 ? () => setFiche(() => semaines--) : null,
+                          icon: const Icon(Icons.remove),
+                        ),
+                        SizedBox(width: 44, child: Center(child: Text('$semaines', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)))),
+                        IconButton.outlined(
+                          tooltip: 'Plus de semaines',
+                          onPressed: semaines < 12 ? () => setFiche(() => semaines++) : null,
+                          icon: const Icon(Icons.add),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Wrap(
-                    alignment: marque == null ? WrapAlignment.end : WrapAlignment.spaceBetween,
+                    alignment: !aMarque ? WrapAlignment.end : WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      if (marque != null)
+                      if (aMarque)
                         TextButton.icon(
                           onPressed: () {
                             Navigator.pop(ctx);
-                            widget.onMarques([for (final m in widget.plan.weekMarks) if (m.id != marque.id) m]);
+                            if (multi) {
+                              widget.onMarques(roadmapRetirerSemaines(widget.plan.weekMarks, lundis));
+                              setState(_selection.clear);
+                            } else {
+                              widget.onMarques([for (final m in widget.plan.weekMarks) if (m.id != marque!.id) m]);
+                            }
                           },
                           icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                          label: const Text('Retirer le trait', style: TextStyle(color: Colors.redAccent)),
+                          label: const Text('Retirer la couleur', style: TextStyle(color: Colors.redAccent)),
                         ),
                       FilledButton.icon(
                         onPressed: () {
                           Navigator.pop(ctx);
+                          if (multi) {
+                            widget.onMarques(roadmapAppliquerCouleur(widget.plan.weekMarks, lundis, color: couleur, label: libelle.text.trim()));
+                            setState(_selection.clear);
+                            return;
+                          }
                           final nouvelle = RoadmapWeekMark(
                             id: marque?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
                             start: debut,
