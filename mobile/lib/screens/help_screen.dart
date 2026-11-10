@@ -304,6 +304,8 @@ class _HelpScreenState extends State<HelpScreen> {
         'Le bouton calendrier de la barre bascule vers une vue annuelle : un mois par grille, chaque jour coloré '
             'selon la tâche en cours (bandes de couleur en bas si plusieurs tâches se chevauchent, drapeau pour '
                         'un jalon, point rouge pour une date clé). Touchez un jour pour son détail ou pour y ajouter une tâche. '
+                        'La colonne S donne le numéro de semaine : touchez-le pour poser un trait horizontal de la couleur de '
+                        'votre choix sur une ou plusieurs semaines (fêtes, périodes où l\'on vend mal…), avec un libellé. '
                         'Les flèches changent d\'année.',
       ),
       _HelpArticle(

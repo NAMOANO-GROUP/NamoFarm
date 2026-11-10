@@ -100,6 +100,71 @@ class RoadmapTask {
   }
 }
 
+/// Trait de couleur posé sur une ou plusieurs semaines (fêtes, périodes où l'on vend mal...).
+class RoadmapWeekMark {
+  final String id;
+
+  /// Lundi de la première semaine marquée.
+  final DateTime start;
+  final int weeks;
+  final Color color;
+  final String label;
+
+  RoadmapWeekMark({
+    required this.id,
+    required this.start,
+    this.weeks = 1,
+    required this.color,
+    this.label = '',
+  });
+
+  factory RoadmapWeekMark.fromJson(Map<String, dynamic> json) {
+    final colorValue = (json['color'] is int)
+        ? json['color'] as int
+        : int.tryParse((json['color'] ?? '').toString()) ?? Colors.red.toARGB32();
+    final d = DateTime.tryParse((json['start'] ?? '').toString()) ?? DateTime.now();
+    return RoadmapWeekMark(
+      id: (json['id'] ?? '').toString(),
+      start: roadmapLundi(d),
+      weeks: ((json['weeks'] as num?)?.toInt() ?? 1).clamp(1, 52),
+      color: Color(colorValue),
+      label: (json['label'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'start': start.toIso8601String(),
+        'weeks': weeks,
+        'color': color.toARGB32(),
+        'label': label,
+      };
+
+  RoadmapWeekMark copyWith({DateTime? start, int? weeks, Color? color, String? label}) => RoadmapWeekMark(
+        id: id,
+        start: start ?? this.start,
+        weeks: weeks ?? this.weeks,
+        color: color ?? this.color,
+        label: label ?? this.label,
+      );
+
+  /// Vrai si la semaine commençant le lundi [lundi] est marquée.
+  bool couvre(DateTime lundi) {
+    final l = DateTime(lundi.year, lundi.month, lundi.day);
+    return !l.isBefore(start) && l.isBefore(DateTime(start.year, start.month, start.day + 7 * weeks));
+  }
+}
+
+/// Lundi de la semaine de [d] (à minuit).
+DateTime roadmapLundi(DateTime d) => DateTime(d.year, d.month, d.day - (d.weekday - 1));
+
+/// Numéro de semaine ISO 8601 (la semaine 1 contient le premier jeudi de l'année).
+int roadmapNumeroSemaine(DateTime d) {
+  final jour = DateTime.utc(d.year, d.month, d.day);
+  final jeudi = jour.add(Duration(days: 4 - jour.weekday));
+  return jeudi.difference(DateTime.utc(jeudi.year, 1, 1)).inDays ~/ 7 + 1;
+}
+
 class ProductionPlan {
   final String id;
   final String name;
@@ -107,6 +172,7 @@ class ProductionPlan {
   final DateTime end;
   final List<RoadmapTask> tasks;
   final List<DateTime> highlightedDates;
+  final List<RoadmapWeekMark> weekMarks;
 
   ProductionPlan({
     required this.id,
@@ -115,7 +181,18 @@ class ProductionPlan {
     required this.end,
     this.tasks = const [],
     this.highlightedDates = const [],
+    this.weekMarks = const [],
   });
+
+  ProductionPlan copyWith({List<RoadmapWeekMark>? weekMarks}) => ProductionPlan(
+        id: id,
+        name: name,
+        start: start,
+        end: end,
+        tasks: tasks,
+        highlightedDates: highlightedDates,
+        weekMarks: weekMarks ?? this.weekMarks,
+      );
 
   factory ProductionPlan.fromJson(Map<String, dynamic> json) {
     return ProductionPlan(
@@ -131,6 +208,10 @@ class ProductionPlan {
           .map((e) => DateTime.tryParse(e.toString()))
           .whereType<DateTime>()
           .toList(),
+      weekMarks: (json['weekMarks'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((e) => RoadmapWeekMark.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
     );
   }
 
@@ -142,6 +223,7 @@ class ProductionPlan {
       'end': end.toIso8601String(),
       'tasks': tasks.map((t) => t.toJson()).toList(),
       'highlightedDates': highlightedDates.map((d) => d.toIso8601String()).toList(),
+      'weekMarks': weekMarks.map((m) => m.toJson()).toList(),
     };
   }
 }
@@ -295,6 +377,15 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     SharedPreferences.getInstance().then((p) {
       if (mounted && p.getString(_vuePrefsKey) == 'calendrier') setState(() => _calendrier = true);
     });
+  }
+
+  /// Enregistre les semaines marquées (trait de couleur) du calendrier.
+  void _majMarques(ProductionPlan plan, List<RoadmapWeekMark> marques) {
+    setState(() {
+      final idx = _plans.indexWhere((p) => p.id == plan.id);
+      if (idx >= 0) _plans[idx] = _plans[idx].copyWith(weekMarks: marques);
+    });
+    _savePlans();
   }
 
   Future<void> _changerVue() async {
@@ -590,6 +681,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 signalAujourdhui: _signalAujourdhui,
                 onTache: (t) => _ficheTache(plan, t),
                 onCreer: (d) => _showAddTaskDialog(plan, asSubtask: false, debut: d),
+                onMarques: (marques) => _majMarques(plan, marques),
               )
             : Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: _buildPlanDetails(plan));
 
@@ -1117,6 +1209,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                     end: current.end,
                     tasks: tasks,
                     highlightedDates: current.highlightedDates,
+                    weekMarks: current.weekMarks,
                   );
                 });
                 _savePlans();
@@ -1165,6 +1258,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         end: current.end,
         tasks: current.tasks,
         highlightedDates: [...current.highlightedDates, picked],
+        weekMarks: current.weekMarks,
       );
     });
     _savePlans();
@@ -1217,6 +1311,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                     end: range.end,
                     tasks: current.tasks,
                     highlightedDates: current.highlightedDates,
+                    weekMarks: current.weekMarks,
                   );
                 });
                 _savePlans();
@@ -1296,6 +1391,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                     end: current.end,
                     tasks: _replaceTask(current.tasks, updated),
                     highlightedDates: current.highlightedDates,
+                    weekMarks: current.weekMarks,
                   );
                 });
                 _savePlans();
@@ -1400,6 +1496,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                     end: current.end,
                     tasks: _replaceTask(current.tasks, updatedTask),
                     highlightedDates: current.highlightedDates,
+                    weekMarks: current.weekMarks,
                   );
                 });
                 _savePlans();
@@ -1478,6 +1575,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                     end: current.end,
                     tasks: _replaceTask(current.tasks, updatedTask),
                     highlightedDates: current.highlightedDates,
+                    weekMarks: current.weekMarks,
                   );
                 });
                 _savePlans();
@@ -1520,6 +1618,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                     end: current.end,
                     tasks: _replaceTask(current.tasks, updatedTask),
                     highlightedDates: current.highlightedDates,
+                    weekMarks: current.weekMarks,
                   );
                 });
                 _savePlans();
@@ -1562,6 +1661,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         end: current.end,
         tasks: _removeTask(current.tasks, task.id),
         highlightedDates: current.highlightedDates,
+        weekMarks: current.weekMarks,
       );
     });
     _savePlans();
@@ -1729,6 +1829,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         end: current.end,
         tasks: current.tasks,
         highlightedDates: dates,
+        weekMarks: current.weekMarks,
       );
     });
     _savePlans();
@@ -1766,6 +1867,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         end: current.end,
         tasks: current.tasks,
         highlightedDates: dates,
+        weekMarks: current.weekMarks,
       );
     });
     _savePlans();
