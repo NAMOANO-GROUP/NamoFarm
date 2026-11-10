@@ -183,7 +183,7 @@ void main() {
       expect(evolutionPct(10, 0), isNull);
     });
 
-    test('à faire : tâches en retard seulement ; urgences en tête', () {
+    test('à faire : tâches en retard et urgentes seulement', () {
       final now = _jour(0, heure: 12);
 
       final e = elementsAujourdhui(
@@ -192,6 +192,7 @@ void main() {
           _tache('t2', 'Vacciner B-001', _jour(-2), bandeId: 'b1'),
           _tache('t3', 'Plus tard', _jour(3)),
           _tache('t4', 'Déjà fait', _jour(-1), statut: 'faite'),
+          _tache('t5', 'Réception poussins', _jour(2), priorite: 'urgente'),
         ],
         automatiques: [
           _tache(
@@ -208,7 +209,9 @@ void main() {
         now: now,
       );
       final titres = e.map((x) => x.titre).toList();
-      expect(titres.toSet(), {'Vacciner B-001', 'Rappeler Awa'});
+      expect(titres.toSet(), {'Vacciner B-001', 'Rappeler Awa', 'Réception poussins'});
+      expect(titres.last, 'Réception poussins', reason: 'urgente à venir après les retards');
+      expect(e.last.detail, 'Urgente · dans 2 j');
       expect(titres, isNot(contains('Nettoyer le bâtiment')), reason: 'du jour : pas en retard');
       expect(titres, isNot(contains('Plus tard')));
       expect(titres, isNot(contains('Déjà fait')));

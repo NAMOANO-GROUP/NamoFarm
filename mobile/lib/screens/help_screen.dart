@@ -63,10 +63,9 @@ class _HelpScreenState extends State<HelpScreen> {
     _HelpChapter('Tableau de bord', Icons.dashboard_outlined, Color(0xFF0277BD), [
       _HelpArticle(
         'À faire aujourd\'hui',
-        'En tête du Tableau de bord : uniquement ce qui demande votre attention : les tâches en retard '
-            '(Todo, vaccinations, relances clients…) et les suggestions du cheptel (recomptage, mortalité en '
-            'hausse). Les points en retard passent en premier. Touchez une ligne pour ouvrir le bon module '
-            'ou la fiche de la bande.',
+        'En tête du Tableau de bord : uniquement les tâches en retard et les tâches de priorité Urgente '
+            '(Todo, vaccinations, relances clients…). Les échéances les plus anciennes passent en premier. '
+            'Touchez une ligne pour ouvrir le bon module ou la fiche de la bande.',
       ),
       _HelpArticle(
         'Indicateurs clés',

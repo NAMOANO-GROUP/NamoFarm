@@ -9,7 +9,6 @@ import 'package:namofarm/screens/cheptel/cheptel_detail_screen.dart';
 import 'package:namofarm/screens/cheptel_screen.dart';
 import 'package:namofarm/utils/cheptel.dart';
 import 'package:namofarm/utils/finance.dart';
-import 'package:namofarm/utils/tableau_de_bord.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -222,11 +221,6 @@ void main() {
       expect(sourceLibelle('vente_cheptel'), 'Vente d’animaux');
       expect(originesFiltre['Cheptel'], ['vente_cheptel', 'achat_cheptel']);
 
-      final e = elementsAujourdhui(cheptels: [_chevres()]);
-      expect(e.first.titre, 'Mortalité en hausse : Chèvres du Sahel');
-      expect(e.first.urgent, isTrue);
-      expect(e.first.module, 'cheptel');
-      expect(e.map((x) => x.titre), contains('Recompter le troupeau : Chèvres du Sahel'));
     });
   });
 

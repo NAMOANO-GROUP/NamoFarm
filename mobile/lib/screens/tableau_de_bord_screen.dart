@@ -227,7 +227,6 @@ class _TableauDeBordScreenState extends State<TableauDeBordScreen> {
     final elements = elementsAujourdhui(
       taches: taches,
       automatiques: automatiques,
-      cheptels: cheptels,
       now: now,
     );
     String prenom = '';

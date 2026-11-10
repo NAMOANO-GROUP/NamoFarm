@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/alerte.dart';
 import '../models/bande.dart';
-import '../models/cheptel.dart';
-import 'cheptel.dart';
 import 'bande_kpis.dart';
 
 /// Période des indicateurs du Tableau de bord.
@@ -120,12 +118,11 @@ String _module(Alerte a) {
   return (icon: Icons.check_circle_outline, color: enRetard ? Colors.red : Colors.indigo);
 }
 
-/// Ce qui demande une action : les tâches en retard (Todo et automatiques) et les alertes du cheptel
-/// (recomptage, mortalité en hausse). Les éléments urgents (en retard, mortalité) passent en tête.
+/// Ce qui demande une action : les tâches en retard et les tâches urgentes (Todo et automatiques).
+/// Les stocks bas et les livraisons n'y figurent jamais. Les plus anciennes échéances passent en tête.
 List<ElementAujourdhui> elementsAujourdhui({
   List<Alerte> taches = const [],
   List<Alerte> automatiques = const [],
-  List<Cheptel> cheptels = const [],
   DateTime? now,
 }) {
   final today = _jour(now ?? DateTime.now());
@@ -133,20 +130,24 @@ List<ElementAujourdhui> elementsAujourdhui({
   final vus = <String>{};
 
   for (final a in [...taches, ...automatiques]) {
-    if (a.estFaite) continue;
+    if (a.estFaite || a.type == 'stock_bas' || a.source == 'commercial') continue;
     final jour = _jour(a.dateEcheance.toLocal());
-    // Seules les tâches échues comptent ; les stocks bas et les livraisons ne sont jamais « en retard ».
-    final enRetard = jour.isBefore(today) && a.type != 'stock_bas' && a.source != 'commercial';
-    if (!enRetard) continue;
+    final enRetard = jour.isBefore(today);
+    final urgente = a.priorite == 'urgente';
+    if (!enRetard && !urgente) continue;
     final cle = a.id ?? '${a.titre}|${a.dateEcheance}';
     if (!vus.add(cle)) continue;
-    final s = _style(a, enRetard);
+    final s = _style(a, true);
     final retard = today.difference(jour).inDays;
+    final ecart = jour.difference(today).inDays;
     out.add(
       ElementAujourdhui(
         titre: a.titre,
         detail: [
-          'En retard de $retard j',
+          if (enRetard)
+            'En retard de $retard j'
+          else
+            ecart == 0 ? 'Urgente · aujourd’hui' : (ecart == 1 ? 'Urgente · demain' : 'Urgente · dans $ecart j'),
           if (a.bandeNom.isNotEmpty && !a.titre.contains(a.bandeNom)) a.bandeNom,
           if (a.message.isNotEmpty) a.message,
         ].join(' · '),
@@ -160,30 +161,7 @@ List<ElementAujourdhui> elementsAujourdhui({
     );
   }
 
-  for (final c in cheptels) {
-    final k = kpisCheptel(c, now: today);
-    for (final a in k.alertes) {
-      final mortalite = a == AlerteCheptel.mortaliteEnHausse;
-      out.add(
-        ElementAujourdhui(
-          titre: mortalite ? 'Mortalité en hausse : ${c.nom}' : 'Recompter le troupeau : ${c.nom}',
-          detail: mortalite
-              ? '${k.mois.morts} morts en 30 jours sur ${k.effectifIlYa30j} animaux'
-              : 'Aucun comptage depuis plus de $delaiRecomptageJours jours',
-          icon: mortalite ? Icons.heart_broken_outlined : Icons.fact_check_outlined,
-          color: mortalite ? Colors.red : Colors.orange,
-          module: 'cheptel',
-          date: today,
-          urgent: mortalite,
-        ),
-      );
-    }
-  }
-
-  out.sort((a, b) {
-    if (a.urgent != b.urgent) return a.urgent ? -1 : 1;
-    return a.date.compareTo(b.date);
-  });
+  out.sort((a, b) => a.date.compareTo(b.date));
   return out;
 }
 
