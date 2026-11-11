@@ -123,8 +123,8 @@ class RoadmapCalendrier extends StatefulWidget {
   /// Nouvelle liste de semaines marquées (couleur du numéro) après un ajout, une modification ou un retrait.
   final ValueChanged<List<RoadmapWeekMark>> onMarques;
 
-  /// Année à afficher quand l'utilisateur demande « aujourd'hui » (incrémenter pour re-déclencher).
-  final int signalAujourdhui;
+  /// Année affichée ; le sélecteur est dans la barre du haut de la Roadmap pour rester visible au défilement.
+  final int annee;
 
   const RoadmapCalendrier({
     super.key,
@@ -132,7 +132,7 @@ class RoadmapCalendrier extends StatefulWidget {
     required this.onTache,
     required this.onCreer,
     required this.onMarques,
-    this.signalAujourdhui = 0,
+    required this.annee,
   });
 
   @override
@@ -140,8 +140,6 @@ class RoadmapCalendrier extends StatefulWidget {
 }
 
 class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
-  late int _annee = _anneeInitiale();
-
   /// Semaines (lundis) sélectionnées pour être colorées ensemble.
   final Set<DateTime> _selection = {};
 
@@ -151,22 +149,6 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
   void _basculerSemaine(DateTime lundi) => setState(() {
         if (!_selection.remove(lundi)) _selection.add(lundi);
       });
-
-  int _anneeInitiale() {
-    final n = DateTime.now().year;
-    return n >= widget.plan.start.year && n <= widget.plan.end.year ? n : widget.plan.start.year;
-  }
-
-  @override
-  void didUpdateWidget(covariant RoadmapCalendrier old) {
-    super.didUpdateWidget(old);
-    if (old.plan.id != widget.plan.id) {
-      _annee = _anneeInitiale();
-    } else if (_annee < widget.plan.start.year || _annee > widget.plan.end.year) {
-      _annee = _anneeInitiale();
-    }
-    if (old.signalAujourdhui != widget.signalAujourdhui) _annee = _anneeInitiale();
-  }
 
   List<RoadmapTask> get _feuilles => roadmapFeuilles(widget.plan.tasks);
 
@@ -260,8 +242,6 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
     final plan = widget.plan;
     final scheme = Theme.of(context).colorScheme;
     final feuilles = _feuilles;
-    final peutReculer = _annee > plan.start.year;
-    final peutAvancer = _annee < plan.end.year;
 
     final liste = LayoutBuilder(
       builder: (context, c) {
@@ -272,25 +252,6 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
           key: const ValueKey('roadmap-calendrier'),
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  tooltip: 'Année précédente',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: peutReculer ? () => setState(() => _annee--) : null,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text('$_annee', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                IconButton(
-                  tooltip: 'Année suivante',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: peutAvancer ? () => setState(() => _annee++) : null,
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
             if (plan.weekMarks.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -347,11 +308,11 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
 
 
   Widget _mois(int mois, List<RoadmapTask> visibles, ColorScheme scheme) {
-    final cases = roadmapCasesMois(_annee, mois);
+    final cases = roadmapCasesMois(widget.annee, mois);
     final aujourdhui = _jour(DateTime.now());
     final cles = _datesCles;
     return Column(
-      key: ValueKey('roadmap-cal-mois-$_annee-$mois'),
+      key: ValueKey('roadmap-cal-mois-${widget.annee}-$mois'),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -380,6 +341,16 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
         for (var s = 0; s < 6; s++) _semaine(cases.sublist(s * 7, s * 7 + 7), visibles, scheme, aujourdhui, cles),
       ],
     );
+  }
+
+  String _descriptionMarque(RoadmapWeekMark m) {
+    final fin = m.start.add(Duration(days: m.weeks * 7 - 1));
+    final s1 = roadmapNumeroSemaine(m.start);
+    final semaines = m.weeks == 1 ? 'Semaine $s1' : 'Semaines $s1 à ${roadmapNumeroSemaine(roadmapLundi(fin))}';
+    return [
+      if (m.label.trim().isNotEmpty) m.label.trim(),
+      '$semaines · ${roadmapDateCourte(m.start, annee: true)} → ${roadmapDateCourte(fin, annee: true)}',
+    ].join('\n');
   }
 
   /// Une ligne du mois : numéro de semaine (coloré si la semaine est marquée) puis les 7 jours.
@@ -414,10 +385,20 @@ class _RoadmapCalendrierState extends State<RoadmapCalendrier> {
               ),
             ),
           );
+    // Au survol de la souris : libellé et période des semaines colorées (pas au toucher, réservé à la sélection).
+    final Widget numeroInfo = marques.isEmpty
+        ? numero
+        : Tooltip(
+            message: [for (final m in marques) _descriptionMarque(m)].join('\n\n'),
+            triggerMode: TooltipTriggerMode.manual,
+            waitDuration: const Duration(milliseconds: 250),
+            preferBelow: false,
+            child: numero,
+          );
 
     return Row(
       children: [
-        numero,
+        numeroInfo,
         for (final d in jours) Expanded(child: _case(d, visibles, scheme, aujourdhui, cles)),
       ],
     );

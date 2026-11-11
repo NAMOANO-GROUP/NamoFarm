@@ -282,8 +282,16 @@ class _HelpScreenState extends State<HelpScreen> {
       _HelpArticle(
         'Par bande',
         'Résultat de chaque bande (dépensé, vendu, coût au kg) et prix minimum de vente par '
-            'sujet pour ne pas perdre d\'argent. Le bouton « Coût fixe & amortissement » de chaque '
-            'bande permet de saisir ces montants par sujet.',
+            'sujet pour ne pas perdre d\'argent. Le coût fixe et l\'amortissement retenus sont rappelés '
+            'sous chaque bande.',
+      ),
+      _HelpArticle(
+        'Configuration',
+        'Onglet Configuration de la Finance. Caisses : l\'argent disponible est réparti entre la caisse 1 '
+            '(toutes les opérations y passent) et la caisse 2 (sous-caisse, sans opération directe). Changez '
+            'une caisse : l\'autre s\'ajuste pour garder le total. Coûts des bandes : choisissez une bande, puis saisissez son coût fixe '
+            '(salaires, loyer…) et son amortissement (bâtiment, matériel…), chacun par sujet ou en forfait '
+            'pour toute la bande. L\'équivalent s\'affiche en direct ; Enregistrer met à jour les résultats.',
       ),
     ]),
     _HelpChapter('Planification', Icons.event_note_outlined, Color(0xFF00838F), [

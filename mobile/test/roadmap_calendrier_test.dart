@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:namofarm/screens/planification/roadmap_calendrier.dart';
@@ -154,6 +155,13 @@ void main() {
     await tester.tap(find.byTooltip('Année suivante'));
     await tester.pumpAndSettle();
     expect(find.text('${n.year + 1}'), findsOneWidget);
+
+    // L'année reste en haut quand on fait défiler les mois.
+    final avant = tester.getTopLeft(find.byKey(const ValueKey('roadmap-cal-annee')));
+    await tester.drag(find.byKey(const ValueKey('roadmap-calendrier')), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byKey(const ValueKey('roadmap-cal-annee'))), avant);
+    expect(find.text('${n.year + 1}').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -298,6 +306,18 @@ void main() {
     final entre = DateTime(a.year, a.month, a.day + 14);
     await tester.ensureVisible(sem(entre));
     expect(fond(entre), isNot(vert.withValues(alpha: 0.9)));
+
+    // Survol à la souris : le libellé et la période de la semaine colorée s'affichent.
+    await tester.ensureVisible(sem(a));
+    final souris = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await souris.addPointer(location: Offset.zero);
+    addTearDown(souris.removePointer);
+    await souris.moveTo(tester.getCenter(sem(a)));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Fêtes\nSemaines ${roadmapNumeroSemaine(a)} à ${roadmapNumeroSemaine(b)} · '), findsOneWidget);
+    await souris.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('roadmap.productionPlans'), contains('Fêtes'));
 

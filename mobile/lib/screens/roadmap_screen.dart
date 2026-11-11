@@ -352,7 +352,8 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   String? _selectedPlanId;
   double _zoom = 1.0;
   bool _calendrier = false;
-  int _signalAujourdhui = 0;
+  /// Année choisie dans le calendrier (null : année en cours, ou début du planning).
+  int? _anneeCal;
   final ScrollController _hScroll = ScrollController();
 
   static const String _vuePrefsKey = 'roadmap.vue';
@@ -535,7 +536,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
 
   void _allerAujourdhui(ProductionPlan plan) {
     if (_calendrier) {
-      setState(() => _signalAujourdhui++);
+      setState(() => _anneeCal = null);
       return;
     }
     final t = _todayUnit(plan);
@@ -566,6 +567,37 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     }
   }
 
+  int _anneeAffichee(ProductionPlan plan) {
+    final n = DateTime.now().year;
+    final initiale = n >= plan.start.year && n <= plan.end.year ? n : plan.start.year;
+    final a = _anneeCal ?? initiale;
+    return a < plan.start.year || a > plan.end.year ? initiale : a;
+  }
+
+  /// Sélecteur d'année du calendrier, fixé dans la barre du haut.
+  Widget _selecteurAnnee(ProductionPlan plan) {
+    final a = _anneeAffichee(plan);
+    return Row(
+      key: const ValueKey('roadmap-cal-annee'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Année précédente',
+          visualDensity: VisualDensity.compact,
+          onPressed: a > plan.start.year ? () => setState(() => _anneeCal = a - 1) : null,
+          icon: const Icon(Icons.chevron_left),
+        ),
+        Text('$a', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        IconButton(
+          tooltip: 'Année suivante',
+          visualDensity: VisualDensity.compact,
+          onPressed: a < plan.end.year ? () => setState(() => _anneeCal = a + 1) : null,
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+    );
+  }
+
   /// Titre : le planning affiché, cliquable pour en changer.
   Widget _titrePlanning(ProductionPlan? plan) {
     if (_plans.isEmpty) return const Text('Roadmap');
@@ -576,7 +608,10 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
           _showCreatePlanDialog();
           return;
         }
-        setState(() => _selectedPlanId = id);
+        setState(() {
+          _selectedPlanId = id;
+          _anneeCal = null;
+        });
         _savePlans();
       },
       itemBuilder: (_) => [
@@ -613,8 +648,12 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   Widget build(BuildContext context) {
     final plan = _selectedPlan;
     final dates = plan == null ? 0 : plan.highlightedDates.length;
+    // Écran large : l'année tient sur la ligne du titre ; sinon elle passe juste dessous, fixe elle aussi.
+    final anneeEnHaut = plan != null && _calendrier;
+    final anneeDansLaBarre = anneeEnHaut && MediaQuery.sizeOf(context).width >= 600;
     final actions = <Widget>[
           if (plan != null) ...[
+            if (anneeDansLaBarre) ...[_selecteurAnnee(plan), const SizedBox(width: 12)],
             IconButton.filled(
               tooltip: 'Ajouter une tâche, un jalon ou une date clé',
               visualDensity: VisualDensity.compact,
@@ -678,7 +717,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         : _calendrier
             ? RoadmapCalendrier(
                 plan: plan,
-                signalAujourdhui: _signalAujourdhui,
+                annee: _anneeAffichee(plan),
                 onTache: (t) => _ficheTache(plan, t),
                 onCreer: (d) => _showAddTaskDialog(plan, asSubtask: false, debut: d),
                 onMarques: (marques) => _majMarques(plan, marques),
@@ -692,6 +731,9 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             : IconButton(tooltip: 'Retour', icon: const Icon(Icons.arrow_back), onPressed: widget.onRetour),
         title: _titrePlanning(plan),
         actions: actions,
+        bottom: anneeEnHaut && !anneeDansLaBarre
+            ? PreferredSize(preferredSize: const Size.fromHeight(40), child: Center(child: _selecteurAnnee(plan)))
+            : null,
       ),
       body: corps,
     );
@@ -991,51 +1033,60 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   /// Fiche d'une tâche (toucher la barre) : période, avancement et actions.
   Future<void> _ficheTache(ProductionPlan plan, RoadmapTask task) async {
     final avancement = roadmapAvancement(task);
-    final action = await showModalBottomSheet<String>(
+    // Pop-up au milieu de l'écran (et non une feuille collée en bas).
+    final action = await showDialog<String>(
       context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-              child: Row(
-                children: [
-                  Container(width: 14, height: 14, decoration: BoxDecoration(color: task.color, shape: BoxShape.circle)),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
-                ],
-              ),
+      builder: (ctx) => Dialog(
+        key: const ValueKey('roadmap-fiche-tache'),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: 12, bottom: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
+                  child: Row(
+                    children: [
+                      Container(width: 14, height: 14, decoration: BoxDecoration(color: task.color, shape: BoxShape.circle)),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+                      IconButton(tooltip: 'Fermer', onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(roadmapPeriode(task.start, task.end)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(value: avancement, minHeight: 6, color: task.color),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    avancement >= 1 ? 'Terminée' : (avancement <= 0 ? 'À venir' : 'En cours · ${(avancement * 100).round()} %'),
+                    style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Modifier'), onTap: () => Navigator.pop(ctx, 'modifier')),
+                ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('Ajouter un jalon'), onTap: () => Navigator.pop(ctx, 'jalon')),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () => Navigator.pop(ctx, 'supprimer'),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(roadmapPeriode(task.start, task.end)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: avancement, minHeight: 6, color: task.color),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                avancement >= 1 ? 'Terminée' : (avancement <= 0 ? 'À venir' : 'En cours · ${(avancement * 100).round()} %'),
-                style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Modifier'), onTap: () => Navigator.pop(ctx, 'modifier')),
-            ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('Ajouter un jalon'), onTap: () => Navigator.pop(ctx, 'jalon')),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: const Text('Supprimer', style: TextStyle(color: Colors.redAccent)),
-              onTap: () => Navigator.pop(ctx, 'supprimer'),
-            ),
-          ],
+          ),
         ),
       ),
     );

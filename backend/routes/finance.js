@@ -461,12 +461,12 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
 
-    const bandesRes = await api
-      .from('bandes')
-      .select('id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_fixe_par_sujet,amortissement_par_sujet,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture')
-      .eq('company_id', companyId)
-      .order('date_ouverture', { ascending: false })
-      .limit(300);
+    const colonnesBandes = 'id,nom,statut,type_volaille,nombre_initial,nombre_actuel,mortalite_totale,cout_fixe_par_sujet,amortissement_par_sujet,objectif_poids_g,suivi_journalier,date_ouverture,date_fermeture';
+    const lireBandes = (colonnes) =>
+      api.from('bandes').select(colonnes).eq('company_id', companyId).order('date_ouverture', { ascending: false }).limit(300);
+    let bandesRes = await lireBandes(`${colonnesBandes},cout_fixe_forfait,amortissement_forfait`);
+    // Colonnes de forfait pas encore créées (script add_bandes_couts_forfait.sql) : forfaits à zéro.
+    if (bandesRes.error && /forfait/i.test(bandesRes.error.message || '')) bandesRes = await lireBandes(colonnesBandes);
     if (bandesRes.error) return res.status(500).json({ message: bandesRes.error.message });
 
     const commandesRes = await fetchCommandesCompat(api, companyId);
@@ -537,8 +537,10 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
       const effectifProduit = Math.max(0, nombreInitial - mortalite) || nombreActuel || nombreInitial;
       const coutFixeParSujet = Number(b.cout_fixe_par_sujet || 0);
       const amortissementParSujet = Number(b.amortissement_par_sujet || 0);
-      const coutFixe = coutFixeParSujet * effectifProduit;
-      const coutAmortissement = amortissementParSujet * effectifProduit;
+      const coutFixeForfait = Number(b.cout_fixe_forfait || 0);
+      const amortissementForfait = Number(b.amortissement_forfait || 0);
+      const coutFixe = coutFixeParSujet * effectifProduit + coutFixeForfait;
+      const coutAmortissement = amortissementParSujet * effectifProduit + amortissementForfait;
       const depenses = depensesManuelles + coutAliment;
       const coutTotal = depenses + coutFixe + coutAmortissement;
       const revenus = Number(revenusByBande.get(id) || 0);
@@ -574,6 +576,8 @@ router.get('/analytique', requirePermission('finance.read'), async (req, res) =>
         coutAmortissement: Number(coutAmortissement.toFixed(2)),
         coutFixeParSujet: Number(coutFixeParSujet.toFixed(2)),
         amortissementParSujet: Number(amortissementParSujet.toFixed(2)),
+        coutFixeForfait: Number(coutFixeForfait.toFixed(2)),
+        amortissementForfait: Number(amortissementForfait.toFixed(2)),
         coutTotal: Number(coutTotal.toFixed(2)),
         revenus: Number(revenus.toFixed(2)),
         margeNette: Number(margeNette.toFixed(2)),
@@ -852,33 +856,72 @@ router.get('/mouvements/export.csv', requirePermission('finance.read'), async (r
   }
 });
 
+async function calculerSolde(api, companyId) {
+  const { data, error } = await api
+    .from('tresorerie_mouvements')
+    .select('nature,montant')
+    .eq('company_id', companyId);
+  if (error) throw new Error(error.message);
+
+  let totalEntrees = 0;
+  let totalSorties = 0;
+  for (const row of data || []) {
+    const montant = Number(row.montant || 0);
+    if (row.nature === 'entree') totalEntrees += montant;
+    if (row.nature === 'sortie') totalSorties += montant;
+  }
+  return { totalEntrees, totalSorties, soldeCaisse: totalEntrees - totalSorties };
+}
+
 router.get('/solde', requirePermission('finance.read'), async (req, res) => {
   try {
     const api = getAdminClient();
     const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
-
-    const { data, error } = await api
-      .from('tresorerie_mouvements')
-      .select('nature,montant')
-      .eq('company_id', companyId);
-
-    if (error) return res.status(500).json({ message: error.message });
-
-    let totalEntrees = 0;
-    let totalSorties = 0;
-    for (const row of data || []) {
-      const montant = Number(row.montant || 0);
-      if (row.nature === 'entree') totalEntrees += montant;
-      if (row.nature === 'sortie') totalSorties += montant;
-    }
-
-    return res.json({
-      totalEntrees,
-      totalSorties,
-      soldeCaisse: totalEntrees - totalSorties,
-    });
+    return res.json(await calculerSolde(api, companyId));
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+});
+
+const SCRIPT_CAISSES = 'La répartition des caisses n’est pas encore activée : lancez le script SQL add_finance_caisses.sql dans Supabase.';
+const tableCaissesAbsente = (error) => /finance_caisses/i.test((error && error.message) || '');
+
+// Deux caisses : la caisse 2 (sous-caisse) a un montant fixe ; la caisse 1 reçoit toutes les opérations.
+router.get('/caisses', requirePermission('finance.read'), async (req, res) => {
+  try {
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+    const { soldeCaisse } = await calculerSolde(api, companyId);
+    const row = await api.from('finance_caisses').select('caisse2_montant').eq('company_id', companyId).maybeSingle();
+    if (row.error && !tableCaissesAbsente(row.error)) return res.status(500).json({ message: row.error.message });
+    const caisse2 = row.error ? 0 : Number(row.data?.caisse2_montant || 0);
+    return res.json({ soldeCaisse, caisse1: soldeCaisse - caisse2, caisse2, active: !row.error });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/caisses', requirePermission('finance.write'), async (req, res) => {
+  try {
+    const caisse2 = Number(req.body.caisse2);
+    if (!Number.isFinite(caisse2) || caisse2 < 0) {
+      return res.status(400).json({ message: 'Le montant de la caisse 2 doit être un nombre positif.' });
+    }
+    const api = getAdminClient();
+    const companyId = await getCompanyIdForUser(api, req.user.id || req.user._id);
+    const { soldeCaisse } = await calculerSolde(api, companyId);
+    if (caisse2 > Math.max(0, soldeCaisse)) {
+      return res.status(400).json({ message: 'La caisse 2 ne peut pas dépasser l’argent disponible.' });
+    }
+    const saved = await api
+      .from('finance_caisses')
+      .upsert({ company_id: companyId, caisse2_montant: caisse2, updated_at: new Date().toISOString() }, { onConflict: 'company_id' });
+    if (saved.error) {
+      return res.status(400).json({ message: tableCaissesAbsente(saved.error) ? SCRIPT_CAISSES : saved.error.message });
+    }
+    return res.json({ soldeCaisse, caisse1: soldeCaisse - caisse2, caisse2, active: true });
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
   }
 });
 

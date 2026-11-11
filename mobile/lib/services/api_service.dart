@@ -359,6 +359,13 @@ class ApiService {
   static Future<Map<String, dynamic>> getSoldeTresorerie() async =>
       Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/solde')));
 
+  /// Répartition de l'argent disponible : caisse 1 (opérations) et caisse 2 (sous-caisse).
+  static Future<Map<String, dynamic>> getCaisses() async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _get('/finance/caisses')));
+
+  static Future<Map<String, dynamic>> mettreAJourCaisse2(double montant) async =>
+      Map<String, dynamic>.from(_ensureSuccess(await _put('/finance/caisses', body: {'caisse2': montant})));
+
     /// Bornes de filtre : début / fin du jour dans le fuseau de l'appareil, envoyés en UTC.
     static String debutJourUtc(DateTime d) => DateTime(d.year, d.month, d.day).toUtc().toIso8601String();
     static String finJourUtc(DateTime d) => DateTime(d.year, d.month, d.day, 23, 59, 59, 999).toUtc().toIso8601String();

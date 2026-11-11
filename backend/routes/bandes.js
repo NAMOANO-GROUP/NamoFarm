@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { getAdminClient } = require('../services/supabase');
 const { getCompanyIdForUser } = require('../services/company_scope');
 const { requireRole, requirePermission } = require('../middleware/auth');
+const { isMissingColumnError } = require('../services/task_utils');
 
 const router = express.Router();
 
@@ -259,6 +260,8 @@ function mapBandeRow(row) {
     batiment: row.batiment || '',
     coutFixeParSujet: Number(row.cout_fixe_par_sujet || 0),
     amortissementParSujet: Number(row.amortissement_par_sujet || 0),
+    coutFixeForfait: Number(row.cout_fixe_forfait || 0),
+    amortissementForfait: Number(row.amortissement_forfait || 0),
     suiviJournalier,
     evenementsSante,
     evenementsPrevisionnels,
@@ -577,6 +580,8 @@ router.put('/:id', requirePermission('bandes.update'), async (req, res) => {
       batiment: 'batiment',
       coutFixeParSujet: 'cout_fixe_par_sujet',
       amortissementParSujet: 'amortissement_par_sujet',
+      coutFixeForfait: 'cout_fixe_forfait',
+      amortissementForfait: 'amortissement_forfait',
       notes: 'notes',
     };
 
@@ -584,7 +589,20 @@ router.put('/:id', requirePermission('bandes.update'), async (req, res) => {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) updates[dbk] = req.body[k];
     }
 
-    const saved = await api.from('bandes').update(updates).eq('company_id', companyId).eq('id', req.params.id).select('*').single();
+    const ecrire = (u) => api.from('bandes').update(u).eq('company_id', companyId).eq('id', req.params.id).select('*').single();
+    let saved = await ecrire(updates);
+    // Colonnes de forfait pas encore créées : on enregistre le reste si aucun forfait n'est demandé.
+    const forfaits = ['cout_fixe_forfait', 'amortissement_forfait'];
+    if (saved.error && forfaits.some((c) => c in updates && isMissingColumnError(saved.error, c))) {
+      if (forfaits.some((c) => Number(updates[c] || 0) !== 0)) {
+        return res.status(400).json({
+          message: 'Le forfait n’est pas encore activé : lancez le script SQL add_bandes_couts_forfait.sql dans Supabase.',
+        });
+      }
+      const sansForfait = { ...updates };
+      for (const c of forfaits) delete sansForfait[c];
+      saved = await ecrire(sansForfait);
+    }
     if (saved.error) return res.status(400).json({ message: saved.error.message });
     return res.json(mapBandeRow(saved.data));
   } catch (err) {

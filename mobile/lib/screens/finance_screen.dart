@@ -5,12 +5,13 @@ import '../providers/finance_provider.dart';
 import '../services/api_service.dart';
 import '../utils/csv_export.dart';
 import '../widgets/brand_logo.dart';
+import 'finance/configuration_tab.dart';
 import 'finance/finance_accueil_tab.dart';
 import 'finance/finance_common.dart';
 import 'finance/mouvements_tab.dart';
 import 'finance/par_bande_tab.dart';
 
-/// Finance : Accueil (où en est mon argent), Mouvements, Par bande.
+/// Finance : Accueil (où en est mon argent), Mouvements, Par bande, Configuration (coûts des bandes).
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
 
@@ -19,7 +20,7 @@ class FinanceScreen extends StatefulWidget {
 }
 
 class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 3, vsync: this);
+  late final TabController _tabs = TabController(length: 4, vsync: this);
 
   @override
   void initState() {
@@ -132,6 +133,7 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
             Tab(icon: Icon(Icons.home_outlined, size: 20), text: 'Accueil'),
             Tab(icon: Icon(Icons.receipt_long_outlined, size: 20), text: 'Mouvements'),
             Tab(icon: Icon(Icons.egg_outlined, size: 20), text: 'Par bande'),
+            Tab(icon: Icon(Icons.tune, size: 20), text: 'Configuration'),
           ],
         ),
       ),
@@ -141,6 +143,7 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
           const FinanceAccueilTab(),
           const MouvementsTab(),
           const ParBandeTab(),
+          const ConfigurationTab(),
         ],
       ),
     );

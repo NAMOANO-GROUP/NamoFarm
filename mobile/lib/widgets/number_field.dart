@@ -10,6 +10,7 @@ class NumberField extends StatelessWidget {
   final String? suffixText;
   final String? helperText;
   final IconData? prefixIcon;
+  final ValueChanged<String>? onChanged;
 
   const NumberField({
     super.key,
@@ -19,6 +20,7 @@ class NumberField extends StatelessWidget {
     this.suffixText,
     this.helperText,
     this.prefixIcon,
+    this.onChanged,
   });
 
   @override
@@ -27,6 +29,7 @@ class NumberField extends StatelessWidget {
       controller: controller,
       keyboardType: TextInputType.numberWithOptions(decimal: decimal),
       inputFormatters: [ThousandsSeparatorInputFormatter(allowDecimal: decimal)],
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         suffixText: suffixText,

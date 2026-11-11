@@ -30,6 +30,11 @@ class FinanceProvider with ChangeNotifier {
   bool _mouvementsErreur = false;
   bool _accueilTronque = false;
 
+  // Caisse 2 : sous-caisse au montant fixe ; la caisse 1 reçoit toutes les opérations.
+  double _caisse2 = 0;
+  bool _caissesActives = true;
+  bool _caissesChargees = false;
+
   bool get isLoading => _isLoading;
   String? get lastError => _lastError;
   Map<String, dynamic> get solde => _solde;
@@ -50,6 +55,9 @@ class FinanceProvider with ChangeNotifier {
   List<Mouvement> get mouvementsRecents => _mouvementsRecents;
   List<Map<String, dynamic>> get analytiqueBandes => _analytiqueBandes;
   Map<String, dynamic> get analytiqueTotaux => _analytiqueTotaux;
+  double get caisse2 => _caisse2;
+  bool get caissesActives => _caissesActives;
+  bool get caissesChargees => _caissesChargees;
 
   /// Bandes actives puis historiques (pour l'affectation d'une dépense).
   List<Map<String, dynamic>> get bandes => _bandes;
@@ -160,6 +168,43 @@ class FinanceProvider with ChangeNotifier {
     _dateFrom = from;
     _dateTo = to;
     await chargerTresorerie();
+  }
+
+  Future<void> chargerCaisses() async {
+    try {
+      final c = await ApiService.getCaisses();
+      _caisse2 = _d(c['caisse2']);
+      _caissesActives = c['active'] != false;
+    } catch (e) {
+      debugPrint('Erreur caisses: $e');
+    }
+    _caissesChargees = true;
+    notifyListeners();
+  }
+
+  /// Enregistre le montant de la caisse 2 ; renvoie le message d'erreur, ou null si c'est enregistré.
+  Future<String?> enregistrerCaisse2(double montant) async {
+    try {
+      final c = await ApiService.mettreAJourCaisse2(montant);
+      _caisse2 = _d(c['caisse2']);
+      _caissesActives = true;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  /// Enregistre le coût fixe et l'amortissement d'une bande, puis recharge l'analytique.
+  /// Renvoie le message d'erreur, ou null si c'est enregistré.
+  Future<String?> enregistrerCoutsBande(String bandeId, Map<String, dynamic> couts) async {
+    try {
+      await ApiService.mettreAJourBande(bandeId, couts);
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+    await chargerAccueil();
+    return null;
   }
 
   /// Recharge le journal et l'accueil après une saisie.

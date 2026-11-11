@@ -126,6 +126,10 @@ void main() {
       expect(find.textContaining('En cours ·'), findsOneWidget);
       expect(find.text('Modifier'), findsOneWidget);
       expect(find.text('Ajouter un jalon'), findsOneWidget);
+      // Fiche au milieu de l'écran, pas collée en bas.
+      final fiche = find.byKey(const ValueKey('roadmap-fiche-tache'));
+      final ecran = tester.view.physicalSize / tester.view.devicePixelRatio;
+      expect(tester.getCenter(fiche).dy, closeTo(ecran.height / 2, 40));
       await tester.tap(find.text('Supprimer'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ElevatedButton, 'Supprimer'));

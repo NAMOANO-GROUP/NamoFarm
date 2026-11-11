@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:namofarm/providers/auth_provider.dart';
 import 'package:namofarm/providers/finance_provider.dart';
+import 'package:namofarm/screens/finance/configuration_tab.dart';
 import 'package:namofarm/screens/finance_screen.dart';
 import 'package:namofarm/services/api_service.dart';
 import 'package:namofarm/utils/finance.dart';
@@ -92,6 +93,28 @@ class _FakeFinance extends FinanceProvider {
   Future<bool> ajouterApprovisionnement(Map<String, dynamic> payload) async {
     apports.add(payload);
     return true;
+  }
+
+  final couts = <String, Map<String, dynamic>>{};
+  double caisse2Enregistree = 50000;
+
+  @override
+  double get caisse2 => caisse2Enregistree;
+  @override
+  bool get caissesChargees => true;
+  @override
+  Future<void> chargerCaisses() async {}
+  @override
+  Future<String?> enregistrerCaisse2(double montant) async {
+    caisse2Enregistree = montant;
+    notifyListeners();
+    return null;
+  }
+
+  @override
+  Future<String?> enregistrerCoutsBande(String bandeId, Map<String, dynamic> valeurs) async {
+    couts[bandeId] = valeurs;
+    return null;
   }
 }
 
@@ -439,15 +462,9 @@ void main() {
       expect(find.text('1 100 FCFA'), findsOneWidget);
 
       expect(find.text('Coûts des bandes en cours'), findsOneWidget);
-      expect(find.text('Coût fixe 50 FCFA · Amort. 20 FCFA / sujet'), findsOneWidget);
-      await tester.ensureVisible(find.text('Coût fixe 50 FCFA · Amort. 20 FCFA / sujet'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Coût fixe 50 FCFA · Amort. 20 FCFA / sujet'));
-      await tester.pumpAndSettle();
-      expect(find.text('Coût fixe & amortissement · Bande B12'), findsOneWidget);
-      expect(tester.widget<TextField>(find.widgetWithText(TextField, 'Coût fixe / sujet')).controller!.text, '50');
-      await tester.tap(find.text('Annuler'));
-      await tester.pumpAndSettle();
+      // Simple rappel : la saisie des coûts se fait uniquement dans l'onglet Configuration.
+      expect(find.text('Coût fixe 50 FCFA / sujet · Amort. 20 FCFA / sujet'), findsOneWidget);
+      expect(find.ancestor(of: find.byIcon(Icons.tune), matching: find.byType(TextButton)), findsNothing);
 
       await tester.drag(find.byType(ListView).first, const Offset(0, 3000));
       await tester.pumpAndSettle();
@@ -455,7 +472,106 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Bande B11'), findsOneWidget);
       expect(find.text('Terminée avec un bénéfice'), findsOneWidget);
-      expect(find.text('Ajouter coût fixe & amortissement'), findsOneWidget);
+      expect(find.textContaining('Coût fixe'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Configuration : deux caisses liées au montant disponible', (tester) async {
+      _telephone(tester);
+      final finance = _FakeFinance();
+      await tester.pumpWidget(_app(finance));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Configuration'));
+      await tester.pumpAndSettle();
+
+      String norm(String s) => s.replaceAll(RegExp('[\u00A0\u202F]'), ' ');
+      String champ(String cle) => norm(tester.widget<TextField>(find.descendant(of: find.byKey(ValueKey(cle)), matching: find.byType(TextField))).controller!.text);
+      // 250 000 disponibles : caisse 2 enregistrée à 50 000, donc caisse 1 à 200 000.
+      expect(champ('caisse-1'), '200 000');
+      expect(champ('caisse-2'), '50 000');
+      expect(find.text('Enregistrer'), findsNothing, reason: 'rien à enregistrer tant que rien ne change');
+
+      // Changer la caisse 2 met la caisse 1 à jour, et inversement.
+      await tester.enterText(find.byKey(const ValueKey('caisse-2')), '80000');
+      await tester.pump();
+      expect(champ('caisse-1'), '170 000');
+      await tester.enterText(find.byKey(const ValueKey('caisse-1')), '240000');
+      await tester.pump();
+      expect(champ('caisse-2'), '10 000');
+
+      // Impossible de dépasser l'argent disponible.
+      await tester.enterText(find.byKey(const ValueKey('caisse-2')), '300000');
+      await tester.pump();
+      expect(find.text('La caisse 2 ne peut pas dépasser l’argent disponible.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Enregistrer')).onPressed, isNull);
+
+      await tester.enterText(find.byKey(const ValueKey('caisse-2')), '75000');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
+      await tester.pumpAndSettle();
+      expect(finance.caisse2Enregistree, 75000);
+      expect(champ('caisse-1'), '175 000');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Configuration : coût fixe et amortissement par sujet ou en forfait', (tester) async {
+      _telephone(tester);
+      final finance = _FakeFinance(
+        analytique: [
+          {
+            'bandeId': 'b0',
+            'bandeNom': 'Bande B11',
+            'statut': 'fermee',
+            'effectifProduit': 300,
+            'amortissementForfait': 90000,
+          },
+          {
+            'bandeId': 'b1',
+            'bandeNom': 'Bande B12',
+            'statut': 'ouverte',
+            'effectifProduit': 500,
+            'coutFixeParSujet': 50,
+            'amortissementParSujet': 20,
+          },
+        ],
+      );
+      await tester.pumpWidget(_app(finance));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Configuration'));
+      await tester.pumpAndSettle();
+
+      // La bande en cours est proposée en premier.
+      expect(find.text('500 sujets élevés (vendus ou présents)'), findsOneWidget);
+      final fixe = find.widgetWithText(TextField, 'Coût fixe · par sujet');
+      expect(tester.widget<TextField>(fixe).controller!.text, '50');
+      String norm(String s) => s.replaceAll(RegExp('[\u00A0\u202F]'), ' ');
+      expect(find.byWidgetPredicate((w) => w is Text && norm(w.data ?? '') == 'Soit 25 000 FCFA pour la bande'), findsOneWidget);
+
+      // Coût fixe en forfait : 30 000 FCFA pour la bande, soit 60 FCFA par sujet.
+      await tester.tap(find.text('Forfait').first);
+      await tester.pumpAndSettle();
+      final forfait = find.widgetWithText(TextField, 'Coût fixe · forfait pour la bande');
+      await tester.enterText(forfait, '30000');
+      await tester.pump();
+      expect(find.byWidgetPredicate((w) => w is Text && norm(w.data ?? '') == 'Soit 60 FCFA par sujet'), findsOneWidget);
+
+      final defile = find.descendant(of: find.byType(ConfigurationTab), matching: find.byType(Scrollable)).first;
+      await tester.scrollUntilVisible(find.text('Enregistrer'), 200, scrollable: defile);
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+      expect(finance.couts['b1'], {
+        'coutFixeParSujet': 0,
+        'coutFixeForfait': 30000,
+        'amortissementParSujet': 20,
+        'amortissementForfait': 0,
+      });
+
+      // Choisir une autre bande depuis la liste : son forfait est rechargé.
+      await tester.scrollUntilVisible(find.text('Bande B11'), 200, scrollable: defile);
+      await tester.tap(find.text('Bande B11'));
+      await tester.pumpAndSettle();
+      final amort = find.widgetWithText(TextField, 'Amortissement · forfait pour la bande');
+      expect(norm(tester.widget<TextField>(amort).controller!.text), '90 000');
       expect(tester.takeException(), isNull);
     });
 
